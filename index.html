@@ -449,10 +449,10 @@ table.moments td:nth-child(2){font-weight:600}
 
 /* ---------- 8a letters, 8d the staff ---------- */
 :root{--script:"Monsieur La Doulaise","IM Fell English",Georgia,serif}
-.disp.letter .lbody{font-family:var(--fell);font-size:.98rem;line-height:1.4}
-.disp.letter .lbody p.sal{margin:.35em 0 .1em;font-style:italic}
-.disp.letter .lbody ul{margin:.15em 0 0}
-.disp.letter .lbody p.sig{margin:.2em 0 0;text-align:right;font-family:var(--script);font-size:1.45rem;line-height:1.1}
+.disp.lt .lbody{font-family:var(--fell);font-size:.98rem;line-height:1.4}
+.disp.lt .lbody p.sal{margin:.35em 0 .1em;font-style:italic}
+.disp.lt .lbody ul{margin:.15em 0 0}
+.disp.lt .lbody p.sig{margin:.2em 0 0;text-align:right;font-family:var(--script);font-size:1.45rem;line-height:1.1}
 .oletter{font-family:var(--fell);color:var(--m-ink);line-height:1.35}
 .oletter .ohead{font-size:.82rem;text-align:right;font-style:italic;opacity:.8}
 .oletter .osal{margin-top:.35em;font-style:italic}
@@ -5381,7 +5381,7 @@ function dispHTML(m) {
   if (CORPS.includes(m.from) || m.from === 'ney') acts += `<button data-write="${m.from}">Write to ${m.from === 'ney' ? 'Ney' : SIM.leaders[m.from].name}</button>`;
   else if (m.from === 'grouchy') acts += `<button data-write="grouchy">Write to Grouchy</button>`;
   const actsH = acts ? `<div class="dact">${acts}</div>` : '';
-  if (isLetter(m)) return `<article class="disp letter k-${m.kind}${m.decision ? ' decide' : ''}${sel ? ' sel' : ''}${hasMap ? ' clickable' : ''}" data-mid="${m.id}">${letterHTML(m, body2, actsH)}</article>`;
+  if (isLetter(m)) return `<article class="disp lt k-${m.kind}${m.decision ? ' decide' : ''}${sel ? ' sel' : ''}${hasMap ? ' clickable' : ''}" data-mid="${m.id}">${letterHTML(m, body2, actsH)}</article>`;
   return `<article class="disp k-${m.kind}${m.decision ? ' decide' : ''}${sel ? ' sel' : ''}${hasMap ? ' clickable' : ''}" data-mid="${m.id}"><header><b>${esc(m.title)}</b><time>${when}</time></header>${body2}${actsH}</article>`;
 }
 function renderStop() {
@@ -6844,7 +6844,7 @@ requestAnimationFrame(loop);
 </script>
 
 <script>
-// the offline release: keep every file of the game in this device's cache (release 752f86676d)
+// the offline release: keep every file of the game in this device's cache (release 057465d010)
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>

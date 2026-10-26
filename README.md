@@ -4,4 +4,4 @@ A command game of 18 June 1815: you are Napoleon, and you know only what your ey
 
 Open the site once in Safari (or Chrome), then **Add to Home Screen**. After that it opens from the icon with no signal.
 
-Everything is in `index.html` (engine, map and game); `sw.js` keeps it in the device's cache. Release 752f86676d.
+Everything is in `index.html` (engine, map and game); `sw.js` keeps it in the device's cache. Release 057465d010.
