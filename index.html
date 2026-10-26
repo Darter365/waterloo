@@ -31,7 +31,7 @@ body{margin:0}img{max-width:100%}[hidden]{display:none!important}
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 :root{
-  --bg:#e7ddc6; --fg:#2e251c; --fg-2:#65543f; --fg-3:#8a7860; --line:#cbbc9a; --panel:#f2ead7; --chip:#e8ddc4; --accent:#8a4a17; --focus:#2d4c86;
+  --bg:#e7ddc6; --fg:#2e251c; --fg-2:#65543f; --fg-3:#6f604b; --line:#cbbc9a; --panel:#f2ead7; --chip:#e8ddc4; --accent:#8a4a17; --focus:#2d4c86;
   --m-paper:#f3ead2; --m-ink:#392c20; --m-hach:#56412d; --m-contour:#9b7a52; --m-water:#3b6a8e; --m-wood:#98a468; --m-woodink:#4b5829;
   --m-build:#983828; --m-road:#e3c98f; --m-fr:#2c4b85; --m-al:#aa2f25; --m-pr:#24262a; --m-flag:#b0601c; --m-debate:#6c4a8a;
   --m-dead:74,50,28; --m-ok:#2e6a3a; --m-no:#b0302a;
@@ -41,7 +41,7 @@ body{margin:0}img{max-width:100%}[hidden]{display:none!important}
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#15110d; --fg:#ebe0c8; --fg-2:#b9a98c; --fg-3:#8d7e67; --line:#3a3127; --panel:#1d1813; --chip:#2a231b; --accent:#dba45f; --focus:#9db4e0;
+    --bg:#15110d; --fg:#ebe0c8; --fg-2:#b9a98c; --fg-3:#9a8a72; --line:#3a3127; --panel:#1d1813; --chip:#2a231b; --accent:#dba45f; --focus:#9db4e0;
     --m-paper:#d5c7a4; --m-ink:#2f241a; --m-hach:#4a3725; --m-contour:#86683f; --m-water:#30597a; --m-wood:#7f8b50; --m-woodink:#3f4a20;
     --m-build:#86301f; --m-road:#cdb179; --m-fr:#24427a; --m-al:#9c281f; --m-pr:#1e2023; --m-flag:#9a5214; --m-debate:#5d3e7a;
     --m-dead:58,38,20; --m-ok:#22582c; --m-no:#9c281f;
@@ -49,7 +49,7 @@ body{margin:0}img{max-width:100%}[hidden]{display:none!important}
   }
 }
 :root[data-theme="dark"]{
-  --bg:#15110d; --fg:#ebe0c8; --fg-2:#b9a98c; --fg-3:#8d7e67; --line:#3a3127; --panel:#1d1813; --chip:#2a231b; --accent:#dba45f; --focus:#9db4e0;
+  --bg:#15110d; --fg:#ebe0c8; --fg-2:#b9a98c; --fg-3:#9a8a72; --line:#3a3127; --panel:#1d1813; --chip:#2a231b; --accent:#dba45f; --focus:#9db4e0;
   --m-paper:#d5c7a4; --m-ink:#2f241a; --m-hach:#4a3725; --m-contour:#86683f; --m-water:#30597a; --m-wood:#7f8b50; --m-woodink:#3f4a20;
   --m-build:#86301f; --m-road:#cdb179; --m-fr:#24427a; --m-al:#9c281f; --m-pr:#1e2023; --m-flag:#9a5214; --m-debate:#5d3e7a;
   --m-dead:58,38,20; --m-ok:#22582c; --m-no:#9c281f;
@@ -83,7 +83,7 @@ button,select,input{font:inherit;color:inherit}
 .modehint{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;background:var(--m-ink);color:var(--m-paper);padding:5px 12px;font-size:.88rem;border-radius:2px;max-width:calc(100% - 110px);text-align:center}
 .tip{position:absolute;pointer-events:none;z-index:5;max-width:300px;background:var(--m-paper);color:var(--m-ink);border:1px solid var(--m-ink);box-shadow:2px 3px 0 color-mix(in srgb,var(--m-ink) 22%,transparent);padding:7px 10px 8px;font-size:.88rem;line-height:1.35}
 .tip b{font-family:var(--fellsc);font-weight:400;font-size:1.02rem;letter-spacing:.02em}
-.tip .sub{color:color-mix(in srgb,var(--m-ink) 72%,transparent);font-style:italic}
+.tip .sub{color:color-mix(in srgb,var(--m-ink) 78%,transparent);font-style:italic}
 .tip .conf{margin-top:3px;font-size:.8rem;color:var(--m-flag)}
 .status{font-size:.88rem;color:var(--fg-2);padding:6px 2px 0;min-height:1.7em;font-variant-numeric:tabular-nums lining-nums}
 .panel{display:flex;flex-direction:column;gap:10px;min-width:0}
@@ -233,7 +233,7 @@ table.moments td:nth-child(2){font-weight:600}
 .disp header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;align-items:baseline}
 .disp header b{font-family:var(--fellsc);font-weight:400;font-size:1.02rem;letter-spacing:.02em}
 .disp.decide header b::before{content:"★ ";color:var(--m-flag)}
-.disp header time{font-size:.8rem;color:color-mix(in srgb,var(--m-ink) 65%,transparent);font-variant-numeric:tabular-nums lining-nums}
+.disp header time{font-size:.8rem;color:color-mix(in srgb,var(--m-ink) 75%,transparent);font-variant-numeric:tabular-nums lining-nums}
 .disp p{margin:.3em 0 0}
 .disp ul{margin:.3em 0 0;padding-left:1.1em}
 .disp ul li{margin:.1em 0}
@@ -498,7 +498,7 @@ table.moments td:nth-child(2){font-weight:600}
     <h1>Waterloo <span>· Napoleon’s command</span></h1>
     <p>You are the Emperor on the morning of 18 June 1815. You see the field from your post and learn the rest from riders. Every order you give is written, carried across the field and passed down before a single brigade moves.</p>
   </div>
-  <span class="stamp">Release 1</span>
+  <span class="stamp">Release 2</span>
 </header>
 
 <main class="layout">
@@ -644,6 +644,7 @@ table.moments td:nth-child(2){font-weight:600}
         <p><b>Your pencil.</b> ✎ draws on the map with a finger or the mouse (two fingers still pan and zoom), <i>Aa</i> writes a short note where you tap, and ⌫ rubs out the mark you tap. Nothing in the battle reads your marks; your notes go into the after-action report.</p>
         <p><b>Letters and the staff.</b> Orders go out as the letters Soult’s office wrote, in the Emperor’s name over the major-général’s signature, and reports come in as their writers signed them; switch to plain text under Headquarters. At the stops Soult, Drouot or an aide may speak up. They speak only from what headquarters knows, so, like the real staff, they are sometimes wrong. Nothing they say changes the battle.</p>
         <p><b>Fighting it out, and retreating.</b> “To the end…” beside Ride on runs the clock to nightfall with no more stops: the front left to Ney, Napoleon’s own orders from that hour, or no more orders at all. To break off, write to <i>The whole army (general retreat)</i>: each corps commander gets a letter, makes for the high road and marches off toward Charleroi as it arrives, with the Guard or Lobau as rearguard at Rossomme. The enemy sees it within half an hour and follows; Blücher drives for the road. The battle is then judged on what you bring away.</p>
+        <p><b>An army’s nerve.</b> Each army’s will to fight wears down with the men it loses, with brigades seen breaking, and with the day’s great events: a farm lost, the crest taken, the Prussians coming in, the Guard thrown back. An army whose nerve goes breaks, brigade after brigade. You are never shown a number; your staff will tell you when the returns are heavy.</p>
         <p><b>The end.</b> The battle ends at dark (about 21:30), forty minutes after an army breaks, or once a French retreat has left the field. Then the umpire’s map is opened and you see what really happened, what you were never told, and how your orders fared. Below the map, the after-action report sets the day out hour by hour against what you knew and when, fights your battle again in the background without each of your orders, with the orders that mattered most sent sooner, and with Napoleon’s own orders, and can fight your orders on other days to show how much was the dice. You can go back to any stop and fight on from there.</p>
         <p><b>The umpire’s review.</b> At the end the umpire lists anything that looks wrong: figures far outside 1815, a farm changing hands again and again, orders that stuck. Tick any turning point that looks wrong to you and add a note, then save it for Claude (on the published page) or copy it to paste into a conversation. It carries your seed, settings and orders, so the same battle can be fought again to see what happened.</p>
         <p><b>Without a signal.</b> The same game is at <a href="https://darter365.github.io/waterloo/" target="_blank" rel="noopener">darter365.github.io/waterloo</a>. Open it once in Safari (or Chrome), then Share → Add to Home Screen; after that it opens from its icon with no signal, after-action report and all. Reviews made there can be copied, not saved.</p>
@@ -1153,7 +1154,8 @@ const K = {
   CAP_LOSS: 0.3,        // permanent max-cohesion loss per point below 50
   SHOCK_REPULSE: 0.8, SHOCK_WIN: 1.3, SHOCK_SIGMA: 0.3,
   CAV_BREAK_TEST: 1.0,  // scales the infantry morale test against cavalry
-  MORALE_BROKEN: 0.5,   // army morale per 1% of army strength broken
+  MORALE_BROKEN: 0.08,  // army morale per 1% of army strength broken (release 2: 0.08, was 0.5; the losses that broke a brigade now count through MORALE_CAS)
+  MORALE_CAS: 0.6,      // (8) army morale per 1% of the army's starting foot and horse killed, wounded or taken (release 2, est.; 0 = off)
   SMOKE_MUSKET: 0.00035, SMOKE_GUN: 0.03, SMOKE_DECAY: 0.87, SMOKE_DECAY_HUMID: 0.93, SMOKE_VIS: 0.8,
   KW_RATIO: 0.25,       // share of hits that are deaths (1 in 4)
   UNDER_FIRE_RECOVER: 0.5,
@@ -1317,7 +1319,7 @@ function create(opts = {}) {
   const E = {
     seed, rnd, scenario, history, K: Object.assign({}, K, opts.K || {}), t: scenario === '0500' ? 300 : 660, tick: 0,
     units: [], byId: {}, sps: [], spById: {}, leaders: {}, log: [], causes: [], orders: [], contacts: { FR: {}, AL: {}, PR: {} },
-    morale: { FR: 80, AL: 70, PR: 75 }, armyStr0: { FR: 0, AL: 0, PR: 0 }, wet: 0.6, wet0: 0.6, smoke: null, wind: { dir: 270, speed: 1.0 }, gustT: 0,
+    morale: { FR: 80, AL: 70, PR: 75 }, armyStr0: { FR: 0, AL: 0, PR: 0 }, lossAcc: { FR: 0, AL: 0, PR: 0 }, wet: 0.6, wet0: 0.6, smoke: null, wind: { dir: 270, speed: 1.0 }, gustT: 0,
     pathCost: {}, losCache: new Map(), metrics: { lhsFall: null, hougFall: null, bulowAttack: null, zietenPapelotte: null, plancenoitLost: null, plancenoitRetaken: null, guardAttack: null, guardRepulsed: null, frBreak: null, alBreak: null, prEngaged: null },
     flags: {}, over: false, result: null, ai: null, ruleHooks: [], history_: [], spTaken: {},
   };
@@ -1444,6 +1446,8 @@ function create(opts = {}) {
   const GARRISON_SP = { gHoug: 'hougoumont', gLHS: 'lhs', gSand: 'sandpit', gPap: 'papelotte', gLaHaye: 'lahaye', gSmo: 'smohain', gFri: 'frischermont' };
   for (const [uid, spid] of Object.entries(GARRISON_SP)) { const u = E.byId[uid], sp = E.spById[spid]; if (!u) continue; occupy(u, sp, 'AL'); }
   function occupy(u, sp, side) {
+    // (7) the old garrison, if another unit, stops being the garrison (before, two units could both think they held the place)
+    if (sp.garrison && sp.garrison !== u.id) { const g0 = E.byId[sp.garrison]; if (g0 && g0.spId === sp.id) { g0.spId = null; g0.spSec = null; if (g0.type === 'gar') g0.type = 'inf'; g0.form = 'columns'; const fp0 = footprint(g0); g0.F = fp0.F; g0.D = fp0.D; if (g0.task.kind === 'garrison') g0.task = { kind: 'hold', since: E.t }; } }
     for (const s of sp.secs) if (!s.burnt) s.held = side;
     sp.holder = side; sp.garrison = u.id; u.spId = sp.id; u.type = u.type === 'inf' || u.type === 'gar' ? 'gar' : u.type; u.form = 'garrison';
     const sec = outerHeld(sp, side); u.spSec = sec; if (sec) { u.x = sec.x; u.y = sec.y; }
@@ -1519,7 +1523,8 @@ function create(opts = {}) {
   E.setForm = setForm;
   function setTask(u, task, cause) { u.task = Object.assign({ since: E.t }, task); u.path = null; u.halted = false; if (cause) u.task.cause = cause; }
   E.setTask = setTask;
-  function routeTo(u, dest, march) { if (march) { u.path = astar(E, u.type === 'gar' ? 'inf' : u.type, u.x, u.y, dest[0], dest[1]); } else u.path = [dest]; u.pathDest = dest; }
+  function routeTo(u, dest, march) { dest = [clamp(dest[0], 10, WM - 10), clamp(dest[1], 10, HM - 10)]; // (7) a destination past the edge of the map was never reached
+    if (march) { u.path = astar(E, u.type === 'gar' ? 'inf' : u.type, u.x, u.y, dest[0], dest[1]); } else u.path = [dest]; u.pathDest = dest; }
   E.routeTo = routeTo;
 
   /* ----- order delivery (riders) ----- */
@@ -1564,6 +1569,7 @@ function create(opts = {}) {
     if (E.tick % 5 === 0) sighting();
     if (E.command) E.command.tick();
     keyPoints();
+    for (const s of ['FR', 'AL', 'PR']) E.morale[s] = clamp(E.morale[s], 0, 100); // (7) events after the morale step could leave it outside 0-100 for a tick
     endCheck();
     E.t += 2; E.tick++;
     if (E.tick % 15 === 0) E.history_.push(snapshotLite());
@@ -1626,7 +1632,9 @@ function create(opts = {}) {
     else base = u.horse || (u.nat === 'GB' && /troop|horse/i.test(u.name + u.parent)) || u.id === 'aRes' ? 110 : 60;
     let f = terrainSpeed(u.type === 'gar' ? 'inf' : u.type, tt, wet);
     if ((u.form === 'road' || u.form === 'limbered') && tt === T.ROAD) f = 1.2; else if (u.form === 'road' && tt === T.LANE) f = (1 - 0.5 * wet) + 0.15;
-    if (u.form === 'line') f *= 0.8; else if (u.form === 'mass') f *= 0.9; else if (u.form === 'square') f = 0; else if (u.form === 'battery' || u.form === 'park') f *= u.type === 'art' ? 0.25 : 1;
+    if (u.form === 'line') f *= 0.8; else if (u.form === 'mass') f *= 0.9; else if (u.form === 'square') f = 0.2; else if (u.form === 'battery' || u.form === 'park') f *= u.type === 'art' ? 0.25 : 1;
+    // (7) a square edges along at a fifth of the pace (est.); (8) for any task, not only a retreat: a party in square with enemy horse in sight
+    // could not move at all before, and stood for hours. (8) the battery clause was cut off by a comment in (7); it never mattered, since guns limber to move.
     if (u.fatigue > 75) f *= 0.75; else if (u.fatigue > 50) f *= 0.9;
     // uphill
     if (u.path && u.path.length) { const [tx, ty] = u.path[0], d = hyp(tx - u.x, ty - u.y); if (d > 1) { const ahead = Math.min(50, d), nx = u.x + (tx - u.x) / d * ahead, ny = u.y + (ty - u.y) / d * ahead, gr = (hAt(nx, ny) - hAt(u.x, u.y)) / ahead; if (gr > 0.08) f *= 0.7; else if (gr > 0.05) f *= 0.85; } }
@@ -1652,15 +1660,19 @@ function create(opts = {}) {
         if (d < 1) { u.path.shift(); continue; }
         const stopShort = u.path.length === 1 && u.stopAt ? u.stopAt : 0;
         const go = Math.min(budget, d - stopShort);
-        if (go <= 0.5) { u.path.shift(); break; }
+        if (d - stopShort <= 0.5) { u.path.shift(); break; } // there (or as close as it means to go)
+        if (go <= 0.5) break; // (8) the tick's march is spent; this was path.shift(), which dropped the next waypoint whenever a tick ended within half a metre of one
         u.x += dx / d * go; u.y += dy / d * go; budget -= go;
         if (u.status !== 'broken' && go > 5) u.facing = bearing(dx, dy);
         if (go >= d - 0.5) u.path.shift();
         u.movedTick = E.tick;
         // choke point: one column files through at a time (the Lasne crossing)
         let held = false;
-        for (const ch of E.chokes) if (hyp(u.x - ch.x, u.y - ch.y) < ch.r) {
-          if (!ch.cur || !E.byId[ch.cur] || !alive(E.byId[ch.cur]) || hyp(E.byId[ch.cur].x - ch.x, E.byId[ch.cur].y - ch.y) > ch.r + 60) { if (ch.cur !== u.id) { ch.cur = u.id; ch.until = E.t + (u.type === 'art' ? u.str * 30 : u.str) / (ch.rate * (wetAt(ch.x, ch.y) > 0.7 ? 0.5 : 1)); } }
+        for (const ch of E.chokes) if (hyp(u.x - ch.x, u.y - ch.y) < ch.r && (u.form === 'road' || u.form === 'limbered')) {
+          // (7) the column filing through is only the current one while it is still in column, on the move and of the same army; before,
+          // a brigade that stopped in the defile, or an enemy one sent there, kept it shut for the rest of the day
+          const cu = ch.cur && E.byId[ch.cur], filing = cu && alive(cu) && cu.side === u.side && (cu.form === 'road' || cu.form === 'limbered') && cu.path && cu.path.length && hyp(cu.x - ch.x, cu.y - ch.y) <= ch.r + 60;
+          if (!filing) { if (ch.cur !== u.id) { ch.cur = u.id; ch.until = E.t + (u.type === 'art' ? u.str * 30 : u.str) / (ch.rate * (wetAt(ch.x, ch.y) > 0.7 ? 0.5 : 1)); } }
           if (ch.cur !== u.id || E.t < ch.until) { held = true; }
         }
         if (held) { const ch = E.chokes.find(c => hyp(u.x - c.x, u.y - c.y) < c.r); if (ch && ch.cur === u.id && E.t < ch.until) { budget = 0; } else if (ch && ch.cur !== u.id) { u.x -= dx / d * go; u.y -= dy / d * go; budget = 0; } }
@@ -1816,13 +1828,14 @@ function create(opts = {}) {
     return best;
   }
   function burnSection(sp, sec, by) {
-    if (sec.burnt) return; sec.burnt = true;
+    if (sec.burnt) return; sec.burnt = true; sec.held = null;
     const c = E.cause(`Howitzer shells from ${by.name} set the ${sec.name} of ${sp.name} on fire`);
     log('event', `The ${sec.name} of ${sp.name} ${/s$/.test(sec.name) ? 'are' : 'is'} on fire.`, { cause: c, sp: sp.id });
     if (E.command) E.command.onFire(sp, sec);
     const g = E.byId[sp.garrison];
-    if (g && g.spSec === sec) { const nxt = sp.secs.find(s => s.held === g.side && !s.burnt); if (nxt) { g.spSec = nxt; g.x = nxt.x; g.y = nxt.y; } else evictGarrison(sp, g, 'fire'); }
+    if (g && g.spSec === sec) { const nxt = sp.secs.find(s => s.held === sideKey(g) && !s.burnt); if (nxt) { g.spSec = nxt; g.x = nxt.x; g.y = nxt.y; } else evictGarrison(sp, g, 'fire'); }
     if (g) g.coh -= 6;
+    refreshHolder(sp, null, c);
   }
 
   /* ----- infantry assaults and strongpoints ----- */
@@ -1833,21 +1846,25 @@ function create(opts = {}) {
       const tgt = currentTarget(u); if (!tgt) continue;
       const r = tgt.range;
       if (r > 55) { u.contactTicks = 0; continue; }
+      if (u.form === 'road') { setForm(u, u.task.form || 'attack'); continue; } // (8) a column of route deploys before it can assault
       u.contactTicks = (u.contactTicks || 0) + 1;
       if (u.contactTicks % 2 !== 1) continue; // test every other tick while in contact
       shock(u, tgt);
     }
   }
+  // (8) how far in front of its centre a body reaches for an assault: half its depth, except a column of route, whose depth runs back along
+  // the road (half of it was 900 m for a big brigade, so a column a kilometre off "reached" a village and was set down inside it)
+  const reachD = u => (u.form === 'road' || u.form === 'limbered') ? 30 : u.D / 2;
   function currentTarget(u) {
     const t = u.task;
     if (t.targetUnit) { const e = E.byId[t.targetUnit]; if (e && formed(e) && e.spId) { t.sp = e.spId; t.targetUnit = null; } else if (e && formed(e)) return { unit: e, range: frontRange(u, e) }; else t.targetUnit = null; }
-    if (t.sp) { const sp = E.spById[t.sp]; const sec = sp.secs.find(s => s.held && s.held !== sideKey(u) && (s.held === 'FR') !== (u.side === 'FR') && !s.burnt); if (sec) { const g = E.byId[sp.garrison]; const r = Math.max(10, hyp(u.x - sec.x, u.y - sec.y) - sec.r - u.D / 2); return { sp, sec, unit: g && formed(g) ? g : null, range: r }; } }
+    if (t.sp) { const sp = E.spById[t.sp]; const sec = sp.secs.find(s => s.held && s.held !== sideKey(u) && (s.held === 'FR') !== (u.side === 'FR') && !s.burnt); if (sec) { const g = E.byId[sp.garrison]; const r = Math.max(10, hyp(u.x - sec.x, u.y - sec.y) - sec.r - reachD(u)); return { sp, sec, unit: g && formed(g) ? g : null, range: r }; } }
     // nearest enemy in front within 120 m blocks the way
     const blk = near(u.x, u.y, 160, e => isEnemy(u, e) && formed(e) && e.type !== 'art' && !e.spId);
     let best = null, br = Infinity; for (const e of blk) { const r = frontRange(u, e); if (r < br && angDiff(u.facing, bearing(e.x - u.x, e.y - u.y)) < 80) { br = r; best = e; } }
     if (best) { u.task.targetUnit = best.id; return { unit: best, range: br }; }
     const gar = near(u.x, u.y, 260, e => isEnemy(u, e) && formed(e) && e.spId)[0];
-    if (gar) { const sp = E.spById[gar.spId]; const sec = sp && sp.secs.find(s => s.held && (s.held === 'FR') !== (u.side === 'FR') && !s.burnt); if (sec) { u.task.sp = sp.id; return { sp, sec, unit: gar, range: Math.max(10, hyp(u.x - sec.x, u.y - sec.y) - sec.r - u.D / 2) }; } }
+    if (gar) { const sp = E.spById[gar.spId]; const sec = sp && sp.secs.find(s => s.held && (s.held === 'FR') !== (u.side === 'FR') && !s.burnt); if (sec) { u.task.sp = sp.id; return { sp, sec, unit: gar, range: Math.max(10, hyp(u.x - sec.x, u.y - sec.y) - sec.r - reachD(u)) }; } }
     return null;
   }
   const sideKey = u => u.side === 'PR' ? 'AL' : u.side; // Prussians and Anglo-allies share control of places
@@ -1920,8 +1937,10 @@ function create(opts = {}) {
     if (!stillHeld) {
       const prev = sp.holder; sp.holder = side;
       if (prev !== side) spChanged(sp, prev, side, a, cause);
-      // the attacking brigade leaves a garrison and stays
-      a.task = { kind: 'garrison', sp: sp.id, since: E.t }; a.path = null; E.occupy(a, sp, side);
+      // the attacking brigade leaves a garrison and stays; (7) unless a garrison of its own side is still in the place, which keeps it
+      const g0 = sp.garrison && E.byId[sp.garrison];
+      if (g0 && g0 !== a && formed(g0) && g0.spId === sp.id && sideKey(g0) === side) { for (const s of sp.secs) if (!s.burnt && !s.held) s.held = side; a.task = { kind: 'hold', since: E.t }; a.path = null; }
+      else { a.task = { kind: 'garrison', sp: sp.id, since: E.t }; a.path = null; E.occupy(a, sp, side); }
     }
   }
   function evictGarrison(sp, g, how, cause) {
@@ -1931,8 +1950,16 @@ function create(opts = {}) {
     g.type = 'inf'; g.form = 'columns'; const fp = footprint(g); g.F = fp.F; g.D = fp.D;
     breakUnit(g, cause ?? E.cause(`${g.name} driven from ${sp.name} (${how})`));
     for (const s of sp.secs) if (s.held === sideKey(g)) s.held = null;
-    if (!sp.secs.some(s => s.held)) { const prev = sp.holder; sp.holder = null; if (prev) spChanged(sp, prev, null, null, cause); }
+    refreshHolder(sp, null, cause);
   }
+  // (7) a place belongs to whoever holds a section of it that is not burnt; when the old holder has none left it passes to the side that
+  // does, or to nobody. Before, a garrison breaking with the enemy already in one section left the place "held" by a side with no men in it.
+  function refreshHolder(sp, by, cause) {
+    const sides = new Set(sp.secs.filter(s => s.held && !s.burnt).map(s => s.held));
+    let h = sp.holder; if (!h || !sides.has(h)) h = sides.size === 1 ? [...sides][0] : null;
+    if (h !== sp.holder) { const prev = sp.holder; sp.holder = h; spChanged(sp, prev, h, by, cause); }
+  }
+  E.refreshHolder = refreshHolder;
   function spChanged(sp, from, to, by, cause) {
     log('place', `${sp.name} ${to ? (from ? 'is taken by the ' : 'is occupied by the ') + (to === 'FR' ? 'French' : 'Allies') : 'is abandoned'}.`, { sp: sp.id, cause, important: true });
     if (sp.key) {
@@ -1947,6 +1974,8 @@ function create(opts = {}) {
   // a unit entering an empty strongpoint
   E.enterSp = function (u, sp) { if (sp.garrison && E.byId[sp.garrison] && formed(E.byId[sp.garrison]) && E.byId[sp.garrison] !== u) { // reinforce
       const g = E.byId[sp.garrison]; mergeInto(g, u); return g; }
+    // (7) a farm burnt out in every section cannot be garrisoned: the men stand outside it (before, they "held" a farm with no section held)
+    if (sp.secs.every(s => s.burnt)) { E.setTask(u, { kind: 'hold', since: E.t }); u.path = null; return null; }
     const prev = sp.holder; occupy(u, sp, sideKey(u)); if (prev !== sideKey(u)) spChanged(sp, prev, sideKey(u), u); return u; };
   function mergeInto(g, u) { const tot = g.str + u.str; g.coh = (g.coh * g.str + u.coh * u.str) / tot; g.q = (g.q * g.str + u.q * u.str) / tot; g.ammo = (g.ammo * g.str + u.ammo * u.str) / tot; g.str = tot; g.str0 += u.str0; u.str = 0; u.gone = true; u.mergedInto = g.id; }
   E.mergeInto = mergeInto;
@@ -2030,7 +2059,7 @@ function create(opts = {}) {
 
   /* ----- casualties and cohesion ----- */
   function addCas(u, n, kind) {
-    n = Math.min(n, u.str); if (n <= 0) return; u.str -= n;
+    n = Math.min(n, u.str); if (n <= 0) return; u.str -= n; if (kind !== 'stragglers' && E.lossAcc) E.lossAcc[u.side] += n;
     if (kind === 'captured') u.captured += n; else if (kind === 'stragglers') u.stragglers += n; else { u.killed += n * E.K.KW_RATIO; u.wounded += n * (1 - E.K.KW_RATIO); }
     u.casTick = (u.casTick || 0) + n;
   }
@@ -2060,13 +2089,15 @@ function create(opts = {}) {
       }
       if (d.art > 0) u.underArt = E.tick;
     }
-    for (const u of E.units) if (alive(u) && u.str < 25 && u.type !== 'art') { u.gone = true; u.left = E.t; if (u.spId) { const sp = E.spById[u.spId]; evictGarrison(sp, u, 'destroyed'); } }
+    // (7) was alive(u), which missed a unit wiped out to exactly 0 in one tick: it went on "garrisoning" with no men
+    for (const u of E.units) if (u.onMap && !u.gone && u.str < 25 && u.type !== 'art') { u.gone = true; u.left = E.t; if (u.spId) { const sp = E.spById[u.spId]; evictGarrison(sp, u, 'destroyed'); } }
   }
   function breakUnit(u, cause) {
     if (u.status === 'broken' || u.gone) return;
     u.status = 'broken'; u.coh = Math.min(u.coh, 12); u.brokeAt = E.t; u.lying = false; u.charge = null; u.halted = false;
     if (u.form === 'square' || u.form === 'line' || u.form === 'mass') { u.form = 'columns'; const fp = footprint(u); u.F = fp.F; u.D = fp.D; }
-    if (u.spId) { const sp = E.spById[u.spId]; if (sp.garrison === u.id) { sp.garrison = null; for (const s of sp.secs) if (s.held === sideKey(u)) s.held = null; if (!sp.secs.some(s => s.held)) { const prev = sp.holder; sp.holder = null; spChanged(sp, prev, null, null, cause); } } u.spId = null; u.spSec = null; u.type = u.type === 'gar' ? 'inf' : u.type; }
+    if (u.spId) { const sp = E.spById[u.spId]; if (sp.garrison === u.id) { sp.garrison = null; for (const s of sp.secs) if (s.held === sideKey(u)) s.held = null; refreshHolder(sp, null, cause); } u.spId = null; u.spSec = null; u.type = u.type === 'gar' ? 'inf' : u.type; }
+    if (u.form === 'garrison') { u.form = 'columns'; const fp = footprint(u); u.F = fp.F; u.D = fp.D; } // (7) a broken garrison is no longer in its farm's formation
     const c = E.cause(`${u.name} broke`, [cause]);
     log('break', `${u.name} breaks and runs.`, { side: u.side, unit: u.id, cause: c, important: u.str > 1500 || u.isGuard });
     // army morale
@@ -2137,6 +2168,8 @@ function create(opts = {}) {
       // raw units leave the field
       if ((u.q <= 0.72) && u.coh < 40 && E.tick - u.lastHit < 3 && rnd('raw unit leaves') < 0.02) { u.gone = true; u.left = E.t; log('event', `${u.name} leaves the field.`, { side: u.side, unit: u.id, important: true }); E.morale[u.side] -= 1; }
     }
+    // (8) the army feels its losses: men killed, wounded or taken since the last tick, as a share of its strength at the start
+    for (const s of ['FR', 'AL', 'PR']) { if (E.K.MORALE_CAS && E.lossAcc[s]) E.morale[s] -= E.K.MORALE_CAS * E.lossAcc[s] / Math.max(1, E.armyStr0[s]) * 100; E.lossAcc[s] = 0; }
     // army break: every unit tests each tick
     for (const s of ['FR', 'AL', 'PR']) {
       E.morale[s] = clamp(E.morale[s], 0, 100);
@@ -2471,7 +2504,10 @@ function unitControl(E) {
       }
     } else if (t.kind === 'garrisonGo') {
       const sp = E.spById[t.sp];
-      if (!u.path || !u.path.length || hyp(u.x - sp.secs[0].x, u.y - sp.secs[0].y) < 80) {
+      const dIn = hyp(u.x - sp.secs[0].x, u.y - sp.secs[0].y);
+      // (8) out of road short of the place: march on (once), else give up; before, it went in from wherever it stood, up to a kilometre away
+      if ((!u.path || !u.path.length) && dIn > 400) { if (!t.rerouted) { t.rerouted = true; E.routeTo(u, [sp.secs[0].x, sp.secs[0].y], true); } else E.setTask(u, { kind: 'hold' }); }
+      else if (!u.path || !u.path.length || dIn < 80) {
         if (!sp.holder || sp.holder === (u.side === 'FR' ? 'FR' : 'AL')) { E.enterSp(u, sp); }
         else { E.setTask(u, { kind: 'attack', sp: sp.id, point: [sp.x, sp.y], attempts: 0, maxAttempts: 3, form: 'attack' }); }
       }
@@ -2593,7 +2629,7 @@ function wellington(E, S) {
     const sp = E.spById[id]; if (sp.holder || S['reocc_' + id] && t - S['reocc_' + id] < 40 || (S['reoccN_' + id] || 0) >= 2) continue;
     if (E.command ? frSeen(20, c => hyp(c.x - sp.x, c.y - sp.y) < 450 && c.status !== 'broken').length : E.near(sp.x, sp.y, 400, e => e.side === 'FR' && E.formed(e)).length) continue;
     const donor = E.units.filter(u => u.side === 'AL' && u.type === 'inf' && E.formed(u) && u.str > 900 && u.coh > 55 && hyp(u.x - sp.x, u.y - sp.y) < 1200).sort((a, b) => hyp(a.x - sp.x, a.y - sp.y) - hyp(b.x - sp.x, b.y - sp.y))[0];
-    if (donor) { S['reocc_' + id] = t; S['reoccN_' + id] = (S['reoccN_' + id] || 0) + 1; const tt = t; viaAide(E, 'wellington', donor, `Wellington's order to re-occupy ${sp.name}`, () => { if (sp.holder) return; const det = E.detach(donor, id === 'hougoumont' ? 700 : 300, 're' + id + tt, `${donor.name}'s companies for ${sp.name}`); if (det) { det.detachment = true; E.setTask(det, { kind: 'garrisonGo', sp: id }); det.path = [sp.access[0], sp.access[1]]; } }); }
+    if (donor && !sp.secs.every(s => s.burnt)) { S['reocc_' + id] = t; S['reoccN_' + id] = (S['reoccN_' + id] || 0) + 1; const tt = t; viaAide(E, 'wellington', donor, `Wellington's order to re-occupy ${sp.name}`, () => { if (sp.holder) return; const det = E.detach(donor, id === 'hougoumont' ? 700 : 300, 're' + id + tt, `${donor.name}'s companies for ${sp.name}`); if (det) { det.detachment = true; E.setTask(det, { kind: 'garrisonGo', sp: id }); det.path = [sp.access[0], sp.access[1]]; } }); }
   }
   if (!S.stepBack && t > 15 * 60) { const hurt = E.units.filter(u => u.side === 'AL' && u.type === 'inf' && E.formed(u) && u.task.crest && (u.srcArt || 0) > 150); if (hurt.length >= 3) { S.stepBack = t; for (const u of hurt) viaAide(E, 'wellington', u, `Wellington's order to ${u.name} to step back`, () => { if (!u.task.res) return; const r = [u.task.res[0], u.task.res[1] - 90]; u.task.res = r; if (u.task.state !== 'up') { u.path = [r]; u.lying = false; } }); E.logEvent('orders', 'Wellington pulls the first line back a hundred paces out of the cannonade.', { side: 'AL', hidden: true }); } }
   // Müffling's messages to Blücher: when the French main attack comes in, when things go badly, and every hour (est.)
@@ -2628,7 +2664,7 @@ function wellington(E, S) {
   // withdrawal if the line has gone and no Prussians by 19:00
   if (!S.withdraw && E.morale.AL < 25 && E.t > 19 * 60 && !prIn) {
     S.withdraw = true; E.logEvent('orders', 'Wellington orders the army back on the Forest of Soignes.', { side: 'AL', important: true });
-    for (const u of allies(E)) viaAide(E, 'wellington', u, `Wellington's order to ${u.name} to withdraw`, () => { const dest = [u.x, Math.max(80, u.y - 2500)]; E.setTask(u, { kind: 'move', dest, then: 'hold' }); E.routeTo(u, dest, true); });
+    for (const u of allies(E)) viaAide(E, 'wellington', u, `Wellington's order to ${u.name} to withdraw`, () => { if (u.spId && u.type === 'gar') E.leaveSp(u); /* (8) a garrison comes out first: it cannot march while it holds the buildings, and stood there for good */ const dest = [u.x, Math.max(80, u.y - 2500)]; E.setTask(u, { kind: 'move', dest, then: 'hold' }); E.routeTo(u, dest, true); });
     E.flags.alWithdraw = E.t;
   }
   // call up the Hal force if the French threaten the west flank
@@ -3333,6 +3369,7 @@ function install(E, opts = {}) {
   }
   function launch(r) {
     r.id = 'r' + C.nextId++; r.status = 'riding'; r.ridden = 0; r.leftAt = E.t; r.trail = [];
+    if (r.onLaunch) r.onLaunch(r);
     const from = r.fromPos || posOf(r.from) || [W.WM / 2, W.HM / 2];
     r.x = from[0]; r.y = from[1];
     const to = r.toPos || posOf(r.to);
@@ -3842,6 +3879,7 @@ function install(E) {
     if (o.to === 'grouchy') { r.toPos = [W.WM - 20, W.HM * 0.82]; r.offmapRide = Math.max(30, rnd.tri(...CK.GROUCHY_RIDE, 'ride to Grouchy') - 60); }
     r.onDeliver = rr => { received(rr.payload); for (const f of followers(rr.payload)) received(f); };
     r.onLost = rr => { for (const oo of [rr.payload].concat(followers(rr.payload))) { oo.status = 'lost'; oo.log.push(`${fmtT(E.t)} every rider lost`); } };
+    r.onLaunch = rr => { for (const oo of [rr.payload].concat(followers(rr.payload))) if (oo.status === 'writing') oo.status = 'riding'; }; // (7) on the road: 'writing' meant both before
     C.pendingLaunch.push({ at: o.writtenAt, r });
     o.log.push(`${fmtT(E.t)} written in ${Math.round(w)} min; clarity ${o.clarity.toFixed(2)}`);
   }
@@ -6309,6 +6347,11 @@ function staffRemarks() {
   // the Guard going in
   const guardIn = mine.some(o => o.to === 'drouot' && o.spec.action === 'attack' && (o.spec.with || []).some(id => /^g[1-4]/.test(id)));
   if (guardIn) say('guard', 'drouot', 'With the Middle Guard gone forward, Sire, the Old Guard battalions are all that stand between the army and the road.');
+  // (8) losses, as the corps returns give them: army morale now falls with the men lost, and the staff say so when the returns are heavy
+  { let n0 = 0, down = 0; for (const r of B.own.values()) { const u = SIM.byId[r.uid]; if (!u || u.side !== 'FR' || u.type === 'art' || u.mergedInto) continue; n0 += u.str0 || 0; if (r.srcState && r.srcState !== 'own eyes') down += Math.max(0, (u.str0 || 0) - r.str); }
+    const f = n0 ? down / n0 : 0, k = Math.round(down / 1000);
+    if (f >= 0.4) say('loss40', 'drouot', `By the returns, Sire, two men in five of the foot and horse are down. The army will not stand much more of this.`);
+    else if (f >= 0.25) say('loss25', 'soult', `The corps returns put our losses at some ${k} thousand men, Sire, a quarter of the foot and horse. The men feel it.`); }
   // late in the day
   if (t >= 19 * 60 + 45) say('dusk', 'soult', 'Darkness by nine, Sire. Whatever is to be done must be done in the next hour.');
   if (t >= 18 * 60 && ownBroken >= 6 && !mine.some(o => o.spec.action === 'retreat')) say('retreat', 'soult', `Sire, ${ownBroken} of our brigades are reported broken. It is time to think of the road to Charleroi while the Guard still stands.`);
@@ -6777,7 +6820,7 @@ function renderReview() {
 }
 function reviewRecord() {
   const ev = reviewEvents(), mine = G.review || { flagged: {}, notes: '' };
-  return { kind: 'waterloo-review', version: 'release 1', savedAt: new Date().toISOString(), seed: G.opts.seed, opts: G.opts,
+  return { kind: 'waterloo-review', version: 'release 2', savedAt: new Date().toISOString(), seed: G.opts.seed, opts: G.opts,
     result: { grade: SIM.result.grade, why: SIM.result.why, t: SIM.result.t, cas: SIM.result.cas, withdrawn: SIM.result.withdrawn || null }, metrics: SIM.metrics,
     orders: G.orderLog, refoughtFrom: G.refoughtFrom || null, toEnd: G.toEnd ? { mode: G.toEnd, from: G.toEndFrom } : null,
     umpireFlags: (G.reviewFlags || []).map(x => x.text), playerFlags: Object.keys(mine.flagged).filter(k => mine.flagged[k]).map(i => ({ t: ev[i].t, text: ev[i].text })),
@@ -6844,7 +6887,7 @@ requestAnimationFrame(loop);
 </script>
 
 <script>
-// the offline release: keep every file of the game in this device's cache (release 057465d010)
+// the offline release: keep every file of the game in this device's cache (release 51a0798e09)
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
