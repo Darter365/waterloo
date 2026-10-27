@@ -124,7 +124,7 @@ function unitControl(E) {
       if (status === 'disordered' || (status === 'shaken' && underFire && !led)) { u.halted = true; }
       else if (u.halted && u.coh >= 50) u.halted = false;
       // after dark no new attacks
-      if (E.t > 21 * 60 + 10) { u.halted = true; }
+      if (E.t > E.light.dark) { u.halted = true; }
       if (u.halted) continue;
       // direction: the strongpoint section still held by the enemy, else the assigned point, else the nearest enemy in front
       let goal = t.point;
@@ -146,7 +146,7 @@ function unitControl(E) {
       const lead = E.byId[t.of];
       if (!lead || !E.formed(lead) || lead.task.kind === 'rally' || lead.status === 'disordered') {
         // take over the attack
-        if (u.coh >= 50 && E.t < 21 * 60 + 10) { const ob = E.objectives[t.obj]; const pt = lead && lead.task.point ? lead.task.point : (ob ? ob.point : [u.x, u.y]); E.setTask(u, { kind: 'attack', sp: t.sp, point: pt, order: t.order, attempts: 0, maxAttempts: 2, form: 'attack' }); E.setForm(u, 'attack'); u.path = [pt]; }
+        if (u.coh >= 50 && E.t < E.light.dark) { const ob = E.objectives[t.obj]; const pt = lead && lead.task.point ? lead.task.point : (ob ? ob.point : [u.x, u.y]); E.setTask(u, { kind: 'attack', sp: t.sp, point: pt, order: t.order, attempts: 0, maxAttempts: 2, form: 'attack' }); E.setForm(u, 'attack'); u.path = [pt]; }
         else { E.setTask(u, { kind: 'hold' }); u.path = null; }
         continue;
       }
@@ -158,7 +158,7 @@ function unitControl(E) {
         // re-attack if the order still stands and the unit has recovered
         const prev = t.prev;
         if (prev && (prev.kind === 'retire' || prev.kind === 'rearguard')) { E.setTask(u, prev); E.routeTo(u, prev.kind === 'retire' ? E.retreatExit() : prev.dest, true); }
-        else if (prev && prev.kind === 'attack' && u.coh >= 55 && (prev.attempts || 0) + 1 < (prev.maxAttempts ?? 3) && E.t < 21 * 60 + 10 && u.type === 'inf') {
+        else if (prev && prev.kind === 'attack' && u.coh >= 55 && (prev.attempts || 0) + 1 < (prev.maxAttempts ?? 3) && E.t < E.light.dark && u.type === 'inf') {
           const L = u.corps && E.leaders[u.corps]; const keen = L ? L.agg : 0.6;
           if (E.rnd('renew attack') < 0.15 + 0.25 * keen) { E.setTask(u, Object.assign({}, prev, { attempts: (prev.attempts || 0) + 1 })); u.path = [prev.point]; E.setForm(u, prev.form || 'attack'); E.logEvent('combat', `${u.name} goes forward again.`, { side: u.side, unit: u.id }); }
         } else if (u.type === 'cav' && prev && prev.kind === 'cavRaid') { u.task = prev; }

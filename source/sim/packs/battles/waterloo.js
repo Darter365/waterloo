@@ -264,16 +264,19 @@ QUALITY.aHGC = 1.15; // the Guard horse artillery
    horse: horse artillery (moves at the horse gunners' pace). kind: cavalry weight (heavy: cuirassiers, carabiniers, dragoons and the British
    heavy brigades; lancer; otherwise light). guard: the Imperial Guard. weapon 'rifle': brigades counted as firing rifles (release 3 counts the
    whole brigade where it holds rifle companies: est.). ammo: the cartridge it needs (rifle cartridges do not come from the musket wagons).
-   ammo0: cartridges a man at the start, where not the usual 50 (La Haye Sainte's garrison had filled its pouches). */
+   ammo0: cartridges a man at the start, where not the usual 50 (La Haye Sainte's garrison had filled its pouches). prestige: how much its
+   army's morale drops, once, when it is thrown back from an attack the whole army is watching (an order marked so: the Guard's attack), and
+   its comrades' cohesion within sight each time (the Guard's foot: release 3's "La Garde recule!" values, est.). */
 const TRAITS = {
   aBull: { horse: true }, aRoss: { horse: true }, aRes: { horse: true },
   somerset: { kind: 'heavy' }, ponsonby: { kind: 'heavy' }, trip: { kind: 'heavy' }, dubois: { kind: 'heavy' }, travers: { kind: 'heavy' }, farine: { kind: 'heavy' },
   vial: { kind: 'heavy' }, picquet: { kind: 'heavy' }, guiton: { kind: 'heavy' }, blanchard: { kind: 'heavy' }, donop: { kind: 'heavy' },
   guyot: { kind: 'heavy', guard: true }, glanc: { kind: 'lancer', guard: true }, gchev: { guard: true },
   gobrecht: { kind: 'lancer' }, wathiez: { kind: 'lancer' }, colbert: { kind: 'lancer' },
-  g1gren: { guard: true }, g2gren: { guard: true }, g3gren: { guard: true }, g4gren: { guard: true }, g1chas: { guard: true }, g2chas: { guard: true },
-  g3chas: { guard: true }, g4chas: { guard: true }, yg1: { guard: true }, yg2: { guard: true }, aGuard: { guard: true },
-  kempt: { weapon: 'rifle' }, adam: { weapon: 'rifle' }, brue: { weapon: 'rifle' },
+  g1gren: { guard: true, prestige: 15 }, g2gren: { guard: true, prestige: 15 }, g3gren: { guard: true, prestige: 15 }, g4gren: { guard: true, prestige: 15 }, g1chas: { guard: true, prestige: 15 }, g2chas: { guard: true, prestige: 15 },
+  g3chas: { guard: true, prestige: 15 }, g4chas: { guard: true, prestige: 15 }, yg1: { guard: true, prestige: 15 }, yg2: { guard: true, prestige: 15 }, aGuard: { guard: true },
+  // prestige: how much the army loses when this unit is thrown back from an attack, and its comrades in sight with it ("La Garde recule!"; est.)
+  kempt: { weapon: 'rifle' }, adam: { weapon: 'rifle' }, // (brue, French, was counted as rifles in release 3 because its note names the 95th of the Line)
   gLHS: { weapon: 'rifle', ammo: 'rifle', ammo0: 60 }, gSand: { weapon: 'rifle', ammo: 'rifle' },
 };
 const CORPS = { // unit id -> corps/command key
@@ -330,7 +333,8 @@ const OBJECTIVES = {
   ridgeWest: { name: 'the ridge west of the Brussels road', line: [[50.6808, 4.3950], [50.6808, 4.4100]] },
   ridgeEast: { name: 'the ridge east of La Haye Sainte', line: [[50.6810, 4.4140], [50.6828, 4.4320]] },
   ridgeLeft: { name: 'the allied left above Papelotte', line: [[50.6830, 4.4320], [50.6858, 4.4430]] },
-  ridgeCentre: { name: 'the crossroads and the ridge either side', line: [[50.6806, 4.4040], [50.6812, 4.4190]] },
+  ridgeCentre: { name: 'the crossroads and the ridge either side', value: 1, holder: 'AL', flag: 'crestFR',
+    says: { taken: 'French infantry stand on the crest of the Mont-Saint-Jean ridge.', regained: 'The Allies clear the crest again.' }, line: [[50.6806, 4.4040], [50.6812, 4.4190]] },
   ridgeRightCentre: { name: 'the allied right-centre', line: [[50.6808, 4.3975], [50.6808, 4.4060]] },
   msj: { name: 'Mont-Saint-Jean', point: [50.6880, 4.4090] },
   ba: { name: 'La Belle Alliance', sp: 'ba' },
@@ -430,7 +434,7 @@ P.register('battle', 'waterloo', {
   nations: ['FR', 'GB', 'KGL', 'HAN', 'NL', 'NAS', 'BRU', 'MIX', 'PR'],
   // the armies on the field: morale at the start (est., rules doc) and the coalition each fights in (it shares places and does not fire on its own)
   // fatigue0: tiredness at the start (the French marched through the night: est.); chief: the commander whose presence speeds a unit's rally
-  // (release 3 rule: the Prussians too rally on Wellington's presence); cavChief: who leads a horse brigade that has no leader of its own;
+  // (release 3 had the Prussians rally on Wellington's presence; now Blücher's); cavChief: who leads a horse brigade that has no leader of its own;
   // corps0: the command a unit with no corps belongs to; rear: the map edge the army falls back to (N, S, E, W), by the route named;
   // exit: where its line of retreat leaves the map; rearguard: where a rearguard would stand to cover it
   sides: [
@@ -441,7 +445,7 @@ P.register('battle', 'waterloo', {
       wagons: { rifle: { roll: 'rifle wagon', near: 0.25, far: 0.35, farFrom: 1050,
         says: { near: 'The rifle-ammunition wagon for La Haye Sainte is close behind the ridge.', far: 'The rifle-ammunition wagon for La Haye Sainte is stuck far back on the Brussels road.', lost: 'The rifle-ammunition wagon for La Haye Sainte is lost on the road from Brussels.' },
         short: 'No rifle cartridges can be found for {place}; musket rounds do not fit the Baker rifle.' } } },
-    { id: 'PR', name: 'Prussian', morale0: 75, coalition: 'AL', fatigue0: 15, chief: 'wellington', rear: 'E', retreat: 'prRetreat' },
+    { id: 'PR', name: 'Prussian', morale0: 75, coalition: 'AL', fatigue0: 15, chief: 'blucher', rear: 'E', retreat: 'prRetreat' },
   ],
   /* the starts (scenarios): the clock, the ground (wet 0-1; it dries 0.13 an hour from dryFrom, never below 0.2: rules doc), and for 05:00
      where the French lie and come up. Est. throughout: the sources agree that the rain stopped about 06:00, that Napoleon at 05:00 set the
@@ -463,9 +467,26 @@ P.register('battle', 'waterloo', {
         [495, ['picquet', 'guiton', 'blanchard', 'donop', 'aHKel']], [525, ['bellair', 'thevenet', 'bony', 'tromelin', 'aVI']], [570, ['dommanget', 'vinot', 'colbert', 'merlin', 'aHDS']]] } },
   },
   // the weather beyond the ground: the soaked night took 5 off every unit's starting cohesion; the evening air was damp from 15:00 (smoke lingers)
-  weather: { cohesion0: -5, humidFrom: 900 },
-  // light on the day: sunset 20:20, dark 21:10, the battle's end 21:30; how far a man can see by the clock (m), from the rules doc
-  light: { sunset: 1220, dark: 1270, end: 1290, vis: [[300, 3000], [540, 6000], [720, 8000], [960, 6000], [1220, 5000], [1270, 1000], [1290, 600]], visAfter: 600 },
+  // the clock is local mean time; the light is computed from the date and the place (engine). vis: how far a man can see by the clock (m)
+  // for the weather and the smoke haze, rules doc (rain and mist at dawn, clearest at noon); after the last point it holds
+  weather: { cohesion0: -5, humidFrom: 900, vis: [[300, 3000], [540, 6000], [720, 8000], [960, 6000], [1220, 5000]] },
+  // the coalitions by name, for the log ("taken by the French")
+  coalitionNames: { FR: 'French', AL: 'Allies' },
+  // the corps by name, for the log
+  corpsNames: { bulow: "Bülow's IV Corps", pirch: "Pirch's II Corps", zieten: "Zieten's I Corps", hal: "Prince Frederik's corps from Hal", grouchy: "Grouchy's wing" },
+  /* (phase 2) the turning points the after-action report and the calibration watch, by when: taken (a place passes to a side; after: only
+     once another has happened; every: each time), fires (a corps or side first fires on the enemy), near (a corps first comes within so many
+     metres of a place), prestige (a side's prestige unit is first thrown back). */
+  metrics: [
+    { id: 'lhsFall', when: 'taken', place: 'lhs', by: 'FR' },
+    { id: 'hougFall', when: 'taken', place: 'hougoumont', by: 'FR' },
+    { id: 'plancenoitLost', when: 'taken', place: 'plancenoit', by: 'AL' },
+    { id: 'plancenoitRetaken', when: 'taken', place: 'plancenoit', by: 'FR', after: 'plancenoitLost', every: true },
+    { id: 'prEngaged', when: 'fires', side: 'PR', at: 'FR' },
+    { id: 'bulowAttack', when: 'fires', corps: 'bulow', at: 'FR' },
+    { id: 'zietenPapelotte', when: 'near', corps: 'zieten', place: 'papelotte', within: 700, says: "Zieten's leading troops reach Papelotte." },
+    { id: 'guardRepulsed', when: 'prestige', side: 'FR', says: '"La Garde recule!" The cry runs along the French line.' },
+  ],
   // a corps that marches by another's road: Pirch's II Corps followed Bülow's IV Corps through Lasne
   routeOf: { pirch: 'bulow' },
   // who commands, and where they stand or ride: the people are in the leader pack

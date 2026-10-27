@@ -1,27 +1,23 @@
 {
  "note": "Battle names, era words (era:) and arm-type branches (arm:) the engine still uses (engine roadmap, phase 1). This list may only shrink: phases 2 and 3 move each into a pack or a capability. Regenerate with node tools/lint.js --update.",
  "totals": {
-  "battle": 778,
+  "battle": 739,
   "era": 53,
   "arm": 129
  },
  "lines": {
-  "battle": 314,
+  "battle": 298,
   "era": 39,
   "arm": 107
  },
  "files": {
   "engine.js": {
-   "AL": 10,
-   "FR": 29,
-   "Mont-Saint-Jean": 1,
-   "PR": 6,
-   "Papelotte": 2,
+   "AL": 4,
+   "FR": 12,
+   "PR": 2,
    "W.HORSE_BATTERIES": 1,
-   "Zieten": 2,
    "arm:art": 2,
    "arm:gar": 4,
-   "bulow": 2,
    "era:canister": 3,
    "era:cannon": 1,
    "era:cartridge": 1,
@@ -31,11 +27,7 @@
    "era:musket": 2,
    "era:rifle": 3,
    "era:roundshot": 3,
-   "era:square": 7,
-   "hougoumont": 1,
-   "lhs": 1,
-   "plancenoit": 1,
-   "zieten": 2
+   "era:square": 7
   },
   "ai.js": {
    "AL": 27,

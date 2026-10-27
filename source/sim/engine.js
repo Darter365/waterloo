@@ -6,11 +6,12 @@ const Packs = root.WPacks || (typeof require === 'function' ? require('./packs/a
 /* (phase 1) Everything below is built once per battle from its resolved pack: the battle's map and order of battle (W), its era's
    numbers (ERA) and its nations' drill (NATIONS). Nothing in it names a battle except where the lint allow-list records it. */
 function buildWorld(BATTLE) {
-const W = BATTLE.W, ERA = BATTLE.era, NATIONS = BATTLE.nations, SIDES = BATTLE.sides, SIDE_IDS = BATTLE.sideIds, COAL = BATTLE.coalition, LIGHT = BATTLE.battle.light;
+const W = BATTLE.W, ERA = BATTLE.era, NATIONS = BATTLE.nations, SIDES = BATTLE.sides, SIDE_IDS = BATTLE.sideIds, COAL = BATTLE.coalition;
 const ROUTE_OF = BATTLE.battle.routeOf || {}; // a corps that marches by another's road (Waterloo: Pirch's II Corps follows Bülow's)
 const SIDE_BY = Object.fromEntries(SIDES.map(s => [s.id, s])); // each army's own settings (battle pack): fatigue0, chief, rear, retreat ...
 const COALS = [...new Set(SIDES.map(s => COAL[s.id]))]; // the coalitions, in the battle's order
-const STARTS = BATTLE.battle.starts || {}, WEATHER = BATTLE.battle.weather || {}, TRAITS = W.TRAITS || {};
+const STARTS = BATTLE.battle.starts || {}, WEATHER = BATTLE.battle.weather || {}, TRAITS = W.TRAITS || {}, METRICS = BATTLE.battle.metrics || [];
+const COAL_NAME = BATTLE.battle.coalitionNames || {}, CORPS_NAME = BATTLE.battle.corpsNames || {};
 const natOf = u => NATIONS[u.nat] || {};
 const gunCal = nat => (NATIONS[nat] && NATIONS[nat].gunCalibre) || ERA.gunCalibre; // a battery's guns when the battle does not say
 // (phase 2) an army's rear edge: N, S, E or W. "Toward the rear by more than d" and "past the edge, within m of it", written per edge so the
@@ -66,6 +67,8 @@ function samp(A, x, y, nx = NX, ny = NY, cell = CELL) {
   return (A[i] * (1 - tx) + A[i + 1] * tx) * (1 - ty) + (A[i + nx] * (1 - tx) + A[i + nx + 1] * tx) * ty;
 }
 const hAt = (x, y) => samp(H, x, y);
+// (phase 2g) does segment a-b cross segment c-d? where along a-b (0-1), or -1
+function segX(ax, ay, bx, by, cx, cy, dx, dy) { const r1 = bx - ax, r2 = by - ay, s1 = dx - cx, s2 = dy - cy, den = r1 * s2 - r2 * s1; if (!den) return -1; const t = ((cx - ax) * s2 - (cy - ay) * s1) / den, u = ((cx - ax) * r2 - (cy - ay) * r1) / den; return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? t : -1; }
 const polyLen = p => { let L = 0; for (let i = 1; i < p.length; i++) L += hyp(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]); return L; };
 function segDist(px, py, ax, ay, bx, by) { const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1; let t = ((px - ax) * dx + (py - ay) * dy) / L2; t = clamp(t, 0, 1); return hyp(px - ax - t * dx, py - ay - t * dy); }
 function polyDist(px, py, p) { let m = Infinity; for (let i = 1; i < p.length; i++) m = Math.min(m, segDist(px, py, p[i - 1][0], p[i - 1][1], p[i][0], p[i][1])); return m; }
@@ -166,12 +169,30 @@ function fireFrac(u) { const f = FORMS[u.form]; if (!f || f.fire == null) return
 const FORM_TICKS = (u, to) => { const T1 = FORMS[to] || {}, T0 = FORMS[u.form] || {}; if (T1.toTicks) return stepBy(T1.toTicks, u.coh, T1.toTicksElse); if (T0.fromTicks != null) return T0.fromTicks; return Math.max(T1.ticks ?? 2, T0.ticks ?? 2); };
 
 /* ---------------- light and visibility ---------------- */
-const SUNSET = LIGHT.sunset, DARK = LIGHT.dark, END = LIGHT.end; // the battle's light (battle pack)
-function bgVis(t) { const pts = LIGHT.vis; for (let i = 1; i < pts.length; i++) if (t <= pts[i][0]) { const [a, va] = pts[i - 1], [b, vb] = pts[i]; return va + (vb - va) * (t - a) / (b - a); } return LIGHT.visAfter; }
-const duskFire = t => t <= SUNSET ? 1 : t >= DARK ? 0.5 : 1 - 0.5 * (t - SUNSET) / (DARK - SUNSET);
+/* (phase 2) light from the date and the place: the sun's altitude through the day at the middle of the map, by the battle's clock (local
+   mean time), with the usual approximation (NOAA's; good to a minute or two). The era says what the light does: how far a man can see and how
+   much fire tells once the sun is down, when it is too dark to rally (dusk) and when fighting stops. The weather adds its own haze. */
+function sunAlt(date, lat, lon, tLMT) {
+  const [Y, Mo, D] = date.split('-').map(Number), leap = (Y % 4 === 0 && Y % 100 !== 0) || Y % 400 === 0;
+  const n = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334][Mo - 1] + D + (leap && Mo > 2 ? 1 : 0), utc = tLMT - 4 * lon;
+  const g = 2 * Math.PI / (leap ? 366 : 365) * (n - 1 + (utc / 60 - 12) / 24);
+  const eq = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+  const dec = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+  const ha = ((tLMT + eq) / 4 - 180) * D2R, phi = lat * D2R, cz = Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(ha);
+  return 90 - Math.acos(clamp(cz, -1, 1)) / D2R;
+}
+const LE = ERA.light, [CLAT, CLON] = m2ll(WM / 2, HM / 2);
+const SUN = new Float64Array(1442); for (let m = 0; m <= 1441; m++) SUN[m] = sunAlt(BATTLE.battle.date, CLAT, CLON, m);
+const sunAt = t => { const m = clamp(t, 0, 1440), i = Math.floor(m); return SUN[i] + (SUN[i + 1] - SUN[i]) * (m - i); };
+const eveningAt = alt => { let lo = 720, hi = 1440; for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; if (sunAt(m) > alt) lo = m; else hi = m; } return lo; };
+const lerpClamp = (pts, x) => { if (x <= pts[0][0]) return pts[0][1]; for (let i = 1; i < pts.length; i++) if (x <= pts[i][0]) { const [a, va] = pts[i - 1], [b, vb] = pts[i]; return va + (vb - va) * (x - a) / (b - a); } return pts[pts.length - 1][1]; };
+const SUNSET = eveningAt(LE.sunset), DARK = eveningAt(LE.dark), END = eveningAt(LE.end); // the minutes, after noon, the sun sinks to each
+// how far a man can see (m): the weather's haze by the clock, and once the sun is down, the failing light
+function bgVis(t) { const w = lerpClamp(WEATHER.vis, t), alt = sunAt(t); return alt >= LE.sunset ? w : Math.min(w, lerpClamp(LE.vis, -alt)); }
+const duskFire = t => { const alt = sunAt(t); return alt >= LE.sunset ? 1 : lerpClamp(LE.fire, -alt); }; // the share of fire that tells in failing light
 const K_CURV = 0.87 / (2 * 6371000);
 const HIT = ERA.hit;
-function hitChance(r) { for (let i = 1; i < HIT.length; i++) if (r <= HIT[i][0]) { const [a, pa] = HIT[i - 1], [b, pb] = HIT[i]; return pa + (pb - pa) * (r - a) / (b - a); } return 0; }
+function hitChance(r, tab = HIT) { for (let i = 1; i < tab.length; i++) if (r <= tab[i][0]) { const [a, pa] = tab[i - 1], [b, pb] = tab[i]; return pa + (pb - pa) * (r - a) / (b - a); } return 0; } // a weapon's own table, else the era's musket
 const stepBy = (tab, v, dflt) => { for (const [lim, val] of tab) if (v >= lim) return val; return dflt; }; // the first row whose threshold v reaches
 const bandBelow = (tab, r) => { for (const [lim, val] of tab) if (r < lim) return val; return 0; }; // the first band r is below
 const curveAt = (pts, r) => { if (r <= pts[0][0]) return pts[0][1]; let i = 1; while (i < pts.length - 1 && r > pts[i][0]) i++; const [a, pa] = pts[i - 1], [b, pb] = pts[i]; return pa + (pb - pa) * (r - a) / (b - a); };
@@ -190,10 +211,11 @@ function create(opts = {}) {
     seed, rnd, scenario, history, K: Object.assign({}, K, opts.K || {}), t: START.t, tick: 0,
     units: [], byId: {}, sps: [], spById: {}, leaders: {}, log: [], causes: [], orders: [], contacts: Object.fromEntries(SIDE_IDS.map(s => [s, {}])),
     morale: Object.fromEntries(SIDES.map(s => [s.id, s.morale0])), armyStr0: Object.fromEntries(SIDE_IDS.map(s => [s, 0])), lossAcc: Object.fromEntries(SIDE_IDS.map(s => [s, 0])), wet: 0.6, wet0: 0.6, smoke: null, wind: { dir: 270, speed: 1.0 }, gustT: 0,
-    pathCost: {}, losCache: new Map(), metrics: { lhsFall: null, hougFall: null, bulowAttack: null, zietenPapelotte: null, plancenoitLost: null, plancenoitRetaken: null, guardAttack: null, guardRepulsed: null, frBreak: null, alBreak: null, prEngaged: null },
+    pathCost: {}, losCache: new Map(), metrics: Object.fromEntries([...(BATTLE.battle.metrics || []).map(m => m.id), 'guardAttack', ...SIDE_IDS.map(x => x.toLowerCase() + 'Break')].map(k => [k, null])),
     flags: {}, over: false, result: null, ai: null, ruleHooks: [], history_: [], spTaken: {},
   };
   E.fmtT = fmtT; E.W = W; E.T = T; E.TT = TT; E.hAt = hAt; E.ll2m = ll2m; E.m2ll = m2ll;
+  E.light = { sunset: SUNSET, dark: DARK, end: END, sunAt }; // (phase 2) this battle's light, computed
   E.battleId = BATTLE.id; E.sideIds = SIDE_IDS; E.sides = SIDES; E.coalition = COAL; E.footprint = footprint; E.bgVis = bgVis; E.nations = NATIONS; E.era = ERA;
   const log = (cat, text, extra = {}) => { const e = { t: E.t, cat, text, ...extra }; E.log.push(e); return e; };
   E.logEvent = log;
@@ -265,7 +287,7 @@ function create(opts = {}) {
   for (const sp of W.STRONGPOINTS) {
     const secs = sp.sections.map(s => { const [x, y] = ll2m(s.at[0], s.at[1]); return { ...s, x, y, held: null, burnt: false }; });
     const acc = sp.access.map(p => ll2m(p[0], p[1]));
-    const o = { id: sp.id, name: sp.name, key: !!sp.key, secs, access: acc, holder: null, garrison: null, x: secs[secs.length - 1].x, y: secs[secs.length - 1].y };
+    const o = { id: sp.id, name: sp.name, key: !!sp.key, value: sp.value ?? (sp.key ? 1 : 0), secs, access: acc, holder: null, garrison: null, x: secs[secs.length - 1].x, y: secs[secs.length - 1].y };
     E.sps.push(o); E.spById[sp.id] = o;
   }
   E.objectives = {};
@@ -275,8 +297,26 @@ function create(opts = {}) {
     if (o.point) ob.point = ll2m(o.point[0], o.point[1]);
     if (o.line) { ob.line = o.line.map(p => ll2m(p[0], p[1])); ob.point = [(ob.line[0][0] + ob.line[1][0]) / 2, (ob.line[0][1] + ob.line[1][1]) / 2]; }
     if (o.own) ob.own = true;
+    if (o.value) Object.assign(ob, { value: o.value, holder: o.holder, flag: o.flag, says: o.says, takenAt: null }); // (phase 2) a line worth holding
     E.objectives[k] = ob;
   }
+  /* ----- obstacles (phase 2g): lines on the map (hedges, walls, stakes, ditches) and fieldworks dug in the battle; the era says how each
+     slows a body crossing it by how it moves (0: it cannot cross formed), how much it disorders it, the cover it gives the men behind it,
+     and how it stands against horse ----- */
+  E.obstacles = (W.OBSTACLES || []).map((o, i) => mkObstacle(o.kind, o.pts.map(p => ll2m(p[0], p[1])), o.name || o.kind + ' ' + (i + 1)));
+  function mkObstacle(kind, pts, name) { const K_ = (ERA.obstacles || {})[kind]; if (!K_) throw new Error(`obstacle kind "${kind}" is not in the era`); const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]); return { kind, K: K_, pts, name, x0: Math.min(...xs) - 1, x1: Math.max(...xs) + 1, y0: Math.min(...ys) - 1, y1: Math.max(...ys) + 1 }; }
+  // the first obstacle the segment a-b crosses, and where (0-1 along it)
+  function crossed(ax, ay, bx, by) {
+    let best = null, bt = 2;
+    for (const o of E.obstacles) {
+      if (Math.max(ax, bx) < o.x0 || Math.min(ax, bx) > o.x1 || Math.max(ay, by) < o.y0 || Math.min(ay, by) > o.y1) continue;
+      for (let i = 1; i < o.pts.length; i++) { const t = segX(ax, ay, bx, by, o.pts[i - 1][0], o.pts[i - 1][1], o.pts[i][0], o.pts[i][1]); if (t >= 0 && t < bt) { bt = t; best = o; } }
+    }
+    return best ? { o: best, t: bt } : null;
+  }
+  E.crossed = crossed; E.addObstacle = (kind, pts, name) => { const o = mkObstacle(kind, pts, name); E.obstacles.push(o); return o; };
+  // the obstacle a shot or a charge from a to t must pass, if it lies close in front of t (the men behind it are covered by it)
+  const shelterOf = (a, t, within) => { if (!E.obstacles.length) return null; const c = crossed(a.x, a.y, t.x, t.y); if (!c) return null; return (1 - c.t) * hyp(t.x - a.x, t.y - a.y) <= within ? c.o : null; };
   E.routes = {}; for (const [k, r] of Object.entries(W.ROUTES)) E.routes[k] = r.map(p => ll2m(p[0], p[1])); E.routeOf = ROUTE_OF;
   E.chokes = W.CHOKES.map(c => { const [x, y] = ll2m(c.at[0], c.at[1]); return { ...c, x, y, used: 0, queue: [] }; });
 
@@ -293,15 +333,14 @@ function create(opts = {}) {
     const fp = footprint(u); u.F = fp.F; u.D = fp.D;
     E.units.push(u); E.byId[u.id] = u; return u;
   }
-  const FORMMAP = { line: 'line', twoLines: 'twoLines', columns: 'columns', garrison: 'garrison', battery: 'battery', park: 'park', hq: 'hq' };
   for (const r of W.RAW) {
     const [id, side, name, parent, nat, type, str, la, lo, facing, form, conf, note] = r;
     if (type === 'hq') continue;
     const [x, y] = ll2m(la, lo), q = W.QUALITY[id] ?? 1, tr = TRAITS[id] || {};
-    const u = makeUnit({ id, side, name, parent, nat, type, str, x, y, facing, form: FORMMAP[form] || 'columns', q, conf, note, corps: W.CORPS[id] || null, div: W.DIVISION[id] || null, cal: ARMS[armIdOf(type)].crew ? (W.CALIBRE[id] || gunCal(nat)) : 0 });
+    const u = makeUnit({ id, side, name, parent, nat, type, str, x, y, facing, form: FORMS[form] ? form : (NATIONS[nat] && FORMS[NATIONS[nat].form] ? NATIONS[nat].form : 'columns'), q, conf, note, corps: W.CORPS[id] || null, div: W.DIVISION[id] || null, cal: ARMS[armIdOf(type)].crew ? (W.CALIBRE[id] || gunCal(nat)) : 0 });
     u.isGuard = !!tr.guard; // (phase 2) from the battle's unit traits, not the unit's id
     u.cavKind = ARMS[armIdOf(type)].shock ? (tr.kind || 'light') : null;
-    if (tr.horse) u.horse = true; if (tr.weapon) u.weapon = tr.weapon; if (tr.ammo) u.ammoKind = tr.ammo; if (tr.ammo0 != null) u.ammo = tr.ammo0;
+    if (tr.horse) u.horse = true; if (tr.prestige) u.prestige = tr.prestige; if (tr.weapon) u.weapon = tr.weapon; if (tr.ammo) u.ammoKind = tr.ammo; if (tr.ammo0 != null) u.ammo = tr.ammo0;
     if (!u.corps && SIDE_BY[side].corps0) u.corps = SIDE_BY[side].corps0;
   }
   for (const r of (W.HORSE_BATTERIES || [])) { const [id, side, name, parent, nat, type, str, la, lo, facing] = r; const [x, y] = ll2m(la, lo); makeUnit({ id, side, name, parent, nat, type, str, x, y, facing, form: 'battery', q: W.QUALITY[id] ?? 1, corps: 'horseart', cal: W.CALIBRE[id] || gunCal(nat), horse: true }); }
@@ -327,13 +366,14 @@ function create(opts = {}) {
   // every brigade remembers its place in the opening line (a start that holds an army back sends it there)
   for (const u of E.units) { u.deploy = [u.x, u.y]; u.deployForm = u.form; u.deployFacing = u.facing; }
   // off-map forces
-  E.offmap = [];
+  E.offmap = []; E.corpsMen0 = {}; E.engaged = {};
   // forces off the map (battle pack): each marches on its own or waits to be sent for
   for (const F of W.FORCES || []) for (const r of F.units) {
     const [id, side, name, parent, nat, type, str, route, q, arrive] = r;
     const u = makeUnit({ id, side, name, parent, nat, type, str, x: -9999, y: -9999, facing: 270, form: marchForm(type), q, onMap: false, corps: route, group: F.group, baseArrive: arrive, cal: ARMS[armIdOf(type)].crew ? gunCal(nat) : 0 });
     u.coh = clamp(E.K.COH0 + (q - E.K.COH0_Q0) * E.K.COH0_Q, E.K.COH0_MIN, E.K.COH0_MAX) + (WEATHER.cohesion0 || 0); u.fatigue = F.fatigue0 ?? 20;
     if (F.ammo0 && F.ammo0[route] != null) u.ammo = F.ammo0[route];
+    u.reinforcement = true; E.corpsMen0[route] = (E.corpsMen0[route] || 0) + (ARMS[armIdOf(type)].crew ? 0 : str); // a fresh corps (its foot and horse)
     u.expected = !!F.marches; E.offmap.push(u); // expected: the force marches to the field on its own (it counts in its army's strength at the start)
   }
   if (START.back || START.come) startVariant(START);
@@ -433,10 +473,12 @@ function create(opts = {}) {
     fire();
     skirmishFarms();
     assaults();
+    if (E.K.MELEE_LOCK) melees();
     cavalry();
     applyDamage();
     cohesionAndMorale();
     supplyAndFatigue();
+    if (ERA.fieldwork) works();
     stepSmoke();
     events();
     if (E.tick % 5 === 0) sighting();
@@ -530,10 +572,16 @@ function create(opts = {}) {
         const [tx, ty] = u.path[0], dx = tx - u.x, dy = ty - u.y, d = hyp(dx, dy);
         if (d < 1) { u.path.shift(); continue; }
         const stopShort = u.path.length === 1 && u.stopAt ? u.stopAt : 0;
-        const go = Math.min(budget, d - stopShort);
+        let go = Math.min(budget, d - stopShort);
         if (d - stopShort <= 0.5) { u.path.shift(); break; } // there (or as close as it means to go)
         if (go <= 0.5) break; // (8) the tick's march is spent; this was path.shift(), which dropped the next waypoint whenever a tick ended within half a metre of one
-        u.x += dx / d * go; u.y += dy / d * go; budget -= go;
+        const spent = go;
+        if (E.obstacles.length) { // (2g) crossing a hedge, wall or ditch costs pace and order; a body that cannot cross it formed halts at it
+          const c = crossed(u.x, u.y, u.x + dx / d * go, u.y + dy / d * go);
+          if (c && u.crossedOb !== c.o) { const f = c.o.K.cross[A(u).move] ?? 1; if (!f) { go = Math.max(0, go * c.t - 3); budget = 0; } else { go *= f; u.coh -= c.o.K.disorder || 0; u.crossedOb = c.o; } }
+          else if (!c) u.crossedOb = null;
+        }
+        u.x += dx / d * go; u.y += dy / d * go; budget -= spent;
         if (u.status !== 'broken' && go > 5) u.facing = bearing(dx, dy);
         if (go >= d - 0.5) u.path.shift();
         u.movedTick = E.tick;
@@ -637,16 +685,19 @@ function create(opts = {}) {
         const close = r < 110 && (best.task.kind === 'attack' || u.task.kind === 'attack');
         u.closeTicks = close && u.closeWith === best.id ? (u.closeTicks || 0) + 1 : close ? 1 : 0; u.closeWith = close ? best.id : null;
         const rate = close ? (u.closeTicks <= 2 ? 2 : 1.2) : 1;
-        let p = hitChance(r); if (wp.longHit && r > wp.longHit.beyond) p *= wp.longHit.mul; // a rifle's reach past the musket's
-        const tcell = TT[cellIdx(best.x, best.y)], sc = best.spSec || (best.secCover && hyp(best.x - best.secCover.x, best.y - best.secCover.y) < best.secCover.r ? best.secCover : null), cover = sc ? sc.cover : (COVER[tcell] ?? 1);
+        let p = hitChance(r, wp.hit || HIT); if (wp.longHit && r > wp.longHit.beyond) p *= wp.longHit.mul; // a rifle's reach past the musket's
+        const tcell = TT[cellIdx(best.x, best.y)], sc = best.spSec || (best.secCover && hyp(best.x - best.secCover.x, best.y - best.secCover.y) < best.secCover.r ? best.secCover : null);
+        let cover = sc ? sc.cover : (COVER[tcell] ?? 1);
+        const sh = shelterOf(u, best, 60); if (sh) cover *= sh.K.cover ?? 1; // (2g) behind a hedge or wall
         const sm = clamp(1 - 0.25 * smokeAt(u.x, u.y), 0.6, 1);
-        const first = !u.volleyUsed && r < 60 ? 1.5 : 1; if (first > 1) u.volleyUsed = true;
+        const fv = wp.volley, first = fv && !u.volleyUsed && r < fv.within ? fv.mul : 1; if (first > 1) u.volleyUsed = true; // a first volley, loaded with care
         const am = u.ammo < 15 ? 0.5 : 1;
-        const hits = firers * rate * wp.rate * 2 * p * u.q * Math.min(1.1, u.coh / 80) * sm * cover * (best.spSec && cover <= 0.3 ? E.K.WALL_FIRE : 1) * (best.lying ? 0.4 : 1) * dusk * first * am * E.K.FIRE * statusFire(u);
+        let hits = firers * rate * wp.rate * 2 * p * u.q * Math.min(1.1, u.coh / 80) * sm * cover * (best.spSec && cover <= 0.3 ? E.K.WALL_FIRE : 1) * (best.lying ? 0.4 : 1) * dusk * first * am * E.K.FIRE * statusFire(u);
+        const prot = A(best).protection; if (prot) hits *= 1 - prot * (1 - (wp.pen ?? 1)); // (2f) armour turns some of what hits it
         addDmg(best, hits, 'mus', onFlank(best, u), u);
         u.ammo = Math.max(0, u.ammo - rate * 2 * wp.rate * (firers / Math.max(1, u.str)));
         u.firedTick = true; u.lastFired = E.tick; u.fireTarget = best.id;
-        addSmoke(u.x, u.y, firers * rate * 2 * E.K.SMOKE_MUSKET);
+        if (wp.smoke !== 0) addSmoke(u.x, u.y, firers * rate * 2 * E.K.SMOKE_MUSKET * (wp.smoke ?? 1)); // bows make none
         if (r < 300) u.inContact = best.id;
       } else {
         if (!(FORMS[u.form] && FORMS[u.form].deployed)) continue;
@@ -714,7 +765,7 @@ function create(opts = {}) {
   function assaults() {
     for (const u of E.units) {
       if (!formed(u) || !A(u).assaults || u.held || u.task.kind !== 'attack' || u.halted) continue;
-      if (u.formTimer > 0 || (u.standoffUntil && E.tick < u.standoffUntil)) continue;
+      if (u.formTimer > 0 || (u.standoffUntil && E.tick < u.standoffUntil) || u.melee) continue; // (2f) a locked melee is fought in melees()
       const tgt = currentTarget(u); if (!tgt) continue;
       const r = tgt.range;
       if (r > 55) { u.contactTicks = 0; continue; }
@@ -751,7 +802,8 @@ function create(opts = {}) {
     if (a.gateBonus && a.gateAt != null && E.tick - a.gateAt > 2) a.gateBonus = false; // a broken gate is only good for the rush that follows it
     const push = a.coh * a.q * (MASSF[a.form] ?? 1) * fresh(a) * lead(a) * sizeF * (onFlank(d, a) ? 1.6 : 1) * (a.gateBonus ? 1.5 : 1);
     const cover = tgt.sec ? tgt.sec.cover : (COVER[TT[cellIdx(d.x, d.y)]] ?? 1);
-    const melee = (tgt.sec && cover <= 0.3) ? (d.outOfAmmo ? K_.NOAMMO_MELEE : 2) : Math.sqrt(1 / cover); // defenders with no cartridges can no longer hold the loopholes
+    let melee = (tgt.sec && cover <= 0.3) ? (d.outOfAmmo ? K_.NOAMMO_MELEE : 2) : Math.sqrt(1 / cover); // defenders with no cartridges can no longer hold the loopholes
+    const sh = !tgt.sec && shelterOf(a, d, 40); if (sh) melee *= sh.K.melee ?? 1; // (2g) defending a hedge, wall or palisade
     const volley = dmg.get(a.id) ? clamp(dmg.get(a.id).mus / Math.max(1, a.str) * 100 / 3, 0, 2) * 10 : 0;
     const formD = (FORMS[d.form] && FORMS[d.form].meleeD) ?? A(d).meleeD ?? 1; // how well its formation, else its arm, stands an assault
     const resolve = d.coh * d.q * melee * formD * fresh(d) * lead(d) + volley;
@@ -766,6 +818,8 @@ function create(opts = {}) {
       log('combat', `${a.name} is thrown back from ${where}.`, { side: a.side, unit: a.id, cause: c });
       repulse(a, c);
       if (E.ai && E.ai.onRepulse) E.ai.onRepulse(E, a, d, tgt);
+    } else if (ratio < K_.SHOCK_WIN && K_.MELEE_LOCK && !tgt.sec && !served(d)) {
+      lockMelee(a, d); // (2f) neither gives way: hand to hand, until one side breaks or draws off
     } else if (ratio < K_.SHOCK_WIN) {
       a.coh -= 3; d.coh -= 3 * wallD; a.stalemates = (a.stalemates || 0) + 1; a.standoffUntil = E.tick + 3 + Math.floor(rnd('firefight length') * 4);
       if (a.stalemates >= 4) { a.coh -= 5; }
@@ -784,6 +838,30 @@ function create(opts = {}) {
       else { d.coh = Math.min(d.coh, 28); giveGround(d, a, 250); if (d.coh < 15) breakUnit(d, c); }
     }
     a.gateBonus = false;
+  }
+  /* ----- (2f) lasting melee: where the era has it (MELEE_LOCK), two bodies that close and neither gives way fight hand to hand each tick:
+     each loses men by the other's fighting men (its frontage in files, times the ranks its weapon reaches with), the weapon's power and the
+     armour it meets, and cohesion by its losses, less what depth gives it (fresh ranks relieving the front). It ends when one breaks, or the
+     attacker draws off, worn and the weaker. ----- */
+  function lockMelee(a, d) { a.melee = d.id; a.meleeAtk = true; d.melee = a.id; d.meleeAtk = false; a.meleeSince = d.meleeSince = E.t; log('combat', `${a.name} and ${d.name} are locked hand to hand.`, { side: a.side, unit: a.id }); }
+  function unlockMelee(u) { const o = u.melee && E.byId[u.melee]; if (o && o.melee === u.id) o.melee = null; u.melee = null; }
+  const meleeArm = u => (WEAPONS[A(u).melee] || {}).melee || { power: 1, ranks: 1 };
+  function melees() {
+    for (const a of E.units) {
+      if (!a.melee || !a.meleeAtk) continue;
+      const d = E.byId[a.melee];
+      if (!d || !formed(a) || !formed(d) || frontRange(a, d) > 80) { unlockMelee(a); continue; }
+      const wa = meleeArm(a), wd = meleeArm(d), files = u => Math.max(1, u.F / E.K.MAN_FRONT);
+      const fightA = Math.min(a.str, files(a) * (wa.ranks || 1)), fightD = Math.min(d.str, files(d) * (wd.ranks || 1));
+      const armour = (u, w) => 1 - (A(u).protection || 0) * (1 - (w.pen ?? 1)), sh = shelterOf(a, d, 40), flank = onFlank(d, a) ? 1.5 : 1;
+      const casD = fightA * E.K.MELEE_KILL * wa.power * armour(d, wa) * a.q * clamp(a.coh / 80, 0.3, 1.1) * flank * rnd.logn(0.25, 'melee');
+      const casA = fightD * E.K.MELEE_KILL * wd.power * armour(a, wd) * d.q * clamp(d.coh / 80, 0.3, 1.1) * (sh ? sh.K.melee ?? 1 : 1) * rnd.logn(0.25, 'melee');
+      addCas(a, casA, 'melee'); addCas(d, casD, 'melee');
+      const relief = u => (FORMS[u.form] && FORMS[u.form].relief) || 1;
+      a.coh -= (E.K.MELEE_COH + E.K.COH_CAS * 100 * casA / Math.max(1, a.str)) / relief(a); d.coh -= (E.K.MELEE_COH + E.K.COH_CAS * 100 * casD / Math.max(1, d.str)) / relief(d);
+      a.lastHit = d.lastHit = E.tick;
+      if (a.coh < 40 && a.coh < d.coh * 0.6) { unlockMelee(a); const c = E.cause(`${a.name} drew off from the melee with ${d.name}`); log('combat', `${a.name} draws off from ${d.name}.`, { side: a.side, unit: a.id, cause: c }); repulse(a, c); }
+    }
   }
   function repulse(a, cause) {
     const back = fvec((a.facing + 180) % 360), fb = [a.x + back[0] * 380, a.y + back[1] * 380];
@@ -833,15 +911,13 @@ function create(opts = {}) {
   }
   E.refreshHolder = refreshHolder;
   function spChanged(sp, from, to, by, cause) {
-    log('place', `${sp.name} ${to ? (from ? 'is taken by the ' : 'is occupied by the ') + (to === 'FR' ? 'French' : 'Allies') : 'is abandoned'}.`, { sp: sp.id, cause, important: true });
-    if (sp.key) {
-      if (to === 'FR') { E.morale.FR += 5; E.morale.AL -= 8; E.morale.PR -= 4; } else if (to === 'AL' && from === 'FR') { E.morale.AL += 5; E.morale.PR += 5; E.morale.FR -= 8; } else if (from === 'FR') E.morale.FR -= 8; else if (from === 'AL') E.morale.AL -= 8;
-    }
-    if (sp.id === 'lhs' && to === 'FR' && E.metrics.lhsFall == null) E.metrics.lhsFall = E.t;
-    if (sp.id === 'hougoumont' && to === 'FR' && E.metrics.hougFall == null) E.metrics.hougFall = E.t;
-    if (sp.id === 'plancenoit') { if (to === 'AL') { if (E.metrics.plancenoitLost == null) E.metrics.plancenoitLost = E.t; } else if (to === 'FR' && E.metrics.plancenoitLost != null) E.metrics.plancenoitRetaken = E.t; }
+    log('place', `${sp.name} ${to ? (from ? 'is taken by the ' : 'is occupied by the ') + (COAL_NAME[to] || to) : 'is abandoned'}.`, { sp: sp.id, cause, important: true, holder: to });
+    placeMorale(sp.value, to, from); // (phase 2) by the place's value (battle pack)
+    for (const m of METRICS) if (m.when === 'taken' && m.place === sp.id && m.by === to && (!m.after || E.metrics[m.after] != null) && (m.every || E.metrics[m.id] == null)) E.metrics[m.id] = E.t;
     if (E.ai && E.ai.onPlace) E.ai.onPlace(E, sp, from, to);
   }
+  // (phase 2) army morale when a place or line of value v changes hands: takers gain, the losing army and its partners lose (era numbers)
+  function placeMorale(v, to, from) { if (!v) return; for (const sd of SIDES) { const c = COAL[sd.id]; if (to && c === to) E.morale[sd.id] += E.K.PLACE_GAIN * v; else if (from && c === from) E.morale[sd.id] -= (sd.id === from ? E.K.PLACE_LOSS : E.K.PLACE_LOSS_ALLY) * v; } }
   E.spChanged = spChanged;
   // a unit entering an empty strongpoint
   E.enterSp = function (u, sp) { if (sp.garrison && E.byId[sp.garrison] && formed(E.byId[sp.garrison]) && E.byId[sp.garrison] !== u) { // reinforce
@@ -884,6 +960,7 @@ function create(opts = {}) {
     const ch = c.charge; c.wind -= 25 * (E.wet > 0.6 ? 1.5 : 1) * 0.6; ch.n = (ch.n || 0) + 1;
     const imp = impetus(c), flank = onFlank(t, c);
     let crossing = 1; { const mx = (c.x + t.x) / 2, my = (c.y + t.y) / 2; const tt = TT[cellIdx(mx, my)]; if (tt === T.SUNKEN) crossing = 0.5; else if (tt === T.ORCH || tt === T.WOOD || tt === T.BUILD) crossing = 0.4; }
+    { const sh = shelterOf(c, t, 60); if (sh) crossing *= sh.K.horse ?? 1; } // (2g) stakes or a palisade before the foot: horse cannot come at them
     const c0 = E.cause(`${c.name} charged ${t.name}`);
     if (charges(t)) {
       const a = imp * Math.sqrt(c.str) * (flank ? 1.5 : 1) * rnd.logn(0.25, 'cavalry melee'), b = impetus(t) * Math.sqrt(t.str) * (t.charge ? 1 : 0.65) * rnd.logn(0.25, 'cavalry melee');
@@ -906,7 +983,7 @@ function create(opts = {}) {
       endCharge(c, true); return;
     }
     t.coh -= flank ? 35 : 25;
-    const resist = t.coh * t.q * crossing ** -1 * ((FORMS[t.form] && FORMS[t.form].vsHorse) ?? FORM0.vsHorse) * (allRound(t.formTo) ? 0.7 : 1) * rnd.logn(0.3, 'cavalry morale test');
+    const resist = t.coh * t.q * crossing ** -1 * ((FORMS[t.form] && FORMS[t.form].vsHorse) ?? FORM0.vsHorse) * (A(t).vsHorse ?? 1) * (allRound(t.formTo) ? 0.7 : 1) * rnd.logn(0.3, 'cavalry morale test');
     const attack = imp * 60 * crossing * E.K.CAV_BREAK_TEST;
     if (resist < attack) {
       log('combat', `${c.name} catches ${t.name} out of square and breaks it.`, { side: c.side, unit: c.id, cause: c0, important: true });
@@ -969,6 +1046,7 @@ function create(opts = {}) {
   }
   function breakUnit(u, cause) {
     if (u.status === 'broken' || u.gone) return;
+    if (u.melee) unlockMelee(u);
     u.status = 'broken'; u.coh = Math.min(u.coh, 12); u.brokeAt = E.t; u.lying = false; u.charge = null; u.halted = false;
     const bt = FORMS[u.form] && FORMS[u.form].breaksTo; if (bt) { u.form = bt; const fp = footprint(u); u.F = fp.F; u.D = fp.D; }
     if (u.spId) { const sp = E.spById[u.spId]; if (sp.garrison === u.id) { sp.garrison = null; for (const s of sp.secs) if (s.held === sideKey(u)) s.held = null; refreshHolder(sp, null, cause); } u.spId = null; u.spSec = null; unhold(u); }
@@ -983,17 +1061,19 @@ function create(opts = {}) {
       if (!losU(n, u, 2).clear) continue;
       n.coh -= E.K.CONTAGION * Math.sqrt(u.str / Math.max(200, n.str)) * (1.5 - n.q);
     }
-    // La Garde recule
-    if (u.isGuard && foot(u) && E.flags.guardAttacking && (u.task.guard || (u.task.prev && u.task.prev.guard))) {
-      if (!E.flags.guardRepulsed) { E.flags.guardRepulsed = E.t; E.metrics.guardRepulsed = E.t; E.morale.FR -= 15; log('event', '"La Garde recule!" The cry runs along the French line.', { side: 'FR', cause: c, important: true }); }
-      for (const f of E.units) if (f.side === 'FR' && formed(f) && f !== u && hyp(f.x - u.x, f.y - u.y) < 3000 && losU(f, u, 2).clear) f.coh -= 15;
+    // (phase 2) a unit of prestige thrown back from an attack the whole army is watching (an order marked so): its army loses heart once, and
+    // its comrades in sight each time (battle traits)
+    if (u.prestige && (u.task.guard || (u.task.prev && u.task.prev.guard))) {
+      const pm = METRICS.find(m => m.when === 'prestige' && m.side === u.side);
+      if (!E.flags[u.side + 'Prestige']) { E.flags[u.side + 'Prestige'] = E.t; E.morale[u.side] -= u.prestige; if (pm) { E.flags[pm.id] = E.t; E.metrics[pm.id] = E.t; } log('event', pm && pm.says || `${u.name} is thrown back, and the army sees it.`, { side: u.side, cause: c, important: true }); }
+      for (const f of E.units) if (f.side === u.side && formed(f) && f !== u && hyp(f.x - u.x, f.y - u.y) < E.K.PRESTIGE_SIGHT && losU(f, u, 2).clear) f.coh -= u.prestige;
     }
     if (u.leader && E.leaders[u.leader]) { /* leader rides with the fugitives */ }
     if (E.ai && E.ai.onBreak) E.ai.onBreak(E, u, c);
   }
   E.breakUnit = breakUnit;
   function cohesionAndMorale() {
-    const dusk = E.t > DARK;
+    const dusk = sunAt(E.t) < LE.dark; // too dark to rally
     for (const u of E.units) {
       if (!alive(u)) continue;
       // flank threat
@@ -1048,8 +1128,22 @@ function create(opts = {}) {
     for (const s of SIDE_IDS) {
       E.morale[s] = clamp(E.morale[s], 0, 100);
       if (E.morale[s] < 20) {
-        if (!E.flags[s + 'Broken']) { E.flags[s + 'Broken'] = E.t; if (s === 'FR') E.metrics.frBreak = E.t; if (s === 'AL') E.metrics.alBreak = E.t; log('army', `The ${s === 'FR' ? 'French' : s === 'AL' ? 'Anglo-allied' : 'Prussian'} army is breaking.`, { side: s, important: true }); }
+        if (!E.flags[s + 'Broken']) { E.flags[s + 'Broken'] = E.t; E.metrics[s.toLowerCase() + 'Break'] = E.t; log('army', `The ${SIDE_BY[s].name} army is breaking.`, { side: s, important: true }); }
         for (const u of E.units) if (u.side === s && formed(u) && !served(u)) { const p = clamp(0.05 * (1 + (55 - u.coh) / 20) / u.q, 0.01, 0.5); if (rnd('army rout') < p) breakUnit(u, E.cause('The army was breaking')); }
+      }
+    }
+  }
+
+  /* ----- (2g) fieldworks: a body holding with orders to dig throws up a work along its front once it has dug long enough (era) ----- */
+  function works() {
+    const FW = ERA.fieldwork; if (!FW) return;
+    for (const u of E.units) {
+      if (!formed(u) || u.task.kind !== 'hold' || !u.task.dig || u.task.dug) continue;
+      u.digging = (u.digging || 0) + 2;
+      if (u.digging >= FW.minutes) {
+        const [fx, fy] = fvec(u.facing), ax = -fy, ay = fx, cx = u.x + fx * (u.D / 2 + 6), cy = u.y + fy * (u.D / 2 + 6);
+        E.addObstacle(FW.kind, [[cx - ax * u.F / 2, cy - ay * u.F / 2], [cx + ax * u.F / 2, cy + ay * u.F / 2]], `${u.name}'s works`);
+        u.task.dug = true; log('event', `${u.name} has dug in.`, { side: u.side, unit: u.id });
       }
     }
   }
@@ -1120,22 +1214,32 @@ function create(opts = {}) {
     }
   }
 
-  /* ----- key points, Prussian engagement ----- */
+  /* ----- turning points and morale events (phase 2: the battle's metrics and valued lines, the era's numbers) ----- */
+  const firedOn = (u, side) => u.firedTick && u.fireTarget && E.byId[u.fireTarget] && (side ? E.byId[u.fireTarget].side === side : isEnemy(u, E.byId[u.fireTarget]));
   function keyPoints() {
-    // Prussians engage: any Prussian unit firing at or assaulting a French unit
-    if (!E.flags.prEngaged) {
-      const pr = E.units.find(u => u.side === 'PR' && alive(u) && u.firedTick && u.fireTarget && E.byId[u.fireTarget] && E.byId[u.fireTarget].side === 'FR');
-      if (pr) { E.flags.prEngaged = E.t; E.metrics.prEngaged = E.t; E.morale.FR -= 10; E.morale.AL += 10; log('army', `The Prussians are engaged: ${pr.name} opens fire near ${nearestPlace(pr.x, pr.y)}.`, { side: 'PR', important: true }); if (E.metrics.bulowAttack == null && pr.corps === 'bulow') E.metrics.bulowAttack = E.t; }
+    // a fresh corps from off the map fires its first shots: the enemy loses heart and the army it came to help takes it
+    for (const u of E.units) if (u.reinforcement && alive(u) && E.engaged[u.corps] == null && firedOn(u)) { E.engaged[u.corps] = E.t; freshCorps(u); }
+    for (const m of METRICS) {
+      if (E.metrics[m.id] != null) continue;
+      if (m.when === 'fires') { const u = E.units.find(x => (m.side ? x.side === m.side : x.corps === m.corps) && alive(x) && firedOn(x, m.at)); if (u) { E.metrics[m.id] = E.t; E.flags[m.id] = E.t; } }
+      else if (m.when === 'near') { const sp = E.spById[m.place], u = E.units.find(x => x.corps === m.corps && alive(x) && hyp(x.x - sp.x, x.y - sp.y) < m.within); if (u) { E.metrics[m.id] = E.t; if (m.says) log('army', m.says, { side: u.side, important: true }); } }
     }
-    if (E.metrics.bulowAttack == null) { const b = E.units.find(u => u.corps === 'bulow' && alive(u) && u.firedTick && u.fireTarget && E.byId[u.fireTarget] && E.byId[u.fireTarget].side === 'FR'); if (b) E.metrics.bulowAttack = E.t; }
-    if (!E.flags.zietenEngaged) { const z = E.units.find(u => u.corps === 'zieten' && alive(u) && u.firedTick && u.fireTarget && E.byId[u.fireTarget] && E.byId[u.fireTarget].side === 'FR'); if (z) { E.flags.zietenEngaged = E.t; E.morale.FR -= 10; E.morale.AL += 5; log('army', 'Zieten falls on the French right near Papelotte.', { side: 'PR', important: true }); } }
-    if (E.metrics.zietenPapelotte == null) { const pap = E.spById.papelotte; const z = E.units.find(u => u.corps === 'zieten' && alive(u) && hyp(u.x - pap.x, u.y - pap.y) < 700); if (z) { E.metrics.zietenPapelotte = E.t; log('army', `Zieten's leading troops reach Papelotte.`, { side: 'PR', important: true }); } }
-    // ridge crest key point: French formed infantry holding the allied crest with no allied formed foot within 250 m
-    const crest = E.objectives.ridgeCentre.line;
-    const frOnCrest = E.units.filter(u => u.side === 'FR' && formed(u) && foot(u) && polyDist(u.x, u.y, crest) < 120 && !near(u.x, u.y, 250, e => e.side !== 'FR' && formed(e) && !served(e)).length);
-    const held = frOnCrest.length > 0;
-    if (held && !E.flags.crestFR) { E.flags.crestFR = E.t; E.morale.FR += 5; E.morale.AL -= 8; log('place', 'French infantry stand on the crest of the Mont-Saint-Jean ridge.', { side: 'FR', important: true }); }
-    else if (!held && E.flags.crestFR && E.t - E.flags.crestFR > 20) { E.flags.crestFR = null; E.morale.AL += 5; E.morale.FR -= 8; log('place', 'The Allies clear the crest again.', { side: 'AL' }); }
+    // a line worth holding (battle objectives with a value): the enemy's foot stand on it with none of the holders close; the holders have it
+    // back once it has been clear a while
+    for (const o of Object.values(E.objectives)) {
+      if (!o.value || !o.line || !o.holder) continue;
+      const on = E.units.filter(u => COAL[u.side] !== o.holder && formed(u) && foot(u) && polyDist(u.x, u.y, o.line) < E.K.LINE_NEAR && !near(u.x, u.y, E.K.LINE_CLEAR, e => COAL[e.side] === o.holder && formed(e) && !served(e)).length);
+      if (on.length && !o.takenAt) { o.takenAt = E.t; o.by = COAL[on[0].side]; placeMorale(o.value, o.by, o.holder); if (o.flag) E.flags[o.flag] = E.t; log('place', o.says ? o.says.taken : `The enemy stand on ${o.name}.`, { side: on[0].side, important: true }); }
+      else if (!on.length && o.takenAt && E.t - o.takenAt > E.K.LINE_BACK) { placeMorale(o.value, o.holder, o.by); o.takenAt = null; if (o.flag) E.flags[o.flag] = null; log('place', o.says ? o.says.regained : `${o.name} is clear again.`, { side: o.holder }); }
+    }
+  }
+  function freshCorps(u) {
+    // a corps-sized force (FRESH_MEN or more) counts in full, a smaller one pro rata; the army it helps takes heart from the first such corps
+    // in full, and from each one after it less (a half, a third ...)
+    const f = Math.min(1, (E.corpsMen0[u.corps] || 0) / E.K.FRESH_MEN), c = COAL[u.side];
+    const nth = Object.keys(E.engaged).filter(k => E.offmap.some(o => o.corps === k && o.side === u.side)).length; // this corps included
+    for (const sd of SIDES) { if (COAL[sd.id] !== c) E.morale[sd.id] -= E.K.FRESH_ENEMY * f; else if (sd.id !== u.side) E.morale[sd.id] += E.K.FRESH_HELP * f / nth; }
+    log('army', `${CORPS_NAME[u.corps] || 'Fresh troops'} come${CORPS_NAME[u.corps] ? 's' : ''} into the fight: ${u.name} opens fire near ${nearestPlace(u.x, u.y)}.`, { side: u.side, important: true });
   }
   function nearestPlace(x, y) { let best = 'the field', bd = Infinity; for (const l of W.LM) { const d = hyp(l.x - x, l.y - y); if (d < bd) { bd = d; best = l.n; } } return best; }
   E.nearestPlace = nearestPlace;
@@ -1181,7 +1285,7 @@ function create(opts = {}) {
   return E;
 }
 
-return { create, K, fmtT, T, TT, footprint, hitChance, bgVis, LOW };
+return { create, K, fmtT, T, TT, footprint, hitChance, bgVis, LOW, light: { sunset: SUNSET, dark: DARK, end: END, sunAt } };
 }
 const worlds = {};
 function world(id) { id = id || root.WBATTLE || 'waterloo'; return worlds[id] || (worlds[id] = buildWorld(Packs.battle(id))); }

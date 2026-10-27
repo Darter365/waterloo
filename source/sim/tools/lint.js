@@ -14,7 +14,7 @@ const P = require(path.join(SIM, 'packs', 'all.js'));
 const FILES = ['engine.js', 'ai.js', 'command.js', 'orders.js', 'replay.js']; // the sim; script.js is Napoleon's script for Waterloo (battle content, moves to the pack in phase 3)
 const SCHEMA = ['LAT0', 'LON0', 'MLAT', 'MLON', 'NX', 'NY', 'CELL', 'WM', 'HM', 'll2m', 'm2ll', 'H', 'RAW', 'STRONGPOINTS', 'OBJECTIVES', 'ROUTES', 'LEADERS',
   'LM', 'ROADS', 'SUNKEN', 'HEDGES', 'WOODS', 'BUILDINGS', 'ENCLOSURES', 'STREAMS', 'VILLAGES', 'HOUSES', 'LABELS', 'EDGE_LABELS', 'NAT', 'OFFMAP',
-  'QUALITY', 'CALIBRE', 'CORPS', 'DIVISION', 'CHOKES', 'rng', 'hashStr', 'TRAITS', 'FORCES'];
+  'QUALITY', 'CALIBRE', 'CORPS', 'DIVISION', 'CHOKES', 'rng', 'hashStr', 'TRAITS', 'FORCES', 'OBSTACLES'];
 
 /* ----- the names each battle defines, by kind ----- */
 function battleNames() {

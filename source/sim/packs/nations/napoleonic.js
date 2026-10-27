@@ -7,6 +7,7 @@
 'use strict';
 const P = root.WPacks || (typeof require === 'function' ? require('../registry.js') : null);
 P.register('nation', 'napoleonic', {
+  era: 'napoleonic',
   nations: {
     FR: { name: 'French', ranks: 3, battalion: 520, form: 'columns' },
     GB: { name: 'British', ranks: 2, battalion: 560, gunCalibre: 9, form: 'twoLines', lieDown: true },

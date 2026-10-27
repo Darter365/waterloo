@@ -15,7 +15,7 @@ const TRAITS = ['agg', 'ini', 'obe', 'skill', 'exp'];
 const MAP_KEYS = {
   G: ['LAT0', 'LON0', 'MLAT', 'MLON', 'NX', 'NY', 'CELL', 'WM', 'HM', 'll2m', 'm2ll', 'H', 'RAW', 'STRONGPOINTS', 'OBJECTIVES', 'ROUTES', 'LEADERS'],
   O: ['LM', 'ROADS', 'SUNKEN', 'HEDGES', 'WOODS', 'BUILDINGS', 'ENCLOSURES', 'STREAMS', 'VILLAGES', 'HOUSES', 'LABELS', 'EDGE_LABELS', 'NAT', 'OFFMAP',
-    'QUALITY', 'CALIBRE', 'CORPS', 'DIVISION', 'CHOKES', 'rng', 'hashStr', 'TRAITS', 'FORCES'],
+    'QUALITY', 'CALIBRE', 'CORPS', 'DIVISION', 'CHOKES', 'rng', 'hashStr', 'TRAITS', 'FORCES', 'OBSTACLES'],
 };
 
 function validate(id) {
@@ -28,7 +28,7 @@ function validate(id) {
 
   /* ----- the battle ----- */
   if (!B.name) E('the battle has no name');
-  if (!/^\d{3,4}-\d\d-\d\d$/.test(B.date || '')) E(`date "${B.date}" is not YYYY-MM-DD`);
+  if (!/^-?\d{1,4}-\d\d-\d\d$/.test(B.date || '')) E(`date "${B.date}" is not YYYY-MM-DD (the sun's light is computed from it)`);
   for (const [n, v] of Object.entries(R.nations)) if (!v) E(`nation "${n}" is named by the battle but no loaded nation pack defines it`);
   const sides = B.sides || [], sideIds = new Set();
   if (sides.length < 2) E('a battle needs at least two sides');
@@ -40,20 +40,14 @@ function validate(id) {
   }
   if (new Set(sides.map(s => s.coalition || s.id)).size < 2) E('every side is in the same coalition: nobody to fight');
 
-  /* ----- daylight ----- */
-  const L = B.light;
-  if (!L) E('no light block (sunset, dark, end, visibility)');
-  else {
-    if (!(num(L.sunset) && num(L.dark) && num(L.end) && L.sunset <= L.dark && L.dark <= L.end)) E(`light: need sunset <= dark <= end (got ${L.sunset}, ${L.dark}, ${L.end})`);
-    if (!Array.isArray(L.vis) || !L.vis.length) E('light: no visibility table');
-    else for (let i = 0; i < L.vis.length; i++) {
-      const [t, v] = L.vis[i];
-      if (!num(t) || !num(v) || v <= 0) E(`light: visibility row ${i} is not [minute, metres > 0]`);
-      if (i && t <= L.vis[i - 1][0]) E(`light: visibility rows must run forward in time (row ${i})`);
-    }
-    if (!num(L.visAfter) || L.visAfter <= 0) E('light: visAfter (visibility after the last row) must be > 0');
+  /* ----- the weather's visibility (the light itself is computed from the date and the place) ----- */
+  const VIS = (B.weather || {}).vis;
+  if (!Array.isArray(VIS) || !VIS.length) E('weather: no visibility table (vis: [[minute, metres], ...])');
+  else for (let i = 0; i < VIS.length; i++) {
+    const [t, v] = VIS[i];
+    if (!num(t) || !num(v) || v <= 0) E(`weather: visibility row ${i} is not [minute, metres > 0]`);
+    if (i && t <= VIS[i - 1][0]) E(`weather: visibility rows must run forward in time (row ${i})`);
   }
-
   /* ----- the map ----- */
   for (const k of MAP_KEYS.G) if (W[k] == null) E(`map: "${k}" is missing`);
   const specific = Object.keys(W).filter(k => !MAP_KEYS.G.includes(k) && !MAP_KEYS.O.includes(k));
@@ -123,15 +117,18 @@ function validate(id) {
     if (k === 'CALIBRE' && (units[uid].type !== 'art' || !num(v) || v <= 0)) E(`CALIBRE '${uid}': only batteries have a calibre, in pounds > 0`);
   }
   // unit traits (phase 2): what a unit is beyond its arm
-  const TRAIT_KEYS = { horse: 'art', kind: 'cav', guard: null, weapon: null, ammo: null, ammo0: null };
+  // a trait some arms only can have: horse artillery is guns (a crew); a kind is the weight of a charge (an arm with shock)
+  const TRAIT_KEYS = { horse: a => a.crew, kind: a => a.shock, guard: null, weapon: null, ammo: null, ammo0: null, prestige: null };
   for (const [uid, tr] of Object.entries(W.TRAITS || {})) {
     const u = units[uid]; if (!u) { E(`TRAITS: "${uid}" is not a unit`); continue; }
     for (const [k, v] of Object.entries(tr)) {
       if (!(k in TRAIT_KEYS)) { E(`TRAITS ${uid}: unknown trait "${k}" (known: ${Object.keys(TRAIT_KEYS).join(', ')})`); continue; }
-      if (TRAIT_KEYS[k] && u.type !== TRAIT_KEYS[k]) E(`TRAITS ${uid}: "${k}" is for ${TRAIT_KEYS[k]} only`);
-      if (k === 'kind' && !['heavy', 'lancer', 'light'].includes(v)) E(`TRAITS ${uid}: kind "${v}" must be heavy, lancer or light`);
-      if (k === 'weapon' && !['musket', 'rifle'].includes(v)) E(`TRAITS ${uid}: weapon "${v}" is not one the era knows`);
+      const arm = (era.arms || {})[u.type === 'gar' ? Object.keys(era.arms || {}).find(x => era.arms[x].holds) : u.type];
+      if (TRAIT_KEYS[k] && !(arm && TRAIT_KEYS[k](arm))) E(`TRAITS ${uid}: "${k}" is not a trait its arm (${u.type}) can have`);
+      if (k === 'kind' && arm && arm.shock && !(v in arm.shock)) E(`TRAITS ${uid}: kind "${v}" must be one of ${Object.keys(arm.shock).join(', ')}`);
+      if (k === 'weapon' && !(era.weapons || {})[v]) E(`TRAITS ${uid}: weapon "${v}" is not one the era knows`);
       if (k === 'ammo0' && !(num(v) && v >= 0)) E(`TRAITS ${uid}: ammo0 must be cartridges >= 0`);
+      if (k === 'prestige' && !(num(v) && v > 0 && v <= 50)) E(`TRAITS ${uid}: prestige must be 1-50 (morale points)`);
     }
   }
   for (const n of Object.keys(R.nations)) if (!natUsed.has(n)) Wn(`nation "${n}" is listed but no unit uses it`);
@@ -162,6 +159,10 @@ function validate(id) {
     if (!Array.isArray(r) || r.length < 2) { E(`route ${k}: needs at least two points`); continue; }
     r.forEach((p, i) => { const d = outside(p); if (d === Infinity) E(`route ${k} point ${i}: not [lat, lon]`); else if (d > 4000) Wn(`route ${k} point ${i} is ${(d / 1000).toFixed(1)} km off the map (routes may start off it)`); });
   }
+  for (const [i, o] of (W.OBSTACLES || []).entries()) {
+    if (!(era.obstacles || {})[o.kind]) E(`obstacle ${i}: kind "${o.kind}" is not one the era knows (${Object.keys(era.obstacles || {}).join(', ') || 'none'})`);
+    if (!Array.isArray(o.pts) || o.pts.length < 2) E(`obstacle ${i}: a line needs at least two points`); else o.pts.forEach(p => where(`obstacle ${i} (${o.kind})`, p, 100));
+  }
   for (const c of W.CHOKES || []) { where(`choke ${c.id}`, c.at); if (!num(c.rate) || c.rate <= 0) E(`choke ${c.id}: rate (men a minute) must be > 0`); }
 
   /* ----- each army's settings, the starts and the weather (phase 2) ----- */
@@ -191,6 +192,22 @@ function validate(id) {
       const vr = (W.ROUTES || {})[C.via && C.via[0]]; if (!vr) E(`start ${k}: via route "${C.via && C.via[0]}" does not exist`); else for (const i of C.via.slice(1)) if (!vr[i]) E(`start ${k}: via route ${C.via[0]} has no point ${i}`);
       for (const [t0, ids] of C.columns || []) { if (!num(t0)) E(`start ${k}: a column's time must be minutes`); for (const id of ids) { if (!units[id]) E(`start ${k}: unit "${id}" does not exist`); else if (units[id].side !== st.side) E(`start ${k}: ${id} is not on side ${st.side}`); } }
     }
+  }
+  // (phase 2) turning points, valued places and lines
+  const WHEN = ['taken', 'fires', 'near', 'prestige'], mids = new Set();
+  for (const m of B.metrics || []) {
+    if (!m.id || mids.has(m.id)) E(`metric "${m.id}": missing or repeated id`); mids.add(m.id);
+    if (!WHEN.includes(m.when)) { E(`metric ${m.id}: when "${m.when}" must be one of ${WHEN.join(', ')}`); continue; }
+    if ((m.when === 'taken' || m.when === 'near') && !(W.STRONGPOINTS || []).some(sp => sp.id === m.place)) E(`metric ${m.id}: place "${m.place}" is not a strongpoint`);
+    if (m.when === 'taken' && !new Set(sides.map(x => x.coalition || x.id)).has(m.by)) E(`metric ${m.id}: by "${m.by}" is not a coalition`);
+    if ((m.when === 'fires' || m.when === 'near') && !m.side && !m.corps) E(`metric ${m.id}: needs a side or a corps`);
+    if (m.side && !sideIds.has(m.side)) E(`metric ${m.id}: side "${m.side}" is not one of the battle's sides`);
+    if (m.after && !(B.metrics || []).some(x => x.id === m.after)) E(`metric ${m.id}: after "${m.after}" is not a metric`);
+  }
+  for (const sp of W.STRONGPOINTS || []) if (sp.value != null && !(num(sp.value) && sp.value >= 0)) E(`strongpoint ${sp.id}: value must be >= 0`);
+  for (const [k, o] of Object.entries(W.OBJECTIVES || {})) if (o.value) {
+    if (!o.line) E(`objective ${k}: only a line can carry a value (places carry theirs on the strongpoint)`);
+    if (!new Set(sides.map(x => x.coalition || x.id)).has(o.holder)) E(`objective ${k}: holder "${o.holder}" is not a coalition (who holds it at the start)`);
   }
   const wx = B.weather || {};
   if (wx.cohesion0 != null && !num(wx.cohesion0)) E('weather: cohesion0 must be a number');
@@ -228,11 +245,15 @@ function validate(id) {
   };
   table('hit', era.hit, true);
   if (era.hit) for (const [, p] of era.hit) if (p < 0 || p > 1) E(`era ${era.id}: hit chances must be 0-1`);
+  const guns = Object.values(era.arms || {}).some(a => a.crew);
   if (era.roundshot) { table('roundshot.bands', era.roundshot.bands, true); table('roundshot.calibre', [...era.roundshot.calibre].reverse(), false); }
-  else E(`era ${era.id}: no roundshot table`);
+  else if (guns) E(`era ${era.id}: no roundshot table`);
   if (era.canister) { table('canister.curve', era.canister.curve, true); if (!num(era.canister.floor) || !num(era.canister.reachElse)) E(`era ${era.id}: canister needs floor and reachElse`); }
-  else E(`era ${era.id}: no canister table`);
-  if (!num(era.crew) || era.crew <= 0) E(`era ${era.id}: crew per gun must be > 0`);
+  else if (guns) E(`era ${era.id}: no canister table`);
+  if (guns && (!num(era.crew) || era.crew <= 0)) E(`era ${era.id}: crew per gun must be > 0`);
+  for (const [k, o] of Object.entries(era.obstacles || {})) { if (!o.cross || typeof o.cross !== 'object') E(`era ${era.id}: obstacle ${k} needs cross (pace kept by how a body moves)`); for (const f of ['cover', 'melee', 'horse', 'disorder']) if (o[f] != null && !num(o[f])) E(`era ${era.id}: obstacle ${k}.${f} must be a number`); }
+  if (era.fieldwork && !(era.obstacles || {})[era.fieldwork.kind]) E(`era ${era.id}: fieldworks are "${era.fieldwork.kind}", which is not an obstacle kind`);
+  if (era.K && era.K.MELEE_LOCK) for (const k of ['MELEE_KILL', 'MELEE_COH', 'MAN_FRONT']) if (!num(era.K[k])) E(`era ${era.id}: a lasting melee needs K.${k}`);
   // (phase 2) arms, formations, movement, weapons
   const F_ = era.formations || {}, MV = era.movement || {}, WP = era.weapons || {}, AR = era.arms || {};
   if (!Object.keys(F_).length) E(`era ${era.id}: no formations table`);
@@ -262,7 +283,9 @@ function validate(id) {
     for (const [t, v] of Object.entries(row)) if (t !== 'wet' && !(num(v) || (Array.isArray(v) && (v[1] === 'wet' ? num(v[0]) : v.length === 3 && v.every(num))))) E(`era ${era.id}: movement ${m}.${t} must be a number, [k, 'wet'] or [a, b, c]`);
   }
   for (const [w, row] of Object.entries(WP)) {
-    if (!num(row.reach) || row.reach <= 0) E(`era ${era.id}: weapon ${w} needs a reach (m)`);
+    const missile = row.rate != null || row.rateByCal; if (missile && (!num(row.reach) || row.reach <= 0)) E(`era ${era.id}: weapon ${w} fires, so needs a reach (m)`);
+    if (!missile && !row.melee) E(`era ${era.id}: weapon ${w} neither fires (rate) nor fights hand to hand (melee)`);
+    if (row.melee && !(num(row.melee.power) && row.melee.power > 0)) E(`era ${era.id}: weapon ${w}: melee needs a power > 0`);
     if (row.arc != null && !(num(row.arc) && row.arc > 0 && row.arc <= 180)) E(`era ${era.id}: weapon ${w}: arc must be 0-180 degrees`);
     if (row.longHit && !(num(row.longHit.beyond) && num(row.longHit.mul))) E(`era ${era.id}: weapon ${w}: longHit needs beyond and mul`);
   }

@@ -29,7 +29,7 @@ const broken = (id, change, expect) => {
 broken('t-era', B => { B.era = 'bronze'; }, /era "bronze"/);
 broken('t-nation', B => { B.nations = B.nations.filter(x => x !== 'KGL'); }, /nation "KGL" is not in the battle's nations/);
 broken('t-side', B => { B.sides = B.sides.map(s => ({ ...s, coalition: 'X' })); }, /same coalition/);
-broken('t-light', B => { B.light = { ...B.light, dark: 100 }; }, /sunset <= dark/);
+broken('t-light', B => { B.weather = { ...B.weather, vis: [[600, 3000], [500, 4000]] }; }, /run forward in time/);
 broken('t-dup', B => { B.map.RAW = [...B.map.RAW, B.map.RAW[0]]; }, /used twice/);
 broken('t-off', B => { const r = [...B.map.RAW[0]]; r[7] = 51.5; B.map.RAW = [r, ...B.map.RAW.slice(1)]; }, /km outside the map/);
 broken('t-arm', B => { const r = [...B.map.RAW[0]]; r[5] = 'chariot'; B.map.RAW = [r, ...B.map.RAW.slice(1)]; }, /arm "chariot"/);
@@ -39,3 +39,8 @@ broken('t-route', B => { B.routeOf = { pirch: 'nowhere' }; }, /routeOf: corps pi
 broken('t-obj', B => { B.map.OBJECTIVES = { ...B.map.OBJECTIVES, bad: { name: 'x', sp: 'atlantis' } }; }, /strongpoint "atlantis"/);
 broken('t-grid', B => { B.map.H = B.map.H.slice(0, 10); }, /height grid/);
 console.log(`tools: ${n} checks passed`);
+// every bench case builds a battle pack that validates
+{ const { benchBattle } = require('./bench.js'), fs = require('fs'), path = require('path');
+  for (const f of fs.readdirSync(path.join(__dirname, '..', 'bench')).filter(f => f.endsWith('.js'))) for (const c of require(path.join(__dirname, '..', 'bench', f)).filter(c => c && c.id)) {
+    const r = validate(benchBattle(c)); assert(!r.errors.length, `bench ${c.id}: ${r.errors.join('; ')}`); n++; }
+  console.log(`tools: bench packs validate (${n} checks in all)`); }

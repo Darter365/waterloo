@@ -22,7 +22,7 @@ function fightRef(mode, seed) {
 const [cmd, a1, a2, a3, a4] = process.argv.slice(2);
 if (cmd === 'record') {
   const out = []; for (let s = +a2; s < +a2 + +a3; s++) out.push(fightRef(a1, s));
-  fs.writeFileSync(a4, JSON.stringify({ release: 'release 3', recorded: new Date().toISOString(), mode: a1, entries: out }));
+  fs.writeFileSync(a4, JSON.stringify({ release: process.env.REF_RELEASE || 'release 3', recorded: new Date().toISOString(), mode: a1, entries: out }));
   console.log('recorded', a1, out.length, 'battles to', a4);
 } else if (cmd === 'check') {
   const ref = JSON.parse(fs.readFileSync(a1, 'utf8')), lim = a2 ? +a2 : ref.entries.length; let bad = 0;

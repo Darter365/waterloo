@@ -49,7 +49,20 @@ P.register('era', 'napoleonic', {
   // (phase 2, moved from the engine unchanged) starting cohesion by quality: COH0 + (q - COH0_Q0) x COH0_Q, kept within COH0_MIN-COH0_MAX (est.)
   COH0: 75, COH0_Q0: 0.75, COH0_Q: 30, COH0_MIN: 72, COH0_MAX: 90,
   DRY_RATE: 0.13, WET_FLOOR: 0.2, // the ground dries this much an hour once the rain stops, never below the floor (rules doc)
+  /* (phase 2) army morale from events, in general form (release 3 had them for named Waterloo events; these reproduce its values):
+     a place or line of value v changing hands: the takers' coalition +PLACE_GAIN x v each; the losers' army -PLACE_LOSS x v and its partners
+     -PLACE_LOSS_ALLY x v (est., rules doc). A fresh corps from off the map firing its first shots: each enemy army -FRESH_ENEMY, each
+     partner army it came to help +FRESH_HELP for the first such corps of its army, half for the second, a third for the third (a force
+     under FRESH_MEN foot and horse counts pro rata) (release 3's values for the Prussians' and Zieten's arrivals: -10 and +10, -10 and +5). LINE_NEAR, LINE_CLEAR, LINE_BACK: foot within this many metres of a valued line hold it while none of the holders' foot or
+     horse are within LINE_CLEAR; the holders have it back once it has been clear this many minutes. PRESTIGE_SIGHT: how far comrades see
+     a prestige unit thrown back (m). */
+  PLACE_GAIN: 5, PLACE_LOSS: 8, PLACE_LOSS_ALLY: 4, FRESH_ENEMY: 10, FRESH_HELP: 10, FRESH_MEN: 5000, LINE_NEAR: 120, LINE_CLEAR: 250, LINE_BACK: 20, PRESTIGE_SIGHT: 3000,
 },
+  /* (phase 2) light: the sun's altitude (degrees) at sunset, at dark (civil dusk: no more rallying, fire at its weakest) and when fighting
+     stops (est.: release 3 had 21:10 and 21:30 at Waterloo, where the sun reaches -6 and -9 degrees at about 21:01 and 21:32); once the sun
+     is down, how far a man can see by how far it is below the horizon (m), and the share of fire that tells (release 3's values at sunset,
+     dark and the end, est.) */
+  light: { sunset: -0.833, dark: -6, end: -9, vis: [[0.833, 5000], [6, 1000], [9, 600]], fire: [[0.833, 1], [6, 0.5]] },
   gunCalibre: 6, // pounds: a battery's guns when neither the battle nor its nation says
   // orders by rider (phase 2, moved from the engine unchanged): minutes to write when the sender's leader file does not say, minutes for
   // the receiver to read and act (direct: an order for one unit, or from close by), a rider's speed across country (km/h) and how much wet
@@ -72,7 +85,7 @@ P.register('era', 'napoleonic', {
      formation it marches in; shells: the share of its pieces that fire shells (howitzers); shock: the weight of a charge by the unit's kind (battle traits: heavy, lancer, else light);
      density: how dense a target to roundshot, by formation (where not the formation table's); flee: how much faster it runs when broken; deploys: the formation guns unlimber into. */
   arms: {
-    inf: { move: 'foot', speed: { walk: 49, quick: 70 }, height: 1.8, holds: true, allRound: true, assaults: true, column: 'road', weapon: 'musket', flee: 1.4,
+    inf: { move: 'foot', speed: { walk: 49, quick: 70 }, height: 1.8, holds: true, allRound: true, assaults: true, column: 'road', weapon: 'musket', melee: 'bayonet', flee: 1.4,
       shapes: { // frontage F and depth D (m): a number, or { of: men | files (men a rank) | bns (battalions) | pairs (of battalions), mul, add, min, max }
         line: { F: { of: 'files', mul: [0.6, 1.15], min: 40 }, D: 25 }, twoLines: { F: { of: 'files', mul: [0.6, 1.15, 0.5], min: 40 }, D: 110 },
         attack: { F: { of: 'bns', mul: [45] }, D: 80 }, mass: { F: 160, D: { of: 'bns', mul: [13], add: 12 } },
@@ -116,11 +129,21 @@ P.register('era', 'napoleonic', {
     battery: { density: 0.6, speed: 0.25, deployed: true }, park: { density: 1, speed: 0.25, deployed: true }, limbered: { density: 1.5, column: true },
   },
   formationElse: { fire: 0.2, mass: 1, vsHorse: 0.8, meleeD: 1 },
+  /* (phase 2g) obstacles on the map, by kind: cross, the share of its pace a body keeps while crossing, by how it moves (0: it cannot cross
+     formed); disorder, cohesion it costs; cover, the share of musketry that still finds men close behind it; melee, how much harder it makes
+     them to dislodge; horse, how much of a charge's weight carries over it (est. throughout: no Waterloo line is an obstacle yet) */
+  obstacles: {
+    hedge: { cross: { foot: 0.5, horse: 0.25, guns: 0.1 }, disorder: 4, cover: 0.7, melee: 1.3, horse: 0.5 },
+    wall: { cross: { foot: 0.4, horse: 0, guns: 0 }, disorder: 6, cover: 0.4, melee: 1.6, horse: 0 },
+    ditch: { cross: { foot: 0.5, horse: 0.3, guns: 0.1 }, disorder: 3, cover: 0.8, melee: 1.2, horse: 0.6 },
+    abatis: { cross: { foot: 0.25, horse: 0, guns: 0 }, disorder: 8, cover: 0.8, melee: 1.5, horse: 0 },
+  },
   /* weapons: musket, the smoothbore (hit table above; front ranks firing: 2); rifle, slower to load and more accurate past 100 m (Baker);
      guns, roundshot and canister above, shots a minute by calibre, howitzer shells that can fire buildings, caissons that can blow up */
   weapons: {
-    musket: { reach: 300, arc: 75, firingRanks: 2, rate: 1, ammo: 'musket' },
-    rifle: { reach: 300, arc: 75, firingRanks: 2, rate: 0.6, longHit: { beyond: 100, mul: 1.6 }, ammo: 'rifle' },
+    musket: { reach: 300, arc: 75, firingRanks: 2, rate: 1, ammo: 'musket', volley: { within: 60, mul: 1.5 } }, // the first volley, loaded with care, at under 60 m
+    rifle: { reach: 300, arc: 75, firingRanks: 2, rate: 0.6, longHit: { beyond: 100, mul: 1.6 }, ammo: 'rifle', volley: { within: 60, mul: 1.5 } },
+    bayonet: { reach: 0, melee: { power: 1, ranks: 2 } },
     guns: { reach: 1600, rateByCal: [[12, 1]], rateElse: 2, fireBuildings: 0.005, caisson: 0.002 },
   },
 });

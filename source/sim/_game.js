@@ -268,7 +268,7 @@ function hqInfo() {
   const C = SIM.command, P0 = WCommand.POSTS, W = SIM.wet, V = SIM.bgVis(SIM.t);
   const post = C.hq.moving ? `Riding to ${P0[C.hq.moving.to].name}; set up about ${hm(C.hq.moving.arriveAt)}` : `At ${P0[C.hq.post].name}`;
   const ground = W > 0.8 ? 'soaked' : W > 0.55 ? 'soft and heavy' : W > 0.35 ? 'drying' : 'firm';
-  const light = SIM.t < 20 * 60 ? 'good daylight' : SIM.t < 20 * 60 + 40 ? 'the sun is going down' : SIM.t < 21 * 60 + 10 ? 'dusk' : 'nearly dark';
+  const L = SIM.light, light = SIM.t < L.sunset - 15 ? 'good daylight' : SIM.t < L.sunset + 25 ? 'the sun is going down' : SIM.t < L.dark ? 'dusk' : 'nearly dark'; // (phase 2) from the computed sun
   const wind = SIM.wind.speed < 0.8 ? 'barely a breath of wind' : SIM.wind.speed < 1.5 ? 'a light wind' : 'a fresh breeze';
   return `<dl class="kv"><dt>Your post</dt><dd>${post}${C.hq.wounded ? ' · you are wounded' : ''}</dd><dt>Staff</dt><dd>${G.opts.staff === 'berthier' ? 'Berthier: orders written in 3–8 minutes, two or three riders' : 'Soult: orders written in 5–15 minutes, one rider'}</dd>
   <dt>Light</dt><dd>${light}; you can see about ${(V / 1000).toFixed(0)} km where the smoke allows</dd><dt>Ground</dt><dd>${ground}</dd><dt>Wind</dt><dd>${wind} from the ${comp((SIM.wind.dir + 360) % 360)}, carrying the smoke ${comp((SIM.wind.dir + 180) % 360)}</dd></dl>`;
@@ -288,7 +288,7 @@ function renderHQ() {
   // the ride-on times beside Continue: every half hour from now to dark
   $('r-stop').value = G.stopMode; $('r-custom').hidden = G.stopMode !== 'custom';
   const sel = $('r-to'), first = Math.ceil((SIM.t + 1) / 30) * 30, keep = +sel.value;
-  if (sel.dataset.from !== String(first)) { sel.dataset.from = first; let h = ''; for (let t = first; t <= 21 * 60 + 30; t += 30) h += `<option value="${t}">to ${SIM.fmtT(t)}</option>`; sel.innerHTML = h + '<option value="end">to the end…</option>'; if (keep > SIM.t) sel.value = keep; }
+  if (sel.dataset.from !== String(first)) { sel.dataset.from = first; let h = ''; for (let t = first; t <= SIM.light.end; t += 30) h += `<option value="${t}">to ${SIM.fmtT(t)}</option>`; sel.innerHTML = h + '<option value="end">to the end…</option>'; if (keep > SIM.t) sel.value = keep; }
 }
 $('r-stop').addEventListener('change', e => { if (G) G.stopMode = e.target.value; $('r-custom').hidden = e.target.value !== 'custom'; });
 { const box = $('r-custom'); box.innerHTML = '<legend class="vh">Stop the clock when</legend>' + STOP_KINDS.map(([k, w]) => `<label><input type="checkbox" value="${k}"${customStops.has(k) ? ' checked' : ''}> ${w}</label>`).join('');
@@ -370,7 +370,7 @@ function renderOB() {
   if (a === 'hold' && (kind === 'cavalry' || OB.to === 'drouot' || OB.to === 'derlon' || OB.to === 'reille')) h += `<p class="sub" style="margin-left:0">While this order stands, Ney cannot take these brigades for attacks or charges of his own.</p>`;
   // conditions
   if (kind !== 'hq' && kind !== 'grouchy') {
-    const times = []; for (let t = Math.ceil((SIM.t + 5) / 10) * 10; t <= 21 * 60 + 20; t += 10) times.push([t, SIM.fmtT(t)]);
+    const times = []; for (let t = Math.ceil((SIM.t + 5) / 10) * 10; t <= SIM.light.end - 10; t += 10) times.push([t, SIM.fmtT(t)]);
     const cond = (c, i) => {
       let x = '';
       if (c.type === 'time') x = `Not before <select data-ci="${i}" data-k="after">${times.map(([v, t]) => opt(v, t, c.after)).join('')}</select>`;
