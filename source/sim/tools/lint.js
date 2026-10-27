@@ -25,7 +25,7 @@ function battleNames() {
     for (const s of B.sides) add('side', s.id);
     for (const n of B.nations || []) add('nation', n);
     for (const l of B.leaders || []) { add('leader', l.id); const p = P.leader(l.id); if (p) add('leader', p.name); }
-    for (const list of ['RAW', 'PRUSSIANS', 'HAL_FORCE', 'GROUCHY_FORCE', 'HORSE_BATTERIES']) for (const r of W[list] || []) add('unit', r[0]);
+    for (const list of ['RAW', 'PRUSSIANS', 'HAL_FORCE', 'GROUCHY_FORCE']) for (const r of W[list] || []) add('unit', r[0]);
     for (const list of ['PRUSSIANS', 'HAL_FORCE', 'GROUCHY_FORCE']) for (const r of W[list] || []) add('corps', r[7]);
     for (const F of W.FORCES || []) { add('force', F.group); for (const r of F.units || []) { add('unit', r[0]); add('corps', r[7]); } }
     for (const st of Object.values(B.starts || {})) if (st.come) add('route', st.come.route);

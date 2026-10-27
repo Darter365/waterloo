@@ -63,7 +63,7 @@ function cmdOf(u) {
 function install(E, opts = {}) {
   const W = E.W, rnd = E.rnd, fmtT = E.fmtT;
   const C = {
-    opts: Object.assign({ staff: 'soult', silence: CK.SILENCE }, opts), CK,
+    opts: Object.assign({ staff: 'soult', silence: CK.SILENCE }, opts), CK, side: opts.side || E.sideIds[0], // the army the player commands (phase 3e makes this any side)
     B: {}, riders: [], inbox: [], orders: [], nextId: 1, lastPlace: {}, soundSrc: [], firing: { battery: null },
     hq: { post: 'rossomme', moving: null, wounded: false },
   };

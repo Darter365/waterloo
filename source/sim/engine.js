@@ -343,7 +343,6 @@ function create(opts = {}) {
     if (tr.horse) u.horse = true; if (tr.prestige) u.prestige = tr.prestige; if (tr.weapon) u.weapon = tr.weapon; if (tr.ammo) u.ammoKind = tr.ammo; if (tr.ammo0 != null) u.ammo = tr.ammo0;
     if (!u.corps && SIDE_BY[side].corps0) u.corps = SIDE_BY[side].corps0;
   }
-  for (const r of (W.HORSE_BATTERIES || [])) { const [id, side, name, parent, nat, type, str, la, lo, facing] = r; const [x, y] = ll2m(la, lo); makeUnit({ id, side, name, parent, nat, type, str, x, y, facing, form: 'battery', q: W.QUALITY[id] ?? 1, corps: 'horseart', cal: W.CALIBRE[id] || gunCal(nat), horse: true }); }
   // starting cohesion and fatigue: 75-90 by quality (era), plus the weather's (Waterloo: -5 for the soaked night); each army's fatigue (battle)
   for (const u of E.units) {
     u.coh = clamp(E.K.COH0 + (u.q - E.K.COH0_Q0) * E.K.COH0_Q, E.K.COH0_MIN, E.K.COH0_MAX) + (WEATHER.cohesion0 || 0); u.cohMax = 100; u.minCoh = u.coh;
@@ -374,6 +373,7 @@ function create(opts = {}) {
     u.coh = clamp(E.K.COH0 + (q - E.K.COH0_Q0) * E.K.COH0_Q, E.K.COH0_MIN, E.K.COH0_MAX) + (WEATHER.cohesion0 || 0); u.fatigue = F.fatigue0 ?? 20;
     if (F.ammo0 && F.ammo0[route] != null) u.ammo = F.ammo0[route];
     u.reinforcement = true; E.corpsMen0[route] = (E.corpsMen0[route] || 0) + (ARMS[armIdOf(type)].crew ? 0 : str); // a fresh corps (its foot and horse)
+    if (F.marches) u.arriveAt = arrive; // a force that marches on its own comes on at its minute (a battle's commanders may move it)
     u.expected = !!F.marches; E.offmap.push(u); // expected: the force marches to the field on its own (it counts in its army's strength at the start)
   }
   if (START.back || START.come) startVariant(START);
@@ -505,7 +505,7 @@ function create(opts = {}) {
       setTask(u, { kind: 'march', route: route.slice(2), then: u.marchThen || null });
       u.path = route.slice(2).map(p => [p[0], p[1]]);
       log('arrival', `${u.name} appears at the edge of the field.`, { side: u.side, unit: u.id, hidden: true });
-      if (u.side === 'FR' && E.command && E.command.noteOwn) E.command.noteOwn(u, 'seen coming up the high road');
+      if (E.command && E.command.noteOwn && E.command.side === u.side) E.command.noteOwn(u, 'seen coming up the high road');
       if (E.ai && E.ai.onArrival) E.ai.onArrival(E, u);
     }
   }
@@ -781,13 +781,13 @@ function create(opts = {}) {
   function currentTarget(u) {
     const t = u.task;
     if (t.targetUnit) { const e = E.byId[t.targetUnit]; if (e && formed(e) && e.spId) { t.sp = e.spId; t.targetUnit = null; } else if (e && formed(e)) return { unit: e, range: frontRange(u, e) }; else t.targetUnit = null; }
-    if (t.sp) { const sp = E.spById[t.sp]; const sec = sp.secs.find(s => s.held && s.held !== sideKey(u) && (s.held === 'FR') !== (u.side === 'FR') && !s.burnt); if (sec) { const g = E.byId[sp.garrison]; const r = Math.max(10, hyp(u.x - sec.x, u.y - sec.y) - sec.r - reachD(u)); return { sp, sec, unit: g && formed(g) ? g : null, range: r }; } }
+    if (t.sp) { const sp = E.spById[t.sp]; const sec = sp.secs.find(s => s.held && s.held !== sideKey(u) && !s.burnt); if (sec) { const g = E.byId[sp.garrison]; const r = Math.max(10, hyp(u.x - sec.x, u.y - sec.y) - sec.r - reachD(u)); return { sp, sec, unit: g && formed(g) ? g : null, range: r }; } }
     // nearest enemy in front within 120 m blocks the way
     const blk = near(u.x, u.y, 160, e => isEnemy(u, e) && formed(e) && !served(e) && !e.spId);
     let best = null, br = Infinity; for (const e of blk) { const r = frontRange(u, e); if (r < br && angDiff(u.facing, bearing(e.x - u.x, e.y - u.y)) < 80) { br = r; best = e; } }
     if (best) { u.task.targetUnit = best.id; return { unit: best, range: br }; }
     const gar = near(u.x, u.y, 260, e => isEnemy(u, e) && formed(e) && e.spId)[0];
-    if (gar) { const sp = E.spById[gar.spId]; const sec = sp && sp.secs.find(s => s.held && (s.held === 'FR') !== (u.side === 'FR') && !s.burnt); if (sec) { u.task.sp = sp.id; return { sp, sec, unit: gar, range: Math.max(10, hyp(u.x - sec.x, u.y - sec.y) - sec.r - reachD(u)) }; } }
+    if (gar) { const sp = E.spById[gar.spId]; const sec = sp && sp.secs.find(s => s.held && s.held !== sideKey(u) && !s.burnt); if (sec) { u.task.sp = sp.id; return { sp, sec, unit: gar, range: Math.max(10, hyp(u.x - sec.x, u.y - sec.y) - sec.r - reachD(u)) }; } }
     return null;
   }
   const sideKey = u => COAL[u.side]; // armies of one coalition share control of places
@@ -933,11 +933,19 @@ function create(opts = {}) {
   E.retreatExit = (s) => { const sd = exitSide(s), p = ll2m(sd.exit[0], sd.exit[1]); return sd.rear === 'S' ? [p[0], HM - 40] : sd.rear === 'N' ? [p[0], 40] : sd.rear === 'E' ? [WM - 40, p[1]] : [40, p[1]]; };
   E.rearguardLine = (s) => { const sd = exitSide(s), [x, y] = ll2m(sd.rearguard[0], sd.rearguard[1]), [bx, by] = toRear(sd.rear, 60), [ax, ay] = sd.rear === 'S' || sd.rear === 'N' ? [420, 0] : [0, 420]; return [[x - ax + bx, y - ay + by], [x + ax + bx, y + ay + by]]; };
   E.withdrawUnit = function (u) { u.gone = true; u.left = E.t; u.saved = true; u.path = null; };
-  E.beginRetreat = function (o) {
-    E.flags.frWithdraw = E.t; E.metrics.frWithdraw = E.t;
-    E.flags.frWithdrawStr = E.units.filter(u => u.side === 'FR' && formed(u) && !served(u)).reduce((a, u) => a + u.str, 0);
-    E.morale.FR -= 5; // the army sees itself going back (est.)
-    log('army', 'The French army begins to retreat on Charleroi.', { side: 'FR', important: true });
+  // (phase 3) which way is back, for any army: its own rear edge (battle pack); a broken pursuit rallies toward its coalition's lead army's
+  // rear, the distance the battle gives (side.rallyBack, m; 750 if none: est.)
+  const coalSide = s => SIDE_BY[COAL[s]] || SIDE_BY[s];
+  E.rearOf = (s, p, u, d) => rearOf(SIDE_BY[s].rear, p, u, d);
+  E.atRear = (u, m) => offEdge(SIDE_BY[u.side].rear, u, m);
+  E.frontFacing = s => ({ S: 0, N: 180, E: 270, W: 90 })[SIDE_BY[s].rear] || 0;
+  E.rallyBack = u => { const cs = coalSide(u.side); return toRear(cs.rear, cs.rallyBack ?? 750); };
+  E.beginRetreat = function (o) { // (phase 2) any army: the side the order is for (the attacker by default)
+    const s = (o && o.side) || ((BATTLE.battle.victory || {}).attacker) || SIDE_IDS[0], wk = s.toLowerCase() + 'Withdraw';
+    E.flags[wk] = E.t; E.metrics[wk] = E.t;
+    E.flags[wk + 'Str'] = E.units.filter(u => u.side === s && formed(u) && !served(u)).reduce((a, u) => a + u.str, 0);
+    E.morale[s] -= 5; // the army sees itself going back (est.)
+    log('army', SIDE_BY[s].retreatSays || `The ${SIDE_BY[s].name} army begins to retreat.`, { side: s, important: true });
   };
   E.leaveSp = function (u) { const sp = u.spId ? E.spById[u.spId] : null; if (sp && sp.garrison === u.id) { sp.garrison = null; } u.spId = null; u.spSec = null; unhold(u); u.form = PLACE.leaveForm; const fp = footprint(u); u.F = fp.F; u.D = fp.D; };
   // detach part of a brigade (e.g. into Hougoumont)
@@ -1245,40 +1253,47 @@ function create(opts = {}) {
   E.nearestPlace = nearestPlace;
 
   /* ----- end and score ----- */
+  /* ----- (phase 2) the end and the grade, in general form: the battle ends at nightfall, when an army has been breaking for 40 minutes
+     with no partner army still in the fight, or when a retreating army has drawn off; the grade follows the battle's victory terms
+     (attacker; what a decisive win must hold; a collapse before which minute is a catastrophe; the line whose holding is a marginal win) ----- */
+  const fought = s => E.flags[s.toLowerCase() + 'Engaged'] || E.units.some(u => u.side === s && u.lastFired >= 0);
   function endCheck() {
     if (E.t >= END - 2) return finish('nightfall');
-    if (E.flags.FRBroken && E.t - E.flags.FRBroken > 40) return finish('French army broken');
-    if (E.flags.ALBroken && E.t - E.flags.ALBroken > 40 && !E.flags.prEngaged) return finish('Anglo-allied army broken');
+    for (const s of SIDE_IDS) { const b = E.flags[s + 'Broken']; if (!b || E.t - b <= 40) continue; if (!SIDE_IDS.some(p => p !== s && COAL[p] === COAL[s] && !E.flags[p + 'Broken'] && fought(p))) return finish(`${SIDE_BY[s].name} army broken`); }
     // (6) the retreat is over when nine-tenths of the foot and horse that were formed when it began have left the field
-    if (E.flags.frWithdraw && E.t - E.flags.frWithdraw > 30 && E.tick % 5 === 0) {
-      const left = E.units.filter(u => u.side === 'FR' && formed(u) && !served(u)).reduce((a, u) => a + u.str, 0);
-      if (left < 0.1 * E.flags.frWithdrawStr) return finish('the French army has drawn off');
-    }
+    for (const s of SIDE_IDS) { const wk = s.toLowerCase() + 'Withdraw'; if (E.flags[wk] && E.t - E.flags[wk] > 30 && E.tick % 5 === 0) {
+      const left = E.units.filter(u => u.side === s && formed(u) && !served(u)).reduce((a, u) => a + u.str, 0);
+      if (left < 0.1 * E.flags[wk + 'Str']) return finish(`the ${SIDE_BY[s].name} army has drawn off`);
+    } }
   }
   function finish(why) {
     E.over = true; const r = E.result = { why, t: E.t };
-    const cas = side => { let kw = 0, cap = 0, str = 0; for (const u of E.units) { if (u.side !== side && !(side === 'AL' && u.side === 'AL')) continue; kw += u.killed + u.wounded; cap += u.captured + u.stragglers; } return { kw: Math.round(kw), cap: Math.round(cap) }; };
-    r.cas = { FR: cas('FR'), AL: cas('AL'), PR: cas('PR') };
+    const cas = side => { let kw = 0, cap = 0; for (const u of E.units) { if (u.side !== side) continue; kw += u.killed + u.wounded; cap += u.captured + u.stragglers; } return { kw: Math.round(kw), cap: Math.round(cap) }; };
+    r.cas = Object.fromEntries(SIDE_IDS.map(sd => [sd, cas(sd)]));
     // grade
-    const crestFR = !!E.flags.crestFR, frBroke = E.flags.FRBroken, alBroke = E.flags.ALBroken;
-    const frM = E.morale.FR, roadHeld = !E.units.some(u => u.side !== 'FR' && formed(u) && hyp(u.x - E.spById.ba.x, u.y - E.spById.ba.y) < 600);
-    if (alBroke && !frBroke && frM >= 40 && roadHeld) r.grade = 'Decisive French victory';
-    else if (alBroke && !frBroke) r.grade = 'French victory';
-    else if (frBroke && frBroke < 18 * 60) r.grade = 'French catastrophe';
-    else if (frBroke) r.grade = 'Allied victory';
-    else if (crestFR) r.grade = 'Marginal French victory';
-    else if (E.flags.frWithdraw && frM >= 20) r.grade = 'Marginal Allied victory';
+    const V = BATTLE.battle.victory || {}, att = V.attacker || SIDE_IDS[0], attC = COAL[att], defC = COALS.find(c => c !== attC);
+    const adj = c => (BATTLE.battle.coalitionAdjectives || {})[c] || COAL_NAME[c] || c;
+    const attBroke = E.flags[attC + 'Broken'], defBroke = E.flags[defC + 'Broken'], attM = E.morale[att];
+    const D = V.decisive, sp = D && E.spById[D.holds], held = !sp || !E.units.some(u => COAL[u.side] !== attC && formed(u) && hyp(u.x - sp.x, u.y - sp.y) < D.within);
+    const mo = V.marginal && E.objectives[V.marginal], marginal = mo ? !!E.flags[mo.flag] : Object.values(E.objectives).some(o => o.value && o.line && o.takenAt && o.by === attC);
+    const wk = att.toLowerCase() + 'Withdraw';
+    if (defBroke && !attBroke && attM >= (D ? D.morale : 40) && held) r.grade = `Decisive ${adj(attC)} victory`;
+    else if (defBroke && !attBroke) r.grade = `${adj(attC)} victory`;
+    else if (attBroke && V.catastropheBefore != null && attBroke < V.catastropheBefore) r.grade = `${adj(attC)} catastrophe`;
+    else if (attBroke) r.grade = `${adj(defC)} victory`;
+    else if (marginal) r.grade = `Marginal ${adj(attC)} victory`;
+    else if (E.flags[wk] && attM >= 20) r.grade = `Marginal ${adj(defC)} victory`;
     else r.grade = 'Draw';
-    if (E.flags.frWithdraw) { // what the retreat brought away: brigades that marched off in order, and their guns
-      const fr = E.units.filter(u => u.side === 'FR'), sv = fr.filter(u => u.saved);
-      r.withdrawn = { from: E.flags.frWithdraw, men: Math.round(sv.filter(u => !served(u)).reduce((a, u) => a + u.str, 0)), guns: Math.round(sv.filter(u => served(u)).reduce((a, u) => a + u.str, 0)),
-        gunsAll: Math.round(fr.filter(u => served(u)).reduce((a, u) => a + (u.guns0 || u.str0 || 0), 0)), menAtStart: Math.round(E.flags.frWithdrawStr), stillHere: Math.round(fr.filter(u => formed(u) && !served(u)).reduce((a, u) => a + u.str, 0)) };
+    if (E.flags[wk]) { // what the retreat brought away: brigades that marched off in order, and their guns
+      const fr = E.units.filter(u => u.side === att), sv = fr.filter(u => u.saved);
+      r.withdrawn = { from: E.flags[wk], men: Math.round(sv.filter(u => !served(u)).reduce((a, u) => a + u.str, 0)), guns: Math.round(sv.filter(u => served(u)).reduce((a, u) => a + u.str, 0)),
+        gunsAll: Math.round(fr.filter(u => served(u)).reduce((a, u) => a + (u.guns0 || u.str0 || 0), 0)), menAtStart: Math.round(E.flags[wk + 'Str']), stillHere: Math.round(fr.filter(u => formed(u) && !served(u)).reduce((a, u) => a + u.str, 0)) };
     }
     log('end', `The battle ends (${why}): ${r.grade}.`, { important: true });
   }
   E.finish = finish;
 
-  function snapshotLite() { return { t: E.t, morale: { ...E.morale }, kw: { FR: sumSide('FR', 'kw'), AL: sumSide('AL', 'kw'), PR: sumSide('PR', 'kw') } }; }
+  function snapshotLite() { return { t: E.t, morale: { ...E.morale }, kw: Object.fromEntries(SIDE_IDS.map(s => [s, sumSide(s, 'kw')])) }; }
   function sumSide(side, what) { let s = 0; for (const u of E.units) if (u.side === side) s += what === 'kw' ? u.killed + u.wounded : u.str; return Math.round(s); }
   E.sumSide = sumSide;
   E.run = function (until = END) { while (!E.over && E.t < until) E.step(); return E; };

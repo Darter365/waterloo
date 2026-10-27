@@ -105,12 +105,6 @@ function validate(id) {
     if (!num(q) || q <= 0 || q > 1.5) E(`${list} '${uid}': quality ${q} must be in (0, 1.5]`);
     if (!num(arrive) || arrive < 0) E(`${list} '${uid}': arrival offset ${arrive} must be minutes >= 0`);
   }); }
-  (W.HORSE_BATTERIES || []).forEach((r, n) => {
-    if (!Array.isArray(r) || r.length !== 10) { E(`HORSE_BATTERIES row ${n}: expected 10 fields`); return; }
-    unit('HORSE_BATTERIES', r, n, 'field');
-    if (r[5] !== 'art') E(`HORSE_BATTERIES '${r[0]}' is not artillery`);
-    where(`battery '${r[0]}'`, [r[7], r[8]]);
-  });
   for (const k of ['QUALITY', 'CALIBRE', 'CORPS', 'DIVISION']) for (const [uid, v] of Object.entries(W[k] || {})) {
     if (!units[uid]) { E(`${k}: "${uid}" is not a unit`); continue; }
     if (k === 'QUALITY' && (!num(v) || v <= 0 || v > 1.5)) E(`QUALITY '${uid}': ${v} must be in (0, 1.5]`);

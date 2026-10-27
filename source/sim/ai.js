@@ -14,9 +14,9 @@ function nearestOnPoly(px, py, p) { let best = null, bd = Infinity; for (let i =
 /* ===================== what a commander knows ===================== */
 // With the command layer running, every decision below reads the deciding commander's own belief record;
 // without it (the 5a engine check), the side's shared sightings and the true state stand in.
-function known(E, cid, maxAge, pred) {
+function known(E, cid, maxAge, pred, coal) {
   if (E.command && E.command.B[cid]) { const out = []; for (const c of E.command.B[cid].c.values()) if (E.t - c.t <= maxAge && (!pred || pred(c))) out.push(c); return out; }
-  const side = (E.leaders[cid] || {}).side === 'FR' ? 'FR' : 'AL';
+  const side = coal || E.coalition[(E.leaders[cid] || {}).side] || E.coalition[E.sideIds[1]]; // the commander's coalition's sightings
   return Object.values(E.contacts[side]).filter(c => E.t - c.t <= maxAge && (!pred || pred(c)));
 }
 function ownState(E, cid, u) {
@@ -66,7 +66,7 @@ function execBombard(E, o) {
   const site = E.objectives[o.site], area = E.objectives[o.area];
   const us = units(E, o.units);
   us.forEach((u, i) => {
-    const sp = site ? (site.line ? lerp(site.line[0], site.line[1], (i + 0.5) / us.length) : site.point) : [u.x, u.y];
+    const sp = o.sitePoints && o.sitePoints[i] ? o.sitePoints[i] : site ? (site.line ? lerp(site.line[0], site.line[1], (i + 0.5) / us.length) : site.point) : [u.x, u.y]; // (phase 3) each battery's own site
     E.setTask(u, { kind: 'bombard', area: area ? (area.line || [area.point, area.point]) : null, areaKey: o.area || null, site: sp, order: o.id, incendiary: !!o.incendiary, arriveFacing: o.facing ?? null }, o.cause);
     if (hyp(sp[0] - u.x, sp[1] - u.y) > 60) { E.routeTo(u, sp, true); } else u.path = null;
   });
@@ -80,7 +80,7 @@ function execCavRaid(E, o) {
 // (6) the general retreat: each brigade makes for the high road and marches off the field toward Charleroi; the rearguard first
 // stands across the road at Rossomme and follows once the rest are past
 function execRetire(E, o) {
-  const exit = E.retreatExit(), rg = o.rear ? E.rearguardLine() : null, us = units(E, o.units);
+  const us = units(E, o.units), side = us.length ? us[0].side : undefined, exit = E.retreatExit(side), rg = o.rear ? E.rearguardLine(side) : null;
   us.forEach((u, i) => {
     if (u.spId) E.leaveSp(u);
     const tp = rg ? lerp(rg[0], rg[1], (i + 0.5) / us.length) : exit, task = rg ? { kind: 'rearguard', dest: tp, since: E.t, order: o.id } : { kind: 'retire', since: E.t, order: o.id };
@@ -109,7 +109,7 @@ function apply(E, o) {
   else if (o.kind === 'garrison') execGarrison(E, o);
   else if (o.kind === 'retire') execRetire(E, o);
   if (o.onAct) o.onAct(E, o);
-  if (o.text) E.logEvent('orders', o.text, { side: L ? L.side : 'FR', hidden: o.hidden !== false ? true : false });
+  if (o.text) E.logEvent('orders', o.text, { side: L ? L.side : E.sideIds[0], hidden: o.hidden !== false ? true : false });
 }
 
 /* ===================== unit-level behaviour shared by all commanders ===================== */
@@ -128,7 +128,7 @@ function unitControl(E) {
       if (u.halted) continue;
       // direction: the strongpoint section still held by the enemy, else the assigned point, else the nearest enemy in front
       let goal = t.point;
-      if (t.sp) { const sp = E.spById[t.sp]; const sec = sp.secs.find(s => s.held && (s.held === 'FR') !== (u.side === 'FR') && !s.burnt); if (sec) goal = [sec.x, sec.y]; else if (sp.holder && (sp.holder === 'FR') === (u.side === 'FR')) { /* already ours */ if (u.type !== 'gar') { E.setTask(u, { kind: 'hold' }); continue; } } else { const s0 = sp.secs.find(s => !s.burnt) || sp.secs[0]; goal = [s0.x, s0.y]; if (hyp(u.x - s0.x, u.y - s0.y) < s0.r + 60) { const enemyIn = E.near(s0.x, s0.y, s0.r + 80, e => E.isEnemy(u, e) && E.formed(e)).length; if (!enemyIn) { E.enterSp(u, sp); continue; } } } }
+      if (t.sp) { const sp = E.spById[t.sp]; const sec = sp.secs.find(s => s.held && s.held !== E.coalition[u.side] && !s.burnt); if (sec) goal = [sec.x, sec.y]; else if (sp.holder && sp.holder === E.coalition[u.side]) { /* already ours */ if (u.type !== 'gar') { E.setTask(u, { kind: 'hold' }); continue; } } else { const s0 = sp.secs.find(s => !s.burnt) || sp.secs[0]; goal = [s0.x, s0.y]; if (hyp(u.x - s0.x, u.y - s0.y) < s0.r + 60) { const enemyIn = E.near(s0.x, s0.y, s0.r + 80, e => E.isEnemy(u, e) && E.formed(e)).length; if (!enemyIn) { E.enterSp(u, sp); continue; } } } }
       const blk = E.near(u.x, u.y, 260, e => E.isEnemy(u, e) && E.formed(e) && e.type !== 'art' && !e.spId);
       let tgt = null, bd = 1e9; for (const e of blk) { const d = hyp(e.x - u.x, e.y - u.y); if (d < bd) { bd = d; tgt = e; } }
       if (tgt && (!t.sp || hyp(tgt.x - goal[0], tgt.y - goal[1]) < 300)) { goal = [tgt.x, tgt.y]; t.targetUnit = tgt.id; }
@@ -138,9 +138,9 @@ function unitControl(E) {
         const back = Math.max(0, 90 - Math.max(0, d - (tgt ? (u.D + tgt.D) / 2 : 30))); if (back > 5) { const v = [u.x - goal[0], u.y - goal[1]], L = hyp(v[0], v[1]) || 1; u.path = [[u.x + v[0] / L * back, u.y + v[1] / L * back]]; u.stopAt = 0; } else u.path = null; u.pace = null; continue; }
       if (d > 40) { u.path = [goal]; u.stopAt = tgt ? (u.D + tgt.D) / 2 + 35 : (t.sp ? 30 : 0); }
       else if (!tgt && !t.sp) { // reached the objective with no enemy in front
-        E.setTask(u, { kind: 'hold', reached: t.order }); u.path = null; E.setForm(u, u.side === 'FR' ? 'line' : 'line');
+        E.setTask(u, { kind: 'hold', reached: t.order }); u.path = null; E.setForm(u, 'line');
       }
-      if (t.engineers && t.sp && E.rnd && u.contactTicks === 1) { const sp = E.spById[t.sp]; const sec = sp.secs.find(s => s.held && (s.held === 'FR') !== (u.side === 'FR')); if (sec && sec.cover <= 0.3 && E.rnd('gate broken') < 0.1) { u.gateBonus = true; u.gateAt = E.tick; E.logEvent('event', `Sappers with axes break a gate at ${sp.name}!`, { side: u.side, unit: u.id, important: true }); } }
+      if (t.engineers && t.sp && E.rnd && u.contactTicks === 1) { const sp = E.spById[t.sp]; const sec = sp.secs.find(s => s.held && s.held !== E.coalition[u.side]); if (sec && sec.cover <= 0.3 && E.rnd('gate broken') < 0.1) { u.gateBonus = true; u.gateAt = E.tick; E.logEvent('event', `Sappers with axes break a gate at ${sp.name}!`, { side: u.side, unit: u.id, important: true }); } }
       if (t.sp === 'hougoumont' && u.side === 'FR' && u.contactTicks === 1 && E.spById.hougoumont.secs.find(s => s.held === 'AL' && !s.burnt && s.cover <= 0.3) === E.spById.hougoumont.secs.find(s => s.held === 'AL' && !s.burnt) && E.rnd('gate broken') < 0.08) { u.gateBonus = true; u.gateAt = E.tick; E.logEvent('event', 'A sous-lieutenant with an axe smashes through the north gate of Hougoumont!', { side: 'FR', unit: u.id, important: true }); }
     } else if (t.kind === 'support') {
       const lead = E.byId[t.of];
@@ -157,7 +157,7 @@ function unitControl(E) {
       if (!u.path || !u.path.length) {
         // re-attack if the order still stands and the unit has recovered
         const prev = t.prev;
-        if (prev && (prev.kind === 'retire' || prev.kind === 'rearguard')) { E.setTask(u, prev); E.routeTo(u, prev.kind === 'retire' ? E.retreatExit() : prev.dest, true); }
+        if (prev && (prev.kind === 'retire' || prev.kind === 'rearguard')) { E.setTask(u, prev); E.routeTo(u, prev.kind === 'retire' ? E.retreatExit(u.side) : prev.dest, true); }
         else if (prev && prev.kind === 'attack' && u.coh >= 55 && (prev.attempts || 0) + 1 < (prev.maxAttempts ?? 3) && E.t < E.light.dark && u.type === 'inf') {
           const L = u.corps && E.leaders[u.corps]; const keen = L ? L.agg : 0.6;
           if (E.rnd('renew attack') < 0.15 + 0.25 * keen) { E.setTask(u, Object.assign({}, prev, { attempts: (prev.attempts || 0) + 1 })); u.path = [prev.point]; E.setForm(u, prev.form || 'attack'); E.logEvent('combat', `${u.name} goes forward again.`, { side: u.side, unit: u.id }); }
@@ -191,19 +191,19 @@ function unitControl(E) {
       // (8) out of road short of the place: march on (once), else give up; before, it went in from wherever it stood, up to a kilometre away
       if ((!u.path || !u.path.length) && dIn > 400) { if (!t.rerouted) { t.rerouted = true; E.routeTo(u, [sp.secs[0].x, sp.secs[0].y], true); } else E.setTask(u, { kind: 'hold' }); }
       else if (!u.path || !u.path.length || dIn < 80) {
-        if (!sp.holder || sp.holder === (u.side === 'FR' ? 'FR' : 'AL')) { E.enterSp(u, sp); }
+        if (!sp.holder || sp.holder === E.coalition[u.side]) { E.enterSp(u, sp); }
         else { E.setTask(u, { kind: 'attack', sp: sp.id, point: [sp.x, sp.y], attempts: 0, maxAttempts: 3, form: 'attack' }); }
       }
     } else if (t.kind === 'pursue') {
-      if (!u.path || !u.path.length) { u.pursuing = false; E.setTask(u, { kind: 'rally', at: u.side === 'FR' ? [u.x, u.y + 600] : [u.x, u.y - 900] }); u.path = [u.task.at]; }
+      if (!u.path || !u.path.length) { u.pursuing = false; const [bx, by] = E.rallyBack(u); E.setTask(u, { kind: 'rally', at: [u.x + bx, u.y + by] }); u.path = [u.task.at]; }
       u.wind = Math.max(0, u.wind - 2);
     } else if (t.kind === 'retire') {
-      if (!u.path || !u.path.length) { if (u.y > E.W.HM - 200) E.withdrawUnit(u); else E.routeTo(u, E.retreatExit(), true); }
+      if (!u.path || !u.path.length) { if (E.atRear(u, 200)) E.withdrawUnit(u); else E.routeTo(u, E.retreatExit(u.side), true); }
     } else if (t.kind === 'rearguard') {
-      if ((!u.path || !u.path.length) && !t.arrived) { t.arrived = E.t; u.facing = 0; if (u.type === 'inf') E.setForm(u, 'square'); }
+      if ((!u.path || !u.path.length) && !t.arrived) { t.arrived = E.t; u.facing = E.frontFacing(u.side); if (u.type === 'inf') E.setForm(u, 'square'); }
       // follow once nothing of ours that is still formed is north of the rearguard, or it is badly hurt, or after two hours
-      const behind = E.units.some(f => f.side === 'FR' && f !== u && E.formed(f) && f.task.kind !== 'rearguard' && f.y < t.dest[1] - 150);
-      if ((t.arrived && E.t - t.arrived > 20 && !behind) || u.coh < 35 || E.t - t.since > 120) { E.setTask(u, { kind: 'retire', since: E.t }); E.routeTo(u, E.retreatExit(), true); if (u.type === 'inf') E.setForm(u, 'columns'); }
+      const behind = E.units.some(f => f.side === u.side && f !== u && E.formed(f) && f.task.kind !== 'rearguard' && E.rearOf(u.side, t.dest, f, 150));
+      if ((t.arrived && E.t - t.arrived > 20 && !behind) || u.coh < 35 || E.t - t.since > 120) { E.setTask(u, { kind: 'retire', since: E.t }); E.routeTo(u, E.retreatExit(u.side), true); if (u.type === 'inf') E.setForm(u, 'columns'); }
     } else if (t.kind === 'march') {
       if (t.wait) continue;
       if (!u.path || !u.path.length) {
@@ -656,7 +656,7 @@ function addUnit(E, spec) {
   u.str0 = u.str; u.guns0 = u.str; const fp = E.footprint(u); u.F = fp.F; u.D = fp.D; E.units.push(u); E.byId[u.id] = u; return u;
 }
 
-const api = { make, apply, unitControl };
+const api = { make, apply, unitControl, known, ownState, viaAide, placeHolder, news, nearestOnPoly, polyDist, addUnit }; // (phase 3) the helpers the generic commanders share
 root.WAI = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

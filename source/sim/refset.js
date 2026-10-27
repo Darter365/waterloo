@@ -29,6 +29,7 @@ if (cmd === 'record') {
   for (const e of ref.entries.slice(0, lim)) {
     const now = fightRef(e.mode, e.seed), n = Math.max(now.cps.length, e.cps.length);
     for (let i = 0; i < n; i++) { const p = e.cps[i], q = now.cps[i]; if (!p || !q || p[0] !== q[0] || p[1] !== q[1]) { bad++; console.log(`DIVERGED ${e.mode} seed ${e.seed} at ${p ? Math.floor(p[0] / 60) + ':' + String(p[0] % 60).padStart(2, '0') : 'end'}`); break; } }
+    if (e.result && now.result && JSON.stringify(e.result) !== JSON.stringify(now.result) && !now.cps.some((q, i) => !e.cps[i] || e.cps[i][1] !== q[1])) { bad++; console.log(`RESULT ${e.mode} seed ${e.seed}: ${JSON.stringify(e.result)} -> ${JSON.stringify(now.result)}`); }
   }
   console.log(`checked ${lim} ${ref.mode} battles: ${lim - bad} identical, ${bad} diverged`);
 }

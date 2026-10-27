@@ -411,6 +411,7 @@ const GROUCHY_FORCE = [
 ];
 
 // French horse batteries that rode with the cavalry divisions (not drawn on the step-4 map). Guns, est.
+// the horse batteries (in the order of battle after the rest: they are created last), horse artillery that keeps up with the cavalry
 const HORSE_BATTERIES = [
   ['aHMil', 'FR', "Milhaud's horse batteries", 'IV Cavalry Corps', 'FR', 'art', 12, 50.6672, 4.4290, 344],
   ['aHKel', 'FR', "Kellermann's horse batteries", 'III Cavalry Corps', 'FR', 'art', 12, 50.6600, 4.4000, 340],
@@ -419,6 +420,7 @@ const HORSE_BATTERIES = [
   ['aHPire', 'FR', "Piré's horse battery", '2nd Cavalry Division', 'FR', 'art', 6, 50.6622, 4.3818, 330],
   ['aHDS', 'FR', 'Domon and Subervie horse batteries', 'Light cavalry', 'FR', 'art', 12, 50.6640, 4.4255, 0],
 ];
+for (const r of HORSE_BATTERIES) { RAW.push([...r, 'battery', 0, '']); CORPS[r[0]] = 'horseart'; (TRAITS[r[0]] = TRAITS[r[0]] || {}).horse = true; }
 
 /* (phase 2) forces off the map at the start, in the order they are listed: marches: they come on their own (and count in their army's
    strength at the start); otherwise only if sent for. fatigue0: their tiredness (the Prussians had marched from Wavre since dawn; the others
@@ -436,16 +438,18 @@ P.register('battle', 'waterloo', {
   // fatigue0: tiredness at the start (the French marched through the night: est.); chief: the commander whose presence speeds a unit's rally
   // (release 3 had the Prussians rally on Wellington's presence; now Blücher's); cavChief: who leads a horse brigade that has no leader of its own;
   // corps0: the command a unit with no corps belongs to; rear: the map edge the army falls back to (N, S, E, W), by the route named;
-  // exit: where its line of retreat leaves the map; rearguard: where a rearguard would stand to cover it
+  // exit: where its line of retreat leaves the map; rearguard: where a rearguard would stand to cover it; rallyBack: how far back (m) a
+  // runaway pursuit rallies, toward the coalition's lead army's rear (release 3: French 600, allies 900)
   sides: [
-    { id: 'FR', name: 'French', morale0: 80, coalition: 'FR', fatigue0: 25, chief: 'napoleon', rear: 'S', retreat: 'frRetreat', exit: [50.6380, 4.4270], rearguard: [50.65675, 4.41333] },
-    { id: 'AL', name: 'Anglo-allied', morale0: 70, coalition: 'AL', fatigue0: 15, chief: 'wellington', cavChief: 'uxbridge', corps0: 'wellington', rear: 'N', retreat: 'alRetreat',
+    { id: 'FR', name: 'French', morale0: 80, coalition: 'FR', fatigue0: 25, rallyBack: 600, chief: 'napoleon', rear: 'S', retreat: 'frRetreat', exit: [50.6380, 4.4270], rearguard: [50.65675, 4.41333], posture: 'attack',
+      retreatSays: 'The French army begins to retreat on Charleroi.' },
+    { id: 'AL', name: 'Anglo-allied', morale0: 70, coalition: 'AL', fatigue0: 15, rallyBack: 900, chief: 'wellington', cavChief: 'uxbridge', corps0: 'wellington', rear: 'N', retreat: 'alRetreat', posture: 'defend',
       // the rifle cartridges for La Haye Sainte's garrison (Baker rifles take their own): where the wagon is is a hidden roll (est.; 5e:
       // near 0.4, far 0.3 from 16:00); the garrison ran out in 1815
       wagons: { rifle: { roll: 'rifle wagon', near: 0.25, far: 0.35, farFrom: 1050,
         says: { near: 'The rifle-ammunition wagon for La Haye Sainte is close behind the ridge.', far: 'The rifle-ammunition wagon for La Haye Sainte is stuck far back on the Brussels road.', lost: 'The rifle-ammunition wagon for La Haye Sainte is lost on the road from Brussels.' },
         short: 'No rifle cartridges can be found for {place}; musket rounds do not fit the Baker rifle.' } } },
-    { id: 'PR', name: 'Prussian', morale0: 75, coalition: 'AL', fatigue0: 15, chief: 'blucher', rear: 'E', retreat: 'prRetreat' },
+    { id: 'PR', name: 'Prussian', morale0: 75, coalition: 'AL', fatigue0: 15, chief: 'blucher', rear: 'E', retreat: 'prRetreat', posture: 'attack' },
   ],
   /* the starts (scenarios): the clock, the ground (wet 0-1; it dries 0.13 an hour from dryFrom, never below 0.2: rules doc), and for 05:00
      where the French lie and come up. Est. throughout: the sources agree that the rain stopped about 06:00, that Napoleon at 05:00 set the
@@ -472,6 +476,11 @@ P.register('battle', 'waterloo', {
   weather: { cohesion0: -5, humidFrom: 900, vis: [[300, 3000], [540, 6000], [720, 8000], [960, 6000], [1220, 5000]] },
   // the coalitions by name, for the log ("taken by the French")
   coalitionNames: { FR: 'French', AL: 'Allies' },
+  coalitionAdjectives: { FR: 'French', AL: 'Allied' },
+  /* how the battle is graded (rules doc): the attacker; a decisive win also holds the high road at La Belle Alliance (no enemy foot or horse
+     within 600 m) with morale 40 or more; an attacker who breaks before 18:00 suffers a catastrophe; holding the crest of the ridge at the end
+     is a marginal win */
+  victory: { attacker: 'FR', decisive: { holds: 'ba', within: 600, morale: 40 }, catastropheBefore: 1080, marginal: 'ridgeCentre' },
   // the corps by name, for the log
   corpsNames: { bulow: "Bülow's IV Corps", pirch: "Pirch's II Corps", zieten: "Zieten's I Corps", hal: "Prince Frederik's corps from Hal", grouchy: "Grouchy's wing" },
   /* (phase 2) the turning points the after-action report and the calibration watch, by when: taken (a place passes to a side; after: only
@@ -513,7 +522,7 @@ P.register('battle', 'waterloo', {
     { id: 'zieten', side: 'PR', corps: 'zieten' },
   ],
   map: { LAT0, LON0, MLAT, MLON, NX, NY, CELL, WM, HM, ll2m, m2ll, H, STREAMS, LM, ROADS, SUNKEN, HEDGES, WOODS, BUILDINGS, ENCLOSURES, SANDPIT, VILLAGES, HOUSES, LABELS, EDGE_LABELS,
-  NAT, RAW, OFFMAP, DEBATED, LION, rng, hashStr, QUALITY, CALIBRE, CORPS, DIVISION, TRAITS, STRONGPOINTS, OBJECTIVES, ROUTES, CHOKES, PRUSSIANS, HAL_FORCE, GROUCHY_FORCE, HORSE_BATTERIES, FORCES },
+  NAT, RAW, OFFMAP, DEBATED, LION, rng, hashStr, QUALITY, CALIBRE, CORPS, DIVISION, TRAITS, STRONGPOINTS, OBJECTIVES, ROUTES, CHOKES, PRUSSIANS, HAL_FORCE, GROUCHY_FORCE, FORCES },
 });
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
