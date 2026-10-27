@@ -3,6 +3,17 @@ const FORM = { line: 'in line', twoLines: 'in two lines', columns: 'battalion co
 const TASKS = { hold: 'holding', attack: 'attacking', support: 'supporting', rally: 'rallying', move: 'moving', march: 'marching', bombard: 'bombarding', cavRaid: 'charging on the plateau', charge: 'charging', garrison: 'garrisoning', garrisonGo: 'going into a strongpoint', pursue: 'pursuing out of control' };
 let mapColour = false; // (9) the colour map style: units get a light edge and stay solid against the green
 let SIM = null, prevPos = new Map(), frac = 1, flashes = [], viewMode = 'truth', truthAlpha = 1, extraDraw = null, beliefFocus = null, beliefFocusCol = null; // beliefFocus: own brigades to pick out (others are dimmed)
+/* (B1) news glides: when a report moves a brigade or a sighting on the map, the mark slides to its new place over a moment (shorter at
+   fast speeds) instead of jumping. Only the drawing glides; what is believed changes at once. A move of over 1.5 km is shown as a jump. */
+const GLIDE = new Map(), riderPrev = new WeakMap(); let glideBusy = false, glideMs = 600;
+function glideTo(key, x, y) {
+  const now = performance.now(); let g = GLIDE.get(key);
+  if (!g || Math.hypot(g.tx - x, g.ty - y) > 1500) { GLIDE.set(key, { x, y, fx: x, fy: y, tx: x, ty: y, t0: 0 }); return [x, y]; }
+  if (g.tx !== x || g.ty !== y) { g.fx = g.x; g.fy = g.y; g.tx = x; g.ty = y; g.t0 = now; }
+  const k = Math.min(1, (now - g.t0) / glideMs), e = k * k * (3 - 2 * k);
+  g.x = g.fx + (g.tx - g.fx) * e; g.y = g.fy + (g.ty - g.fy) * e; if (k < 1) glideBusy = true;
+  return [g.x, g.y];
+}
 const lerpPos = u => { const p = prevPos.get(u.id); if (!p || frac >= 1 || Math.hypot(p[0] - u.x, p[1] - u.y) > 1500) return [u.x, u.y]; return [p[0] + (u.x - p[0]) * frac, p[1] + (u.y - p[1]) * frac]; };
 const alive = u => u.onMap && !u.gone && u.str > 0;
 
@@ -214,8 +225,9 @@ function drawBelief(g) {
     const u = SIM.byId[o.uid]; if (!u || o.gone || u.type === 'gar' && u.spId) continue;
     const foc = beliefFocus ? beliefFocus.has(o.uid) : null;
     const ageP = now - o.t, a = Math.max(mapColour ? 0.8 : 0.5, Math.exp(-ageP / 60)) * 0.92 * (foc === false ? 0.3 : 1);
-    const fp = WEngine.footprint(Object.assign({}, u, { form: o.form || u.form, str: o.str || u.str }));
-    const pts = quadAt(o.x, o.y, u.facing, Math.max(fp.F, 6 / s), Math.max(fp.D, 3.2 / s));
+    const fp = SIM.footprint(Object.assign({}, u, { form: o.form || u.form, str: o.str || u.str }));
+    const [ox, oy] = glideTo('o' + o.uid, o.x, o.y);
+    const pts = quadAt(ox, oy, u.facing, Math.max(fp.F, 6 / s), Math.max(fp.D, 3.2 / s));
     if (foc) { g.save(); polyFill(g, pts); g.lineJoin = 'round'; g.strokeStyle = beliefFocusCol || PAL.order || PAL.flag; g.lineWidth = 7; g.globalAlpha = 0.5; g.stroke(); g.restore(); }
     g.save(); polyFill(g, pts); if (mapColour) { g.lineJoin = 'round'; g.strokeStyle = 'rgba(246,240,222,0.9)'; g.lineWidth = 3; g.globalAlpha = a; g.stroke(); }
     if (u.type === 'inf') { g.fillStyle = PAL.FR; g.globalAlpha = a * (o.status === 'broken' ? 0.4 : 1); g.fill(); }
@@ -224,11 +236,12 @@ function drawBelief(g) {
     else { g.globalAlpha = a; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); g.lineTo(pts[1][0], pts[1][1]); g.strokeStyle = PAL.ink; g.lineWidth = 1.3; g.stroke(); }
     g.restore();
     if (viewMode === 'napoleon') unitHits.push({ u: { belief: 'own', o, unit: u }, kind: 'poly', pts });
-    if ((zf >= 2.1 || foc && zf >= 1.2) && layers.ulabels && viewMode === 'napoleon') { const [x, y] = P(o.x, o.y); label(u.name, x, y + Math.max(fp.D * s / 2, 3) + 9, 'unit', 'c', foc ? beliefFocusCol || PAL.order || PAL.FR : PAL.FR, foc ? 1.5 : 4.2, false); }
+    if ((zf >= 2.1 || foc && zf >= 1.2) && layers.ulabels && viewMode === 'napoleon') { const [x, y] = P(ox, oy); label(u.name, x, y + Math.max(fp.D * s / 2, 3) + 9, 'unit', 'c', foc ? beliefFocusCol || PAL.order || PAL.FR : PAL.FR, foc ? 1.5 : 4.2, false); }
   }
   // the enemy, as seen and reported
-  for (const c of B.c.values()) {
-    const age = now - c.t; if (age > 200) continue;
+  for (const [cid, c0] of B.c) {
+    const age = now - c0.t; if (age > 200) continue;
+    const [gx, gy] = glideTo('c' + cid, c0.x, c0.y), c = gx === c0.x && gy === c0.y ? c0 : Object.assign({}, c0, { x: gx, y: gy });
     // rules doc: opacity e^(-age/45). On screen it bottoms out at 0.3 so old news stays legible until it is dropped after about three hours.
     const a = Math.max(0.35, Math.exp(-age / 45));
     const col = SIDECOL(c.side), [W, D] = contactBox(c);
@@ -255,11 +268,13 @@ function drawRiders(g) {
     if (viewMode === 'napoleon' && r.side !== 'FR') continue;
     const col = r.side === 'FR' ? PAL.FR : r.side === 'PR' ? PAL.PR : PAL.AL;
     g.save(); g.strokeStyle = col; g.globalAlpha = 0.45; g.lineWidth = 1.2; g.setLineDash([1.5, 2.5]); g.beginPath(); r.trail.concat([[r.x, r.y]]).forEach(([x, y], i) => { const [px, py] = P(x, y); i ? g.lineTo(px, py) : g.moveTo(px, py); }); g.stroke(); g.setLineDash([]);
-    const [x, y] = P(r.x, r.y); g.globalAlpha = 1; g.fillStyle = PAL.paper; g.beginPath(); g.arc(x, y, 3.4, 0, 7); g.fill(); g.lineWidth = 1.6; g.stroke(); g.fillStyle = col; g.beginPath(); g.arc(x, y, 1.3, 0, 7); g.fill(); g.restore();
+    const rp = riderPrev.get(r), rx = rp && frac < 1 ? rp[0] + (r.x - rp[0]) * frac : r.x, ry = rp && frac < 1 ? rp[1] + (r.y - rp[1]) * frac : r.y;
+    const [x, y] = P(rx, ry); g.globalAlpha = 1; g.fillStyle = PAL.paper; g.beginPath(); g.arc(x, y, 3.4, 0, 7); g.fill(); g.lineWidth = 1.6; g.stroke(); g.fillStyle = col; g.beginPath(); g.arc(x, y, 1.3, 0, 7); g.fill(); g.restore();
     unitHits.push({ u: { belief: 'rider', r }, kind: 'circle', x, y, r: 7 });
   }
 }
 function drawScene(g) {
+  glideBusy = false;
   drawSmoke(g);
   truthAlpha = viewMode === 'compare' ? 0.3 : 1;
   if (viewMode !== 'napoleon') { if (layers.units) drawUnits(g); else unitHits = []; }

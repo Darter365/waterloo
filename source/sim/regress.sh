@@ -5,4 +5,5 @@ echo "### rettest"; timeout 600 python3 rettest.py 2>&1 | grep -E "^(SENT|END|VE
 echo "### dawntest"; timeout 600 python3 dawntest.py 2>&1 | grep -E "^(CLOCK|AT|Check|errors)" | cut -c1-300
 echo "### imm desktop"; timeout 600 python3 immtest.py 2>&1 | grep -E "^(BRIEF|LETTER|STOP|GLASS|errors)" | cut -c1-400
 echo "### imm phone dark"; timeout 600 python3 immtest.py 390 844 dark 2>&1 | grep -E "^(GLASS|errors)" | cut -c1-400
+echo "### speed (B1)"; timeout 600 python3 speedtest.py 2>&1 | grep -E "^(SPEEDS|SLOW|GLIDE|STOP|REAL|FAST|STOPFOR|CHECK|errors)" | cut -c1-400
 echo "### done"

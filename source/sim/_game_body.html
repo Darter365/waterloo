@@ -51,7 +51,8 @@
     </div>
     <div class="runbar" id="runbar">
       <span class="runtxt" id="runtxt" aria-live="polite"></span>
-      <span class="rideon" id="rideon" hidden><label class="vh" for="r-stop">When to stop the clock</label><select id="r-stop"><option value="all">Stop for news</option><option value="alarm">Stop for !! and ★</option><option value="decide">Stop for ★ only</option></select><label class="vh" for="r-to">Ride on to</label><select id="r-to"></select><button id="r-go" type="button">Ride on</button></span>
+      <span class="rideon" id="rideon" hidden><label class="vh" for="r-stop">When to stop the clock</label><select id="r-stop"><option value="all">Stop for news</option><option value="alarm">Stop for !! and ★</option><option value="decide">Stop for ★ only</option><option value="custom">Stop for…</option></select><fieldset class="stopkinds" id="r-custom" hidden></fieldset><label class="vh" for="r-to">Ride on to</label><select id="r-to"></select><button id="r-go" type="button">Ride on</button></span>
+      <label class="vh" for="r-speed">Speed of the clock</label><select id="r-speed" class="speed" title="Speed of the clock (keys , and .)"></select>
       <button id="readbtn" class="ghost">Read</button>
       <button id="go" class="primary">Continue</button>
     </div>

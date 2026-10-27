@@ -1,5 +1,23 @@
 /* ================= the game: Napoleon's command ================= */
-let playing = false, tps = 4, lastStepAt = 0, G = null, OB = null;
+let playing = false, lastStepAt = 0, G = null, OB = null;
+/* (B1) the speed of the clock, as game time to real time: 1x is real time (one 2-minute tick every two minutes), 480x is eight game
+   minutes a second (the old default). Between ticks the map glides from the last tick's positions to this one's, so at slow speeds the
+   picture moves rather than jumps; at the fast speeds a tick is shorter than the eye can follow and the map simply redraws each tick. */
+const SPEEDS = [1, 2, 4, 8, 15, 30, 60, 120, 240, 480, 960, 1800];
+const TICK_MIN = 2; // game minutes in one engine tick
+const speedName = x => x === 1 ? '1× · real time' : x < 60 ? `${x}×` : x === 60 ? '60× · a minute a second' : `${x}× · ${x / 60} minutes a second`;
+let speed = (() => { try { const v = +localStorage.getItem('waterloo.speed'); return SPEEDS.includes(v) ? v : 480; } catch (e) { return 480; } })();
+const tickMs = () => G && G.toEnd ? 1000 / 60 : TICK_MIN * 60000 / speed; // real milliseconds per tick
+function setSpeed(x) {
+  if (!SPEEDS.includes(x) || x === speed) return;
+  const now = performance.now(), f = playing ? Math.min(1, (now - lastStepAt) / tickMs()) : 0; // keep the share of the tick already run
+  speed = x; if (playing) lastStepAt = now - f * tickMs();
+  try { localStorage.setItem('waterloo.speed', String(x)); } catch (e) { }
+  const sel = $('r-speed'); if (sel) sel.value = String(x); setRun();
+}
+// the time the map shows: while the clock runs it trails the engine by up to one tick and glides to it (frac 0 shows the last tick)
+const shownT = () => playing && frac < 1 ? SIM.t - TICK_MIN * (1 - frac) : SIM.t;
+const clockText = () => { const t = shownT(), h = SIM.fmtT(Math.floor(t)); return playing && speed <= 30 ? `${h}:${String(Math.floor((t % 1) * 60)).padStart(2, '0')}` : h; };
 viewMode = 'napoleon'; layers.riders = false; layers.flashes = false;
 const clockEl = document.getElementById('clock');
 const $ = id => document.getElementById(id);
@@ -39,7 +57,7 @@ function newGame(o) {
   $('endbox').hidden = true;
   aarReset();
   OB = freshOB('reille');
-  viewMode = G.umpire ? 'compare' : 'napoleon'; layers.riders = G.umpire; layers.flashes = G.umpire; selected = null; prevPos.clear(); flashes = [];
+  viewMode = G.umpire ? 'compare' : 'napoleon'; layers.riders = G.umpire; layers.flashes = G.umpire; selected = null; prevPos.clear(); GLIDE.clear(); frac = 1; flashes = [];
   $('verdictBox').hidden = true; $('unitDetails').hidden = true; $('cartsub').textContent = G.umpire ? '18 juin 1815 · la carte de l’arbitre' : '18 juin 1815 · carte de l’Empereur';
   $('viewbar').hidden = !G.umpire; $('umpBox').hidden = !G.umpire; $('umplog').innerHTML = ''; setView(viewMode);
   renderLayers(); legend(); renderAll(); requestDraw();
@@ -53,10 +71,11 @@ $('setupform').addEventListener('submit', e => { e.preventDefault(); newGame(rea
 $('s-rnd').addEventListener('click', () => { $('s-seed').value = (Math.random() * 1e6) | 0; });
 
 /* ---------- the clock ---------- */
-function setPlaying(p) { playing = p && SIM && !SIM.over && G.phase === 'play'; if (playing) { lastStepAt = performance.now(); G.briefing = false; G.newIds = new Set(); G.dispSel = null; if (G.pick) cancelPick(); } setRun(); }
+// (B1) on Continue the first tick runs at once and the map glides to it over the tick's length
+function setPlaying(p) { playing = p && SIM && !SIM.over && G.phase === 'play'; if (playing) { lastStepAt = performance.now() - tickMs(); frac = 0; G.briefing = false; G.newIds = new Set(); G.dispSel = null; if (G.pick) cancelPick(); } setRun(); }
 function stepGame() {
   if (!SIM || SIM.over) return;
-  const n0 = SIM.log.length; for (const u of SIM.units) prevPos.set(u.id, [u.x, u.y, u.facing]);
+  const n0 = SIM.log.length; for (const u of SIM.units) prevPos.set(u.id, [u.x, u.y, u.facing]); for (const r of SIM.command.riders) riderPrev.set(r, [r.x, r.y]);
   SIM.step(); noteKnowledge(); sampleLive();
   if (G.umpire) for (let i = n0; i < SIM.log.length; i++) noteEvent(SIM.log[i]);
   if (SIM.over) { endGame(); return; }
@@ -64,45 +83,66 @@ function stepGame() {
   // (5e) news is gathered: the clock stops 15 minutes after the first item that counts, or 8 after a ★ one, whichever comes first,
   // so several riders arriving close together make one stop (est.; the stops in a battle fell from about 110 to about 38)
   const C = SIM.command, mode = G.runTo != null ? 'decide' : G.stopMode;
-  for (; G.scan < C.inbox.length; G.scan++) { const m = C.inbox[G.scan]; if (m.pause === false || (mode === 'decide' && !m.decision) || (mode === 'alarm' && !m.decision && !m.alarm)) continue; G.gatherUntil = Math.min(G.gatherUntil ?? Infinity, m.t + (m.alarm ? GATHER_ALARM : m.decision ? GATHER_STAR : GATHER)); }
+  for (; G.scan < C.inbox.length; G.scan++) { const m = C.inbox[G.scan]; if (!stopsFor(m, mode)) continue; G.gatherUntil = Math.min(G.gatherUntil ?? Infinity, m.t + (m.alarm ? GATHER_ALARM : m.decision ? GATHER_STAR : GATHER)); G.gatherReal = Math.min(G.gatherReal ?? Infinity, performance.now() + (m.alarm ? 2000 : m.decision ? 4000 : 8000)); }
   if ((G.gatherUntil != null && SIM.t >= G.gatherUntil) || (G.runTo != null && SIM.t >= G.runTo)) halt();
 }
+/* (B1) when the clock stops by itself: kinds of news, each a setting. The three ready-made settings are the stops of release 3
+   (news: anything; !! and ★; ★ only); "Stop for…" picks the kinds one by one. */
+const STOP_KINDS = [['rider', 'a rider brings a report'], ['sight', 'something is seen or heard from headquarters'], ['star', 'a dispatch needs a decision (★)'], ['alarm', 'a quick event: an attack, a charge, a line breaking (!!)'], ['place', 'a farm or village changes hands'], ['hq', 'headquarters is in danger']];
+const STOP_PRESETS = { decide: ['star'], alarm: ['star', 'alarm'] };
+const msgKinds = m => [m.kind === 'report' && 'rider', (m.kind === 'sight' || m.kind === 'sound' || m.kind === 'summary') && 'sight', m.decision && 'star', m.alarm && 'alarm', m.refs && m.refs.sp && m.refs.sp.length && 'place', m.alarm && m.alarm.some(a => a.kind === 'hq') && 'hq'].filter(Boolean);
+let customStops = (() => { try { const v = JSON.parse(localStorage.getItem('waterloo.stops')); if (Array.isArray(v)) return new Set(v); } catch (e) { } return new Set(['star', 'alarm', 'place', 'hq']); })();
+function stopsFor(m, mode) {
+  if (m.pause === false) return false;
+  if (mode === 'all') return true;
+  const want = mode === 'custom' ? customStops : new Set(STOP_PRESETS[mode] || []);
+  return msgKinds(m).some(k => want.has(k));
+}
 const GATHER = 15, GATHER_STAR = 8, GATHER_ALARM = 4; // (9) a !! event stops the clock within 4 minutes, so there is time to answer it
+// (B1) and within 8 real seconds (4 for ★, 2 for !!): at slow speeds 15 game minutes would be a quarter of an hour of waiting
 function halt() {
   const C = SIM.command, B = C.B.napoleon;
   G.current = C.inbox.slice(G.shown); G.curFrom = G.shown; G.shown = C.inbox.length;
-  G.prevStopT = G.stopT; G.stopT = SIM.t; G.runTo = null; G.sent = null; G.gatherUntil = null; G.scan = C.inbox.length; if (G.stops[G.stops.length - 1] !== SIM.t) G.stops.push(SIM.t);
+  G.prevStopT = G.stopT; G.stopT = SIM.t; G.runTo = null; G.sent = null; G.gatherUntil = null; G.gatherReal = null; G.scan = C.inbox.length; frac = 1; if (G.stops[G.stops.length - 1] !== SIM.t) G.stops.push(SIM.t);
   G.newIds = new Set(Object.entries(B.firstSeen).filter(([k, t]) => t > G.prevStopT && B.c.has(k)).map(([k]) => k));
   G.staffNow = staffRemarks();
   playing = false; setRun(); renderAll(); requestDraw();
   $('dispBox').open = true;
   if (!narrow()) $('dispBox').scrollIntoView({ block: 'nearest' });
 }
+let shownClock = '';
 function loop(now) {
   if (playing && SIM && !SIM.over) {
-    const iv = 1000 / (G.toEnd ? 60 : tps); let n = 0;
+    const iv = tickMs(); let n = 0; glideMs = Math.min(1500, Math.max(250, iv * 0.8));
     while (playing && now - lastStepAt >= iv && n < (G.toEnd ? 6 : 4)) { stepGame(); lastStepAt += iv; n++; }
-    if (now - lastStepAt > iv * 4) lastStepAt = now;
-    if (n && playing) { refreshLive(); requestDraw(); }
+    if (now - lastStepAt > iv * 4) lastStepAt = now; // fallen behind (a slow device, or the tab was hidden): carry on from now
+    if (playing && G.gatherReal != null && now >= G.gatherReal) halt();
+    // (B1) between ticks the map glides; only worth drawing every frame when a tick lasts long enough to see (about 0.2 s or more)
+    frac = playing && iv >= 200 ? Math.min(1, Math.max(0, (now - lastStepAt) / iv)) : 1;
+    if (n && playing) refreshLive();
+    if (playing && (n || iv >= 200)) { requestDraw(); const c = clockText(); if (c !== shownClock) { shownClock = c; clockEl.textContent = c; const b = $('runtxt').querySelector('b'); if (b) b.textContent = c; } }
   }
-  if (flashes.length) requestDraw();
+  if (!playing) frac = 1;
+  if (flashes.length || glideBusy) requestDraw();
   requestAnimationFrame(loop);
 }
 function setRun() {
   const go = $('go'), txt = $('runtxt'), read = $('readbtn'), bar = $('runbar');
   bar.hidden = !G || G.phase === 'setup';
   if (!SIM || !G) return;
-  clockEl.textContent = SIM.fmtT(SIM.t);
+  clockEl.textContent = shownClock = clockText();
+  const sp = $('r-speed'); if (sp) { sp.hidden = G.phase !== 'play' || !!G.toEnd; sp.value = String(speed); }
   if (G.phase === 'over') { go.disabled = false; txt.innerHTML = `<b>${hm(SIM.result.t)}</b> · the battle is over`; go.textContent = 'The verdict'; read.hidden = true; return; }
   const ride = $('rideon'); if (ride) ride.hidden = playing || G.phase !== 'play';
   if (G.toEnd) { txt.innerHTML = `<b>${hm(SIM.t)}</b> · fighting it out to the end: ${END_WORD[G.toEnd]}`; go.textContent = 'To the end'; go.disabled = true; read.hidden = true; return; }
   go.disabled = false;
-  if (playing) { const waiting = G.gatherUntil != null ? SIM.command.inbox.length - G.shown : 0; txt.innerHTML = `<b>${hm(SIM.t)}</b> · the clock is running${G.runTo != null ? ` to ${hm(G.runTo)}` : ''}${waiting ? ` · ${waiting} dispatch${waiting > 1 ? 'es' : ''} in, stopping by ${hm(G.gatherUntil)}` : '…'}`; go.textContent = 'Stop the clock'; go.setAttribute('aria-pressed', 'true'); read.hidden = true; return; }
+  if (playing) { const waiting = G.gatherUntil != null ? SIM.command.inbox.length - G.shown : 0; txt.innerHTML = `<b>${clockText()}</b> · the clock is running${G.runTo != null ? ` to ${hm(G.runTo)}` : ''}${waiting ? ` · ${waiting} dispatch${waiting > 1 ? 'es' : ''} in, stopping ${G.gatherReal != null && (G.gatherUntil - SIM.t) * 60000 / speed > G.gatherReal - performance.now() ? 'in a moment' : 'by ' + hm(G.gatherUntil)}` : '…'}`; go.textContent = 'Stop the clock'; go.setAttribute('aria-pressed', 'true'); read.hidden = true; return; }
   const n = G.current.length;
   txt.innerHTML = G.briefing ? `<b>${hm(SIM.t)}</b> · your army awaits your orders` : `<b>${hm(SIM.t)}</b> · ${n ? `${n} dispatch${n > 1 ? 'es' : ''}` : 'the clock is stopped'}`;
   go.textContent = 'Continue'; go.setAttribute('aria-pressed', 'false'); read.hidden = false;
 }
 $('go').addEventListener('click', goClick);
+{ const sel = $('r-speed'); sel.innerHTML = SPEEDS.map(x => `<option value="${x}">${speedName(x)}</option>`).join(''); sel.value = String(speed); sel.addEventListener('change', e => setSpeed(+e.target.value)); }
 function goClick() {
   if (!G || G.phase === 'setup' || G.phase === 'refight' || (G.toEnd && G.phase !== 'over')) return;
   if (G.phase === 'over') { $('verdictBox').open = true; $('verdictBox').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
@@ -114,7 +154,7 @@ $('readbtn').addEventListener('click', () => { $('dispBox').open = true; $('disp
 function renderAll() { if (!SIM) return; renderStop(); renderEarlier(); renderOB(); refreshLive(); }
 function refreshLive() {
   if (!SIM) return;
-  clockEl.textContent = SIM.fmtT(SIM.t);
+  clockEl.textContent = shownClock = clockText();
   renderOrders(); renderArmy(); renderEnemy(); renderHQ(); renderUmpLog(); setRun(); updateDusk(); refreshTip();
   if (G.sel) { const d = $('unitcard'); if (d) d.innerHTML = selHTML(G.sel); }
 }
@@ -225,7 +265,7 @@ function renderEnemy() {
 
 /* ---------- headquarters and the clock ---------- */
 function hqInfo() {
-  const C = SIM.command, P0 = WCommand.POSTS, W = SIM.wet, V = WEngine.bgVis(SIM.t);
+  const C = SIM.command, P0 = WCommand.POSTS, W = SIM.wet, V = SIM.bgVis(SIM.t);
   const post = C.hq.moving ? `Riding to ${P0[C.hq.moving.to].name}; set up about ${hm(C.hq.moving.arriveAt)}` : `At ${P0[C.hq.post].name}`;
   const ground = W > 0.8 ? 'soaked' : W > 0.55 ? 'soft and heavy' : W > 0.35 ? 'drying' : 'firm';
   const light = SIM.t < 20 * 60 ? 'good daylight' : SIM.t < 20 * 60 + 40 ? 'the sun is going down' : SIM.t < 21 * 60 + 10 ? 'dusk' : 'nearly dark';
@@ -240,19 +280,19 @@ function renderHQ() {
     box.innerHTML = `<div id="hqinfo"></div>
     <div class="row"><label for="h-letters">Letters</label><select id="h-letters"><option value="letters">as written: “Monsieur le Comte…”, “Sire,…”</option><option value="plain">plain text</option></select></div>
     <div class="row"><label for="h-map">Map</label><select id="h-map"><option value="paper">the Emperor’s paper map</option><option value="colour">colour, with relief</option></select></div>
-    <div class="row"><label for="h-speed">Speed</label><select id="h-speed"><option value="2">4 minutes a second</option><option value="4" selected>8 minutes a second</option><option value="8">16 minutes a second</option><option value="15">30 minutes a second</option></select></div>
-    <p class="small">When to stop the clock, and riding on to a set time, are beside Continue under the map.</p>`;
-    $('h-speed').addEventListener('change', e => { tps = +e.target.value; });
+    <p class="small">The clock's speed, from real time to half an hour a second, is beside Continue under the map (the keys <kbd>,</kbd> and <kbd>.</kbd> change it); so are when to stop the clock and riding on to a set time.</p>`;
     $('h-map').value = MAPSTYLE; $('h-map').addEventListener('change', e => setMapStyle(e.target.value));
     $('h-letters').value = LETTERS ? 'letters' : 'plain'; $('h-letters').addEventListener('change', e => setLetters(e.target.value === 'letters'));
   }
   $('hqinfo').innerHTML = hqInfo();
   // the ride-on times beside Continue: every half hour from now to dark
-  $('r-stop').value = G.stopMode;
+  $('r-stop').value = G.stopMode; $('r-custom').hidden = G.stopMode !== 'custom';
   const sel = $('r-to'), first = Math.ceil((SIM.t + 1) / 30) * 30, keep = +sel.value;
   if (sel.dataset.from !== String(first)) { sel.dataset.from = first; let h = ''; for (let t = first; t <= 21 * 60 + 30; t += 30) h += `<option value="${t}">to ${SIM.fmtT(t)}</option>`; sel.innerHTML = h + '<option value="end">to the end…</option>'; if (keep > SIM.t) sel.value = keep; }
 }
-$('r-stop').addEventListener('change', e => { if (G) G.stopMode = e.target.value; });
+$('r-stop').addEventListener('change', e => { if (G) G.stopMode = e.target.value; $('r-custom').hidden = e.target.value !== 'custom'; });
+{ const box = $('r-custom'); box.innerHTML = '<legend class="vh">Stop the clock when</legend>' + STOP_KINDS.map(([k, w]) => `<label><input type="checkbox" value="${k}"${customStops.has(k) ? ' checked' : ''}> ${w}</label>`).join('');
+  box.addEventListener('change', () => { customStops = new Set([...box.querySelectorAll('input:checked')].map(i => i.value)); try { localStorage.setItem('waterloo.stops', JSON.stringify([...customStops])); } catch (e) { } }); }
 $('r-go').addEventListener('click', () => { if (!G || G.phase !== 'play') return; if ($('r-to').value === 'end') { openEndBox(true); return; } const v = +$('r-to').value; if (v > SIM.t) { G.runTo = v; setPlaying(true); showMap(); } });
 
 /* ---------- the order builder ---------- */
@@ -504,6 +544,7 @@ $('unitcard').addEventListener('click', e => { const b = e.target.closest('[data
 window.addEventListener('keydown', e => {
   if (e.target.closest && e.target.closest('select,input,textarea,button')) return;
   if (e.key === ' ') { e.preventDefault(); goClick(); }
+  else if (e.key === ',' || e.key === '<' || e.key === '.' || e.key === '>') { const i = SPEEDS.indexOf(speed) + (e.key === ',' || e.key === '<' ? -1 : 1); if (i >= 0 && i < SPEEDS.length) setSpeed(SPEEDS[i]); }
   else if (e.key === '+' || e.key === '=') zoomAt(cssW / 2, cssH / 2, 1.4); else if (e.key === '-') zoomAt(cssW / 2, cssH / 2, 1 / 1.4);
   else if (e.key.startsWith('Arrow')) { const d = 60; if (e.key === 'ArrowLeft') view.tx += d; if (e.key === 'ArrowRight') view.tx -= d; if (e.key === 'ArrowUp') view.ty += d; if (e.key === 'ArrowDown') view.ty -= d; clampView(); requestDraw(); scheduleTerrain(false); }
   else if (e.key === 'Escape') { if (G && G.pick) cancelPick(); else clearHighlights(); }
@@ -580,7 +621,7 @@ function renderLayers() {
   const lw = $('layers'); lw.innerHTML = '';
   for (const [k, t] of defs) { const l = document.createElement('label'), i = document.createElement('input'); i.type = 'checkbox'; i.checked = !!layers[k]; i.addEventListener('change', () => { layers[k] = i.checked; if (['tint', 'hach', 'contours', 'woods', 'water'].includes(k)) scheduleTerrain(true); updateDusk(); requestDraw(); }); l.append(i, document.createTextNode(t)); lw.appendChild(l); }
 }
-function updateDusk() { const d = $('dusk'); if (!SIM || !layers.dusk) { d.style.opacity = 0; return; } const v = WEngine.bgVis(SIM.t), day = 8000; d.style.opacity = Math.max(0, Math.min(0.3, (1 - v / day) * 0.38 - 0.05)).toFixed(3); }
+function updateDusk() { const d = $('dusk'); if (!SIM || !layers.dusk) { d.style.opacity = 0; return; } const v = SIM.bgVis(SIM.t), day = 8000; d.style.opacity = Math.max(0, Math.min(0.3, (1 - v / day) * 0.38 - 0.05)).toFixed(3); }
 function legend() {
   const items = [
     ['own', 'FR', 'Your brigade, where it last reported; it fades as the report ages'], ['owncav', 'FR', 'Your cavalry (hatched)'], ['ownart', 'FR', 'Your battery'],
@@ -628,4 +669,5 @@ function noteKnowledge() {
   for (const id of SPS) { const pb = B.places[id]; if (!pb) continue; const h = pb.holder || null; if (!(id in prev)) { prev[id] = h; continue; } if (prev[id] !== h) { G.knew.push({ sp: id, holder: h, t: SIM.t, src: pb.src }); prev[id] = h; } }
 }
 // read-only hooks for the tests and the umpire's review
-globalThis.WGame = { runToEnd: () => { while (SIM && !SIM.over) stepGame(); }, marks: () => G && G.marks, screenOf: id => { const sp = SIM.spById[id]; return P(sp.x, sp.y); }, log: () => G && G.orderLog, opts: () => G && G.opts, result: () => SIM && SIM.result, t: () => SIM && SIM.t, metrics: () => SIM && SIM.metrics };
+globalThis.WGame = { runToEnd: () => { while (SIM && !SIM.over) stepGame(); }, marks: () => G && G.marks, screenOf: id => { const sp = SIM.spById[id]; return P(sp.x, sp.y); }, log: () => G && G.orderLog, opts: () => G && G.opts, result: () => SIM && SIM.result, t: () => SIM && SIM.t, metrics: () => SIM && SIM.metrics,
+  clock: () => SIM && ({ t: SIM.t, shown: shownT(), frac, speed, playing, tickMs: tickMs(), glides: GLIDE.size, glideBusy }), lerp: id => SIM && SIM.byId[id] && lerpPos(SIM.byId[id]), stopKinds: () => G ? G.current.filter(m => m.pause !== false).map(m => msgKinds(m)) : [], lerpAll: () => SIM ? SIM.units.filter(u => u.onMap && !u.gone).map(u => [u.id, ...lerpPos(u).map(v => Math.round(v * 10) / 10)]) : [] };

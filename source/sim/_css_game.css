@@ -164,7 +164,12 @@
 
 /* 5e: clock controls beside Continue */
 .runbar .rideon{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.runbar .rideon[hidden]{display:none}
+.runbar .rideon[hidden],.runbar select[hidden]{display:none}
+.runbar select.speed{max-width:15em}
+.runbar .stopkinds{flex-basis:100%;order:5;margin:2px 0 0;padding:6px 8px;border:1px dashed color-mix(in srgb,var(--m-ink) 35%,transparent);border-radius:2px;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.88rem}
+.runbar .stopkinds[hidden]{display:none}
+.runbar .stopkinds label{display:flex;gap:5px;align-items:center;cursor:pointer}
+.runbar .stopkinds input{accent-color:var(--m-ink)}
 .runbar select{font:inherit;font-size:.9rem;padding:6px 4px;background:var(--m-paper);color:var(--m-ink);border:1px solid color-mix(in srgb,var(--m-ink) 40%,transparent);border-radius:2px;max-width:12em}
 .vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
 @media (max-width:700px){.runbar .rideon{order:3;flex-basis:100%}}
