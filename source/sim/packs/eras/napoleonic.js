@@ -4,7 +4,7 @@
 (function (root) {
 'use strict';
 const P = root.WPacks || (typeof require === 'function' ? require('../registry.js') : null);
-P.register('era', 'napoleonic', {
+P.register('era', 'napoleonic', { version: '1.0',
   name: 'The Napoleonic wars',
   /* ---------------- calibration constants (est.) ---------------- */
   K: {

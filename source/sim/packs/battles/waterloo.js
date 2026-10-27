@@ -431,7 +431,7 @@ const FORCES = [
   { group: 'grouchy', marches: false, units: GROUCHY_FORCE, fatigue0: 20 },
 ];
 const P = root.WPacks || (typeof require === 'function' ? require('../registry.js') : null);
-P.register('battle', 'waterloo', {
+P.register('battle', 'waterloo', { version: '1.0', // (4e) versions start at phase 4: 1.0 is release 3 with phases 1-3 (in band)
   name: 'Waterloo', date: '1815-06-18', era: 'napoleonic',
   nations: ['FR', 'GB', 'KGL', 'HAN', 'NL', 'NAS', 'BRU', 'MIX', 'PR'],
   // the armies on the field: morale at the start (est., rules doc) and the coalition each fights in (it shares places and does not fire on its own)
@@ -443,7 +443,11 @@ P.register('battle', 'waterloo', {
   sides: [
     { id: 'FR', name: 'French', morale0: 80, coalition: 'FR', fatigue0: 25, rallyBack: 600, chief: 'napoleon', rear: 'S', retreat: 'frRetreat', exit: [50.6380, 4.4270], rearguard: [50.65675, 4.41333], posture: 'attack',
       retreatSays: 'The French army begins to retreat on Charleroi.' },
-    { id: 'AL', name: 'Anglo-allied', morale0: 70, coalition: 'AL', fatigue0: 15, rallyBack: 900, chief: 'wellington', cavChief: 'uxbridge', corps0: 'wellington', rear: 'N', retreat: 'alRetreat', posture: 'defend',
+    { id: 'AL', name: 'Anglo-allied', morale0: 70, coalition: 'AL', fatigue0: 15, rallyBack: 900,
+      // (3d) Wellington's first line behind the crest of Mont-Saint-Jean: the crest is the lane along it (the Chemin d'Ohain east of the
+      // crossroads, the Braine-l'Alleud road west of it); these twelve brigades stand on it when French foot come near (doctrine.js: crest)
+      crest: { from: [{ road: "Chemin de Braine-l'Alleud", reverse: true }, { road: "Chemin d'Ohain", slice: [1, 5] }], first: ['byng', 'maitland', 'chalkett', 'kielm', 'ompteda', 'kempt', 'bylandt', 'pack', 'best', 'vincke', 'bernhard', 'mitchell'],
+        ahead: 15, up: 380, horse: 500, quiet: 4, standForm: { GB: 'line', KGL: 'line' }, restForm: { GB: 'twoLines', KGL: 'twoLines' } }, chief: 'wellington', cavChief: 'uxbridge', corps0: 'wellington', rear: 'N', retreat: 'alRetreat', posture: 'defend',
       // the rifle cartridges for La Haye Sainte's garrison (Baker rifles take their own): where the wagon is is a hidden roll (est.; 5e:
       // near 0.4, far 0.3 from 16:00); the garrison ran out in 1815
       wagons: { rifle: { roll: 'rifle wagon', near: 0.25, far: 0.35, farFrom: 1050,
@@ -498,6 +502,41 @@ P.register('battle', 'waterloo', {
   ],
   // a corps that marches by another's road: Pirch's II Corps followed Bülow's IV Corps through Lasne
   routeOf: { pirch: 'bulow' },
+  // (phase 3c) plans: what the record says the commanders did, as rules (plans.js). 'historical' is Napoleon's orders on 18 June, given
+  // through the order builder as a player would give them and timed by what Napoleon himself believes rather than by the true state of
+  // the battle. Times follow the standard accounts; where they disagree, the usual middle reading. (Before phase 3c this was script.js.)
+  plans: {
+    historical: { id: 'historical', side: 'FR', as: 'napoleon', via: 'builder', rules: [
+      // the 05:00 start: the army goes to its ground as each corps comes up (est.: the times only follow the accounts that the army was not
+      // all in place at 09:00 and was drawn up by about 11:00); Napoleon goes forward to Rossomme
+      { id: 'depDerlon', start: '0500', at: '06:00', spec: { to: 'derlon', action: 'advance', objective: { place: 'depOwn' } } },
+      { id: 'depMilhaud', start: '0500', at: '06:00', spec: { to: 'milhaud', action: 'advance', objective: { place: 'depOwn' } } },
+      { id: 'depReille', start: '0500', at: '08:00', when: { arrived: ['reille'] }, spec: { to: 'reille', action: 'advance', objective: { place: 'depOwn' } } },
+      { id: 'depKell', start: '0500', at: '08:30', when: { arrived: ['kellermann'] }, spec: { to: 'kellermann', action: 'advance', objective: { place: 'depOwn' } } },
+      { id: 'depLobau', start: '0500', at: '09:00', when: { arrived: ['lobau'] }, spec: { to: 'lobau', action: 'advance', objective: { place: 'depOwn' } } },
+      { id: 'depGuard', start: '0500', at: '09:15', spec: { to: 'drouot', action: 'advance', objective: { place: 'depOwn' } } },
+      { id: 'hqRossomme', start: '0500', at: '09:30', spec: { to: 'hq', action: 'moveHQ', post: 'rossomme' } },
+      { id: 'hougoumont', at: '11:05', spec: { to: 'reille', action: 'attack', objective: { place: 'hougoumont' }, with: ['bauduin'], manner: { formation: 'attack', losses: 'any' }, text: 'Reille: Prince Jérôme to clear the wood of Hougoumont.' } },
+      { id: 'reilleGuns', at: '11:10', spec: { to: 'reille', action: 'bombard', objective: { place: 'ridgeWest' }, with: ['aBach', 'aFoy', 'aJer', 'aIIres'], manner: { site: 'here' } } },
+      { id: 'grandBattery', at: '11:15', spec: { to: 'grandBattery', action: 'bombard', objective: { place: 'ridgeEast' }, manner: { site: 'batterySiteA', facing: 344 }, text: 'The grand battery forms in front of I Corps.' } },
+      // Soult's letter of about 13:00 to Grouchy: come toward us, but it also spoke of Wavre (accounts differ on how clearly)
+      { id: 'grouchy', at: '13:00', spec: { to: 'grouchy', action: 'marchToGuns', ambiguity: 0.3, text: "Soult writes to Grouchy to manoeuvre toward the army's right." } },
+      // Lobau faces east at 13:15, or from 12:45 once Napoleon has seen troops (Prussian or unknown) beyond Frischermont or a prisoner has named Bülow
+      { id: 'east', by: '13:15', when: { any: [{ after: '13:15' }, { all: [{ after: '12:45' }, { any: [{ contact: { side: ['PR', null], over: 1000, region: { east: [50.68, 4.445] } } }, { knows: 'bulow' }] }] }] },
+        spec: { to: 'lobau', action: 'advance', objective: { place: 'eastFlank' }, with: ['bellair', 'thevenet', 'bony', 'tromelin', 'dommanget', 'vinot', 'colbert', 'merlin', 'aVI'], manner: { formation: 'columns', facing: 70 }, text: 'Lobau, Domon and Subervie to face east toward Saint-Lambert.' } },
+      { id: 'derlon', at: '13:30', spec: { to: 'derlon', action: 'attack', objective: { place: 'ridgeEast' }, with: { lead: ['charlet', 'schmitz', 'nogues'], support: ['aulard', 'grenier'] }, manner: { losses: 'normal' }, text: "d'Erlon's corps goes forward against the ridge east of the road." }, onAct: { flag: 'alliedEngaged' } },
+      { id: 'derlonLhs', at: '13:30', spec: { to: 'derlon', action: 'attack', objective: { place: 'lhs' }, with: ['bourgeois'], manner: { formation: 'attack', losses: 'heavy' } } },
+      { id: 'derlonPap', at: '13:30', spec: { to: 'derlon', action: 'attack', objective: { place: 'papelotte' }, with: { lead: ['pegot'], support: ['brue'] }, manner: { formation: 'attack', losses: 'heavy' } } },
+      { id: 'lhs2', at: '15:00', when: { place: 'lhs', holder: 'notOurs' }, spec: { to: 'ney', action: 'attack', objective: { place: 'lhs' }, with: { pool: ['bourgeois', 'charlet', 'schmitz', 'aulard', 'nogues', 'grenier'], n: 1 }, manner: { formation: 'attack', losses: 'heavy' }, text: 'Ney is to take La Haye Sainte.' } },
+      { id: 'lhs3', at: '17:30', when: { place: 'lhs', holder: 'notOurs' }, spec: { to: 'ney', action: 'attack', objective: { place: 'lhs' }, with: { pool: ['schmitz', 'aulard', 'bourgeois', 'charlet', 'nogues', 'grenier', 'husson', 'campi', 'gauthier', 'jamin'], n: 3 }, manner: { formation: 'attack', losses: 'any', bring: ['sappers'] }, text: 'Ney: La Haye Sainte at all costs, with Donzelot and the engineers.' } },
+      { id: 'yg', when: { any: [{ place: 'plancenoit', holder: 'enemy' }, { garrison: 'plancenoit', below: 35 }] }, spec: { to: 'drouot', action: 'attack', objective: { place: 'plancenoit' }, with: ['yg1', 'yg2'], manner: { formation: 'attack', losses: 'any' }, text: 'The Young Guard to retake Plancenoit.' } },
+      { id: 'og', when: [{ done: 'yg', since: 40 }, { any: [{ place: 'plancenoit', holder: 'enemy' }, { shaken: ['yg1', 'yg2'], below: 40 }] }], spec: { to: 'drouot', action: 'attack', objective: { place: 'plancenoit' }, with: ['g2gren', 'g2chas'], manner: { formation: 'attack', losses: 'heavy' }, text: 'Two battalions of the Old Guard to Plancenoit.' } },
+      // Napoleon rides forward to La Belle Alliance to send the Guard in
+      { id: 'hqForward', at: '18:30', spec: { to: 'hq', action: 'moveHQ', post: 'ba' } },
+      { id: 'guard', at: '19:00', spec: { to: 'drouot', action: 'attack', objective: { place: 'ridgeRightCentre' }, with: ['g3gren', 'g4gren', 'g3chas', 'g4chas'], manner: { formation: 'attack', losses: 'light' }, text: 'The Middle Guard to attack the allied right-centre, Ney at its head.' },
+        onAct: { flag: 'guardAttacking', metric: 'guardAttack', leaderUnit: { ney: 'g3gren' } } },
+    ] },
+  },
   // who commands, and where they stand or ride: the people are in the leader pack
   leaders: [
     { id: 'napoleon', side: 'FR', at: [50.65675, 4.41333] },

@@ -38,6 +38,45 @@ broken('t-lunit', B => { B.leaders = B.leaders.map(l => l.id === 'ney' ? { id: '
 broken('t-route', B => { B.routeOf = { pirch: 'nowhere' }; }, /routeOf: corps pirch/);
 broken('t-obj', B => { B.map.OBJECTIVES = { ...B.map.OBJECTIVES, bad: { name: 'x', sp: 'atlantis' } }; }, /strongpoint "atlantis"/);
 broken('t-grid', B => { B.map.H = B.map.H.slice(0, 10); }, /height grid/);
+// (phase 3c) plans and side objectives
+const planEdit = f => B => { const pl = B.plans.historical; pl.rules = pl.rules.map(r => JSON.parse(JSON.stringify(r))); f(pl.rules); };
+broken('t-plan-unit', planEdit(rs => { rs.find(r => r.id === 'hougoumont').spec.with = ['nobody']; }), /rule hougoumont: no unit "nobody"/);
+broken('t-plan-place', planEdit(rs => { rs.find(r => r.id === 'lhs2').when = { place: 'atlantis', holder: 'ours' }; }), /place "atlantis" is not on the map/);
+broken('t-plan-done', planEdit(rs => { rs.find(r => r.id === 'og').when = [{ done: 'ghost', since: 40 }]; }), /no rule "ghost"/);
+broken('t-plan-cond', planEdit(rs => { rs.find(r => r.id === 'lhs2').when = { sunny: true }; }), /unknown condition/);
+broken('t-side-obj', B => { B.sides = B.sides.map(s => s.id === 'FR' ? { ...s, objectives: { atlantis: 2 } } : s); }, /objective "atlantis" is not on the map/);
+// plan conditions read the clock, places and flags (the truth, with no command layer)
+{ const En = require('../engine.js'), Pl = require('../plans.js'); require('../ai.js');
+  const E = En.create({ battle: 'toy-ridge', seed: 1 });
+  const p = Pl.make(E, { side: 'RD', via: 'order', rules: [] }), t = c => p.test(c);
+  ok(t({ after: '11:00' }) && !t({ after: '11:01' }) && t({ before: 661 }), 'plan: the clock');
+  ok(t({ place: 'ferme', holder: 'enemy' }) && t({ place: 'ferme', holder: 'notOurs' }) && !t({ place: 'ferme', holder: 'ours' }), 'plan: who holds a place');
+  ok(t({ any: [{ flag: 'nope' }, { not: { flag: 'nope' } }] }) && !t({ all: [{ after: 0 }, { metric: 'fermeFall' }] }), 'plan: any, all, not, flags and metrics');
+  ok(t([{ morale: 'RD', below: 76 }]) && !t({ morale: 'RD', below: 75 }), 'plan: army morale');
+  let threw = false; try { t({ sunny: 1 }); } catch (e) { threw = true; } ok(threw, 'plan: an unknown condition is an error, not false');
+  // an 'order' plan sends its order when its rule holds, once
+  const q = Pl.install(E, { id: 'x', side: 'RD', as: 'carmin', via: 'order', rules: [{ id: 'go', at: '11:04', order: { to: 'vermillon', kind: 'attack', obj: 'ferme', units: ['r1'], form: 'attack' } }] });
+  while (E.t < 670) { E.plans.tick(E); E.step(); }
+  ok(q.done.go === 664 && E.orders.filter(o => o.id === 'go').length === 1, 'plan: an order plan fires once, on time'); }
+// (4d) orders of battle as CSV: Waterloo's goes out and comes back the same; every committed CSV is its pack's source
+{ const O = require('./oob.js'), fs = require('fs'), W = P.battle('waterloo').W;
+  const back = O.importRows(O.parseCSV(O.toCSV(O.exportRows(W))));
+  ok(!back.errs.length, 'oob: Waterloo re-imports without errors: ' + back.errs.join('; '));
+  for (const k of ['RAW', 'CORPS', 'DIVISION', 'QUALITY', 'CALIBRE', 'TRAITS', 'FORCES']) {
+    const a = W[k], b = back.O[k], same = Array.isArray(a) ? JSON.stringify(a) === JSON.stringify(b) : Object.keys(a).length === Object.keys(b).length && Object.keys(a).every(x => JSON.stringify(a[x]) === JSON.stringify(b[x]));
+    ok(same, `oob: Waterloo's ${k} survives the round trip through CSV`); }
+  ok(O.parseCSV('a,"b,""c"""\n1,2\n').join('|') === 'a,b,"c"|1,2', 'oob: CSV quotes');
+  const bad = O.importRows(O.parseCSV('id,side,name,nation,arm,strength,lat,lon\nx,AL,X,GB,inf,0,50,4\nx,AL,Y,GB,inf,10,,\n'));
+  ok(bad.errs.some(e => /strength "0"/.test(e)) && bad.errs.some(e => /used twice/.test(e)) && bad.errs.some(e => /lat and lon/.test(e)), 'oob: bad rows are named by line: ' + bad.errs.join('; '));
+  for (const f of fs.readdirSync(path.join(__dirname, '..', 'packs', 'oob')).filter(f => f.endsWith('.csv'))) {
+    const id = f.slice(0, -4), r = O.importRows(O.parseCSV(fs.readFileSync(path.join(__dirname, '..', 'packs', 'oob', f), 'utf8')));
+    ok(fs.readFileSync(path.join(__dirname, '..', 'packs', 'oob', id + '.js'), 'utf8') === O.packJS(id, r.O, 'packs/oob/' + f), `oob: packs/oob/${id}.js is made from ${f} (run node tools/oob.js import packs/oob/${f} ${id})`); } }
+// (4e) a replay names the versions it was fought with; check() says what has changed since
+{ const R = require('../replay.js'), r = R.record({ seed: 3, history: 'uncertain', scenario: '1100', staff: 'soult', silence: 0 }, []);
+  ok(R.check(r).ok, 'replay: a fresh replay checks');
+  ok(!R.check(Object.assign({}, r, { engine: '0.1' })).ok && R.check(Object.assign({}, r, { engine: '0.1' })).notes[0].includes('engine'), 'replay: another engine version is noted');
+  ok(R.check(Object.assign({}, r, { fingerprint: '0' })).notes.some(x => /without a new version/.test(x)), 'replay: an edited pack with the same version is caught');
+  ok(R.check({ kind: 'x' }).fatal, 'replay: not a replay'); }
 console.log(`tools: ${n} checks passed`);
 // every bench case builds a battle pack that validates
 { const { benchBattle } = require('./bench.js'), fs = require('fs'), path = require('path');

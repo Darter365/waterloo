@@ -9,7 +9,7 @@ const foot = { // frontage and depth of a body on foot (m), as the Napoleonic fo
   line: { F: { of: 'files', mul: [0.9], min: 30 }, D: 6 }, deep: { F: { of: 'files', mul: [0.9, 0.5], min: 20 }, D: 12 },
   schiltron: { F: { of: 'files', mul: [0.9, 0.25], min: 20 }, D: { of: 'files', mul: [0.9, 0.25], min: 20 } },
   road: { F: 6, D: { of: 'men', mul: [0.5], min: 30 } }, _: { F: { of: 'files', mul: [0.9, 0.5], min: 20 }, D: 12 } };
-P.register('era', 'medieval-test', {
+P.register('era', 'medieval-test', { version: '0.1', // uncalibrated: a test of the format
   name: 'Test: an army of about 1400', like: 'napoleonic',
   // a fighting man disables MELEE_KILL of the enemy a tick, before armour; only a clear superiority (SHOCK_WIN) breaks in at the first shock,
   // a clear inferiority (SHOCK_REPULSE) is thrown back, and between them the two lock hand to hand
@@ -50,7 +50,7 @@ P.register('era', 'medieval-test', {
   },
   fieldwork: { kind: 'stakes', minutes: 20 }, // archers drive their stakes in about twenty minutes (est.)
 });
-P.register('nation', 'medieval-test', { era: 'medieval-test', nations: {
+P.register('nation', 'medieval-test', { version: '0.1', era: 'medieval-test', nations: {
   EN: { name: 'English (test)', ranks: 4, battalion: 400, form: 'line' },
   FRM: { name: 'French (test)', ranks: 6, battalion: 500, form: 'deep' },
 } });

@@ -10,7 +10,7 @@
 (function (root) {
 'use strict';
 const P = root.WPacks || (typeof require === 'function' ? require('../registry.js') : null);
-P.register('leader', 'napoleonic-1815', {
+P.register('leader', 'napoleonic-1815', { version: '1.0',
   era: 'napoleonic',
   // defaults by nation and rank (est.: the engine's values before leader files, so that a leader the file leaves out acts as before)
   defaults: {

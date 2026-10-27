@@ -7,6 +7,8 @@ node packs/validate.js waterloo
 node tools/lint.js
 node tools/test_tools.js
 node tools/bench.js --n 60 | tail -1
+node packs/validate.js toy-ridge | tail -1
+node tools/fight.js toy-ridge 3 | sed -n 2p
 node refset.js check ref/p2_hist.json 4
 node refset.js check ref/p2_chaos.json 3
 node refset.js check ref/p2_dawn.json 2

@@ -1095,9 +1095,10 @@ function create(opts = {}) {
       const quiet = E.tick - u.lastHit > 2 && !near(u.x, u.y, 300, e => isEnemy(u, e) && formed(e)).length;
       if (u.status !== 'broken' && quiet && E.morale[u.side] >= 35 && u.task.kind !== 'pursue' && u.pace !== 'quick') {
         let rec = E.K.RECOVER * (u.fatigue > 60 ? 0.5 : 1) * (0.7 + 0.3 * u.q);
-        if (u.leader && E.leaders[u.leader] && E.leaders[u.leader].alive) rec *= 1.5;
+        // (phase 3a) by the leaders' gift for rallying men (leader file: rally, 0.5 usual, which gives release 3's x1.5 and x2)
+        if (u.leader && E.leaders[u.leader] && E.leaders[u.leader].alive) rec *= 1 + (E.leaders[u.leader].rally ?? 0.5);
         const chief = E.leaders[SIDE_BY[u.side].chief]; const cp = chief ? leaderPos(chief) : null;
-        if (cp && hyp(cp[0] - u.x, cp[1] - u.y) < 500) rec *= 2;
+        if (cp && hyp(cp[0] - u.x, cp[1] - u.y) < 500) rec *= 1 + 2 * (chief.rally ?? 0.5);
         u.coh = Math.min(u.cohMax, u.coh + rec);
       }
       else if (u.status !== 'broken' && !quiet && E.tick - u.lastHit <= 2 && !E.near(u.x, u.y, 250, e => isEnemy(u, e) && formed(e) && !served(e)).length && E.morale[u.side] >= 35) {
@@ -1305,7 +1306,9 @@ return { create, K, fmtT, T, TT, footprint, hitChance, bgVis, LOW, light: { suns
 const worlds = {};
 function world(id) { id = id || root.WBATTLE || 'waterloo'; return worlds[id] || (worlds[id] = buildWorld(Packs.battle(id))); }
 // the default world is the current battle's (the game page sets WBATTLE); a battle can also be named in create({ battle })
-const api = { create: (opts = {}) => world(opts.battle).create(opts), world, fmtT: t => world().fmtT(t), footprint: u => world().footprint(u), hitChance: r => world().hitChance(r), bgVis: t => world().bgVis(t) };
+// (phase 4e) the engine's version: raised when a change alters how battles fight (a replay made before may not fight the same battle)
+const VERSION = '0.4';
+const api = { version: VERSION, create: (opts = {}) => world(opts.battle).create(opts), world, fmtT: t => world().fmtT(t), footprint: u => world().footprint(u), hitChance: r => world().hitChance(r), bgVis: t => world().bgVis(t) };
 for (const k of ['K', 'T', 'TT', 'LOW']) Object.defineProperty(api, k, { get: () => world()[k], enumerable: true });
 root.WEngine = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;

@@ -3,6 +3,7 @@
 (function (root) {
 'use strict';
 const hyp = Math.hypot, D2R = Math.PI / 180;
+const Doc = () => root.WDoctrine || (typeof require === 'function' ? require('./doctrine.js') : null); // (3d) the generic habits ai.js shares
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const fvec = deg => [Math.sin(deg * D2R), -Math.cos(deg * D2R)];
 const bearing = (dx, dy) => (Math.atan2(dx, -dy) / D2R + 360) % 360;
@@ -218,39 +219,22 @@ function unitControl(E) {
 /* ===================== Wellington ===================== */
 function allies(E) { return E.units.filter(u => u.side === 'AL' && E.formed(u)); }
 function wellingtonInit(E, S) {
-  // first-line infantry hold behind the crest, lying down when bombarded; reserves hold
-  const crestLine = [...E.W.ROADS.find(r => r.name === "Chemin de Braine-l'Alleud").pts].reverse().concat(E.W.ROADS.find(r => r.name === "Chemin d'Ohain").pts.slice(1, 5));
-  S.crestLine = crestLine;
-  const FIRST = ['byng', 'maitland', 'chalkett', 'kielm', 'ompteda', 'kempt', 'bylandt', 'pack', 'best', 'vincke', 'bernhard', 'mitchell'];
+  // first-line infantry hold behind the crest, lying down when bombarded; reserves hold. (3d) The crest and the first line are the battle
+  // pack's (side AL: crest), and the habit is the generic doctrine's (doctrine.js: crestInit, crestTick)
+  const cfg = E.sides.find(s => s.id === 'AL').crest;
   for (const u of E.units) {
     if (u.side !== 'AL' || !u.onMap) continue;
-    if (u.type === 'inf') {
-      const first = FIRST.includes(u.id);
-      const q = nearestOnPoly(u.x, u.y, crestLine);
-      const crest = q && first ? [q[0], q[1] + 15] : null;
-      u.task = { kind: 'hold', lieDown: true, crest, res: [u.x, u.y], resFacing: u.facing, resForm: u.form, since: E.t };
-    } else if (u.type === 'art') u.task = { kind: 'hold', since: E.t };
+    if (u.type === 'inf') u.task = { kind: 'hold', lieDown: true, crest: null, res: [u.x, u.y], resFacing: u.facing, resForm: u.form, since: E.t };
+    else if (u.type === 'art') u.task = { kind: 'hold', since: E.t };
     else if (u.type === 'cav') u.task = { kind: 'hold', since: E.t, home: [u.x, u.y] };
   }
+  S.crestLine = Doc().crestInit(E, 'AL', cfg); S.crestCfg = cfg;
   S.reserves = ['lambert', 'kruse', 'bruAv', 'bruButlar', 'bruSpecht', 'detmers', 'aubreme', 'adam', 'duplat', 'hhalkett'];
   S.hougFeeds = 0; S.lhsFeeds = 0; S.lastFeed = 0; S.lastReserve = 0; S.counterCharged = {};
 }
 function wellingtonUnits(E, S) {
-  // crest behaviour every tick: stand up and come forward when enemy foot approach the crest
-  for (const u of E.units) {
-    if (u.side !== 'AL' || !E.formed(u) || u.type !== 'inf' || u.task.kind !== 'hold' || !u.task.crest) continue;
-    const t = u.task, [cx, cy] = t.crest;
-    const foes = E.near(cx, cy, 380, e => e.side === 'FR' && E.formed(e) && e.type === 'inf');
-    const cav = E.near(cx, cy, 500, e => e.side === 'FR' && E.formed(e) && e.type === 'cav');
-    if (foes.length && !cav.length) {
-      if (t.state !== 'up') { t.state = 'up'; u.lying = false; u.path = [[cx, cy]]; u.stopAt = 0; t.arriveFacing = 180; if (u.nat === 'GB' || u.nat === 'KGL') E.setForm(u, 'line'); }
-      t.quiet = 0;
-    } else if (t.state === 'up') {
-      t.quiet = (t.quiet || 0) + 1;
-      if (t.quiet > 4 || cav.length) { t.state = 'down'; u.path = [t.res]; t.arriveFacing = t.resFacing; if (!cav.length) E.setForm(u, t.resForm || (u.nat === 'GB' || u.nat === 'KGL' ? 'twoLines' : 'columns')); }
-    }
-    if (!u.path && t.arriveFacing != null && t.state === 'up') u.facing = 180;
-  }
+  // crest behaviour every tick: stand up and come forward when enemy foot approach the crest (the generic doctrine's crest habit)
+  Doc().crestTick(E, 'AL', S.crestCfg);
 }
 function wellington(E, S) {
   const t = E.t, W = E.leaders.wellington, crest = S.crestLine, N = news(E, 'wellington');

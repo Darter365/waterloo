@@ -38,6 +38,7 @@ function make(opts = {}) {
         const st = S[sd.id] = { posture: sd.posture || 'defend', reserve: new Set(), fed: {}, reocc: {}, attack: {}, orderObj: {}, prepFrom: null, next: 0, advanced: false, withdrawn: false };
         const mine = E.units.filter(u => u.side === sd.id && u.onMap);
         for (const u of mine) if (!u.task || u.task.kind === 'hold') u.task = { kind: 'hold', since: E.t, lieDown: !!(E.nations[u.nat] || {}).lieDown };
+        if (sd.crest) crestInit(E, sd.id, sd.crest); // a first line behind a crest (battle pack)
         // reserves: the corps the battle names, else the third of the foot furthest from the enemy
         const resCorps = sd.reserve || [];
         if (resCorps.length) for (const u of mine) { if (resCorps.includes(u.corps)) st.reserve.add(u.id); }
@@ -51,6 +52,7 @@ function make(opts = {}) {
     },
     tick(E) {
       AI().unitControl(E);
+      for (const sd of E.sides) if (S[sd.id] && sd.crest) crestTick(E, sd.id, sd.crest);
       for (const [side, st] of Object.entries(S)) {
         const chief = chiefOf(E, side);
         if (E.t < st.next) continue;
@@ -91,7 +93,8 @@ function objHolder(E, side, o) { // who holds it, as the side's chief believes
 // a commander's order to some of his units, by rider
 function order(E, side, corps, spec) {
   const L = leaderOf(E, side, corps), ch = chiefOf(E, side), id = `d${side}${E.t}_${(E.dOrders = (E.dOrders || 0) + 1)}`;
-  E.sendOrder(Object.assign({ id, from: ch ? ch.id : (L ? L.id : null), to: L ? L.id : null, direct: L === ch }, spec));
+  // (3a) as clear as the chief writes them (leader file: clarity), which sets the odds a general misreads one
+  E.sendOrder(Object.assign({ id, from: ch ? ch.id : (L ? L.id : null), to: L ? L.id : null, direct: L === ch, clarity: ch && ch.clarity != null ? ch.clarity : 0.9 }, spec));
   return id;
 }
 // how many bodies an objective has room for in one attack: a place by the men its walls hold (one body per 600), a line by its length
@@ -159,7 +162,8 @@ function attack(E, side, st, chief) {
   if (!main) { const n = st.main ? st.main.n + 1 : 0; main = objs[0]; st.main = { k: main.k, since: E.t, n }; if (n && chief) E.logEvent('orders', `${chief.name} turns his guns on ${main.o.name}.`, { side, hidden: true }); }
   if (st.prepFrom == null) st.prepFrom = E.t;
   guns(E, side, st, main, mine);
-  const prepped = E.t - st.main.since >= PREP * (1.2 - agg) * (st.main.n ? 0.5 : 1);
+  // the bombardment lasts less with an aggressive chief and more with one who combines his arms with care (leader file: agg, coord)
+  const prepped = E.t - st.main.since >= PREP * (1.2 - agg) * (st.main.n ? 0.5 : 1) * (0.5 + (chief && chief.coord != null ? chief.coord : 0.5));
   const dark = E.t > E.light.dark; // no new attacks in the dark
   // each corps not in reserve goes for an objective: the nearest of the most valuable; it renews the attack while it has the heart
   const corpsOf = groupBy(mine.filter(u => isFoot(E, u) && !st.reserve.has(u.id)), u => u.corps || side);
@@ -335,6 +339,54 @@ function defend(E, side, st, chief) {
   }
 }
 
+/* ----- (3d) the crest: a defender's first line out of sight behind a ridge, as Wellington kept his. Battle pack, per side:
+   crest: { from: [{ road, reverse, slice: [a, b] } | { objective }], first: [unit ids], ahead, up, horse, quiet, standForm: { nation: form },
+            restForm: { nation: form } (the form a body brought up later goes back to, 'columns' for nations not listed; else its nation's) }
+   Each body of the first line takes a place on the crest line (ahead m toward the enemy from its nearest point) and holds behind it,
+   lying down; it stands up and comes to the crest when enemy foot are within up m of its place there and no enemy horse within horse m,
+   and goes back down after quiet ticks without them, or at once if horse appear (lines are what horse ride down). Release 3's values
+   (Wellington: 15 m, 380 m, 500 m, 4 ticks) are Waterloo's, est. ----- */
+function crestLine(E, cfg) {
+  let pts = [];
+  for (const part of cfg.from) {
+    let p;
+    if (part.road) { const r = E.W.ROADS.find(x => x.name === part.road); if (!r) throw new Error(`crest: no road "${part.road}"`); p = r.pts.slice(); }
+    else if (part.objective) p = E.objectives[part.objective].line.slice();
+    if (part.reverse) p.reverse();
+    if (part.slice) p = p.slice(part.slice[0], part.slice[1]);
+    pts = pts.concat(p);
+  }
+  return pts;
+}
+function crestInit(E, side, cfg) {
+  const line = crestLine(E, cfg), fwd = E.frontFacing(side) * Math.PI / 180, ahead = cfg.ahead ?? 15;
+  const off = [Math.sin(fwd) * ahead, -Math.cos(fwd) * ahead];
+  for (const u of E.units) {
+    if (u.side !== side || !u.onMap || !cfg.first.includes(u.id) || !u.task || u.task.kind !== 'hold') continue;
+    const q = AI().nearestOnPoly(u.x, u.y, line);
+    u.task.crest = q ? [q[0] + Math.round(off[0] * 1e9) / 1e9, q[1] + Math.round(off[1] * 1e9) / 1e9] : null;
+    u.task.lieDown = true; u.task.res = [u.x, u.y]; u.task.resFacing = u.facing; u.task.resForm = u.form;
+  }
+  return line;
+}
+function crestTick(E, side, cfg) {
+  const up = cfg.up ?? 380, hr = cfg.horse ?? 500, quiet = cfg.quiet ?? 4, face = E.frontFacing(side), stand = cfg.standForm || {};
+  for (const u of E.units) {
+    if (u.side !== side || !E.formed(u) || !isFoot(E, u) || u.task.kind !== 'hold' || !u.task.crest) continue;
+    const t = u.task, [cx, cy] = t.crest;
+    const foes = E.near(cx, cy, up, e => E.isEnemy(u, e) && E.formed(e) && isFoot(E, e));
+    const cav = E.near(cx, cy, hr, e => E.isEnemy(u, e) && E.formed(e) && isHorse(E, e));
+    if (foes.length && !cav.length) {
+      if (t.state !== 'up') { t.state = 'up'; u.lying = false; u.path = [[cx, cy]]; u.stopAt = 0; t.arriveFacing = face; if (stand[u.nat]) E.setForm(u, stand[u.nat]); }
+      t.quiet = 0;
+    } else if (t.state === 'up') {
+      t.quiet = (t.quiet || 0) + 1;
+      if (t.quiet > quiet || cav.length) { t.state = 'down'; u.path = [t.res]; t.arriveFacing = t.resFacing; if (!cav.length) E.setForm(u, t.resForm || (cfg.restForm ? cfg.restForm[u.nat] || 'columns' : (E.nations[u.nat] || {}).form || 'columns')); }
+    }
+    if (!u.path && t.arriveFacing != null && t.state === 'up') u.facing = face;
+  }
+}
+
 /* ----- horse: fall on shaken or blown enemies near the line (the cavalry chief's aggression) ----- */
 function cavalry(E, side, st) {
   const sd = E.sides.find(s => s.id === side), cc = sd.cavChief && E.leaders[sd.cavChief] ? E.leaders[sd.cavChief] : chiefOf(E, side), agg = cc ? cc.agg : 0.6;
@@ -371,7 +423,7 @@ function arrival(E, u, st) {
 }
 function groupBy(a, f) { const o = {}; for (const x of a) (o[f(x)] = o[f(x)] || []).push(x); return o; }
 
-const api = { make };
+const api = { make, crestInit, crestTick, crestLine };
 root.WDoctrine = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

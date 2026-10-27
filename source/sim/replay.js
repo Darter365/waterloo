@@ -62,6 +62,27 @@ function summary(E, samples) {
   return { grade: R.grade, gradeN: GRADES.indexOf(R.grade), why: R.why, t: R.t, cas: R.cas, metrics: Object.assign({}, E.metrics), morale: Object.assign({}, E.morale), crest: !!E.flags.crestFR, places, samples: samples || [] };
 }
 
-root.WReplay = { setup, apply, variant, run, summary, sample, GRADES, START };
+/* (phase 4e) a replay as a file: the battle, the settings and the order log, with the versions they were fought with. check() says
+   whether this build can fight the same battle from it: the engine's version and the packs' fingerprint must match; when they do not,
+   it can still be fought, but may come out differently, and the notes say what changed. */
+const Packs = () => root.WPacks || req('./packs/all.js');
+function record(o, log, extra) {
+  const id = o.battle || 'waterloo';
+  return Object.assign({ kind: 'battle-replay', format: 1, battle: id, engine: En().version, packs: Packs().versions(id), fingerprint: Packs().fingerprint(id), settings: clone(o), log: clone(log || []) }, extra || {});
+}
+function check(r) {
+  const notes = [];
+  if (!r || r.kind !== 'battle-replay') return { ok: false, fatal: true, notes: ['not a replay'] };
+  if (r.format !== 1) return { ok: false, fatal: true, notes: [`replay format ${r.format}: this build reads format 1`] };
+  const P = Packs(); if (!P.battles[r.battle]) return { ok: false, fatal: true, notes: [`battle "${r.battle}" is not loaded`] };
+  if (r.engine !== En().version) notes.push(`made with engine ${r.engine}; this is ${En().version}`);
+  const now = P.versions(r.battle);
+  for (const k of Object.keys(Object.assign({}, now, r.packs))) if ((r.packs || {})[k] !== now[k]) notes.push(`${k}: made with ${(r.packs || {})[k] || 'none'}; this is ${now[k] || 'none'}`);
+  const fp = P.fingerprint(r.battle);
+  if (r.fingerprint !== fp && !notes.some(n => !n.startsWith('made with engine'))) notes.push(`the packs were changed without a new version (fingerprint ${r.fingerprint}, now ${fp})`);
+  return { ok: !notes.length, fatal: false, notes };
+}
+
+root.WReplay = { setup, apply, variant, run, summary, sample, record, check, GRADES, START };
 if (typeof module !== 'undefined' && module.exports) module.exports = root.WReplay;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

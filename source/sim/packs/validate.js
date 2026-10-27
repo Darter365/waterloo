@@ -28,6 +28,10 @@ function validate(id) {
 
   /* ----- the battle ----- */
   if (!B.name) E('the battle has no name');
+  // (4e) versions: replays name the versions they were fought with
+  const VER = /^\d+\.\d+$/;
+  for (const [what, pk] of [['battle', B], ['era', P.eras[B.era]], ...Object.values(P.nations).filter(b => b.nations && (B.nations || []).some(n => b.nations[n])).map(b => ['nation book', b]), ...Object.values(P.leaders).filter(b => b.people && (B.leaders || []).some(l => b.people[l.id])).map(b => ['leader book', b])])
+    if (pk && !VER.test(pk.version || '')) Wn(`${what} ${pk.id} has no version (major.minor): replays cannot tell which they were fought with`);
   if (!/^-?\d{1,4}-\d\d-\d\d$/.test(B.date || '')) E(`date "${B.date}" is not YYYY-MM-DD (the sun's light is computed from it)`);
   for (const [n, v] of Object.entries(R.nations)) if (!v) E(`nation "${n}" is named by the battle but no loaded nation pack defines it`);
   const sides = B.sides || [], sideIds = new Set();
@@ -203,6 +207,17 @@ function validate(id) {
   for (const [k, o] of Object.entries(W.OBJECTIVES || {})) if (o.value) {
     if (!o.line) E(`objective ${k}: only a line can carry a value (places carry theirs on the strongpoint)`);
     if (!new Set(sides.map(x => x.coalition || x.id)).has(o.holder)) E(`objective ${k}: holder "${o.holder}" is not a coalition (who holds it at the start)`);
+  }
+  // (phase 3c) plans: every place, unit, corps and rule a plan names exists; side objectives name objectives on the map
+  const PL = root.WPlans || (typeof require === 'function' ? require('../plans.js') : null);
+  for (const [pk, plan] of Object.entries(B.plans || {})) { if (plan.id !== pk) E(`plan ${pk}: its id must be "${pk}"`); if (PL) PL.check(plan, W, B, E); }
+  for (const s of sides) for (const k of Object.keys(s.objectives || {})) if (!(W.OBJECTIVES || {})[k]) E(`side ${s.id}: objective "${k}" is not on the map`);
+  for (const s of sides) if (s.posture && !['attack', 'defend'].includes(s.posture)) E(`side ${s.id}: posture must be attack or defend`);
+  const allUnits = new Set((W.RAW || []).map(r => r[0]).concat(...(W.FORCES || []).map(f => f.units.map(u => u[0]))));
+  for (const s of sides) if (s.crest) { // a first line behind a crest (doctrine.js)
+    for (const part of s.crest.from || []) { if (part.road && !(W.ROADS || []).some(r => r.name === part.road)) E(`side ${s.id}: crest road "${part.road}" is not on the map`); if (part.objective && !((W.OBJECTIVES || {})[part.objective] || {}).line) E(`side ${s.id}: crest objective "${part.objective}" is not a line`); }
+    if (!(s.crest.from || []).length) E(`side ${s.id}: a crest needs from: [roads or a line objective]`);
+    for (const id of s.crest.first || []) if (!allUnits.has(id)) E(`side ${s.id}: crest unit "${id}" is not in the order of battle`);
   }
   const wx = B.weather || {};
   if (wx.cohesion0 != null && !num(wx.cohesion0)) E('weather: cohesion0 must be a number');
