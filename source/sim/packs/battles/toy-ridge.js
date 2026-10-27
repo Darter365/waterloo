@@ -1,14 +1,15 @@
 /* Battle pack: "The ridge at Saint-Ail", a SMALL TEST BATTLE built from files alone (engine roadmap 4f). It is invented: a field of
-   4 km by 4.6 km with a ridge, a walled farm in front of it, a village on its eastern end and a wood to the west; a Blue army holds the
+   4 km by 8 km with a ridge, a walled farm in front of it, a village on its eastern end and a wood to the west; a Blue army holds the
    ridge, a Red army attacks it from the south, and a Green corps marches to Blue's help from the east in the afternoon. It uses the
    Napoleonic era and nations, and leaders of its own. No line of engine code knows it: it exists to prove that a battle can be added as
    data, and to try the generic commanders (doctrine.js) on something small. */
 (function (root) {
 'use strict';
 const LAT0 = 49.50, LON0 = 3.00, MLAT = 111230, MLON = 111320 * Math.cos(49.48 * Math.PI / 180);
-// the field is drawn below in design metres (Blue's ridge at y = 1200); OY moves it all south so that each army has a kilometre and more of
-// ground behind it to rally on (first try: Red's beaten brigades ran off the south edge before they could rally)
-const OY = 600, NX = 81, NY = 93, CELL = 50, WM = (NX - 1) * CELL, HM = (NY - 1) * CELL;
+// the field is drawn below in design metres (Blue's ridge at y = 1200); OY moves it all south, and the map runs on 4 km behind Red, so
+// that each army has ground behind it to rally on: a broken brigade runs until no enemy is within 800 m for 15-30 minutes, about 2-4 km
+// (first tries, with 0.4 and 1.6 km behind Red, lost every beaten Red brigade off the south edge before it could rally)
+const OY = 1500, NX = 81, NY = 161, CELL = 50, WM = (NX - 1) * CELL, HM = (NY - 1) * CELL;
 const ll2m = (lat, lon) => [(lon - LON0) * MLON, (LAT0 - lat) * MLAT];
 const m2ll = (x, y) => [LAT0 - y / MLAT, LON0 + x / MLON];
 // the ground: Blue's ridge along y = 1200 (30 m above the valley), the valley at y = 1900, Red's lower rise at y = 2700
@@ -45,24 +46,25 @@ const ROUTES = { blueRetreat: [ll(2000, 1000), edge(2000, 10)], redRetreat: [ll(
 // [id, side, name, parent, nation, arm, strength, lat, lon, facing, formation, uncertainty, note]
 const U = (id, side, name, parent, nat, arm, str, x, y, facing, form) => { const [la, lo] = ll(x, y); return [id, side, name, parent, nat, arm, str, la, lo, facing, form, 0, '']; };
 const RAW = [
-  U('b1', 'BL', '1st Brigade', 'Blue I', 'GB', 'inf', 2400, 1600, 1100, 180, 'twoLines'), U('b2', 'BL', '2nd Brigade', 'Blue I', 'GB', 'inf', 2400, 2400, 1100, 180, 'twoLines'),
-  U('b3', 'BL', '3rd Brigade', 'Blue I', 'NL', 'inf', 2800, 2900, 1050, 180, 'columns'), U('b4', 'BL', '4th Brigade', 'Blue reserve', 'NL', 'inf', 2600, 2000, 700, 180, 'columns'),
+  U('b1', 'BL', 'Blue 1st Brigade', 'Blue I', 'GB', 'inf', 2400, 1600, 1100, 180, 'twoLines'), U('b2', 'BL', 'Blue 2nd Brigade', 'Blue I', 'GB', 'inf', 2400, 2400, 1100, 180, 'twoLines'),
+  U('b3', 'BL', 'Blue 3rd Brigade', 'Blue I', 'NL', 'inf', 2800, 2900, 1050, 180, 'columns'), U('b4', 'BL', 'Blue 4th Brigade', 'Blue reserve', 'NL', 'inf', 2600, 2000, 700, 180, 'columns'),
   U('bc', 'BL', 'Blue Horse', 'Blue cavalry', 'GB', 'cav', 1100, 1800, 800, 180, 'columns'),
   U('ba1', 'BL', 'Blue battery (right)', 'Blue artillery', 'GB', 'art', 8, 1700, 1170, 180, 'battery'), U('ba2', 'BL', 'Blue battery (left)', 'Blue artillery', 'GB', 'art', 8, 2600, 1170, 180, 'battery'),
   U('bGar1', 'BL', 'Haute Ferme garrison', 'Blue I', 'GB', 'gar', 500, 2000, 1550, 180, 'garrison'), U('bGar2', 'BL', 'Saint-Ail garrison', 'Blue I', 'NL', 'gar', 900, 3200, 1180, 180, 'garrison'),
-  U('r1', 'RD', '1st Brigade', 'Red I', 'FR', 'inf', 3000, 1500, 2600, 0, 'columns'), U('r2', 'RD', '2nd Brigade', 'Red I', 'FR', 'inf', 3000, 2000, 2650, 0, 'columns'),
-  U('r3', 'RD', '3rd Brigade', 'Red II', 'FR', 'inf', 3000, 2600, 2600, 0, 'columns'), U('r4', 'RD', '4th Brigade', 'Red II', 'FR', 'inf', 3000, 3100, 2650, 0, 'columns'),
+  U('r1', 'RD', 'Red 1st Brigade', 'Red I', 'FR', 'inf', 3000, 1500, 2600, 0, 'columns'), U('r2', 'RD', 'Red 2nd Brigade', 'Red I', 'FR', 'inf', 3000, 2000, 2650, 0, 'columns'),
+  U('r3', 'RD', 'Red 3rd Brigade', 'Red II', 'FR', 'inf', 3000, 2600, 2600, 0, 'columns'), U('r4', 'RD', 'Red 4th Brigade', 'Red II', 'FR', 'inf', 3000, 3100, 2650, 0, 'columns'),
+  U('r6', 'RD', 'Red 5th Brigade', 'Red II', 'FR', 'inf', 3000, 3500, 2750, 0, 'columns'),
   U('r5', 'RD', 'Red Guard', 'Red reserve', 'FR', 'inf', 2400, 2000, 2950, 0, 'columns'), U('rc', 'RD', 'Red Horse', 'Red cavalry', 'FR', 'cav', 1500, 1200, 2800, 0, 'columns'),
   U('ra1', 'RD', 'Red battery (I)', 'Red artillery', 'FR', 'art', 8, 1800, 2450, 0, 'battery'), U('ra2', 'RD', 'Red battery (II)', 'Red artillery', 'FR', 'art', 8, 2800, 2450, 0, 'battery'),
   U('ra3', 'RD', 'Red 12-pounders', 'Red artillery', 'FR', 'art', 8, 2300, 2500, 0, 'battery'),
 ];
 const CORPS = { b1: 'blue1', b2: 'blue1', b3: 'blue1', bGar1: 'blue1', bGar2: 'blue1', ba1: 'blue1', ba2: 'blue1', b4: 'blueRes', bc: 'blueRes',
-  r1: 'red1', r2: 'red1', ra1: 'red1', r3: 'red2', r4: 'red2', ra2: 'red2', r5: 'redRes', rc: 'redRes', ra3: 'redRes' };
+  r1: 'red1', r2: 'red1', ra1: 'red1', r3: 'red2', r4: 'red2', r6: 'red2', ra2: 'red2', r5: 'redRes', rc: 'redCav', ra3: 'redRes' };
 const CALIBRE = { ra3: 12 };
 const QUALITY = { r5: 1.15, b4: 0.85, bGar2: 0.85 };
 // Green comes on from the east edge along its road: [id, side, name, parent, nation, arm, strength, corps (= route), quality, minute]
 // the last field is the minute it comes on (the first at 14:00)
-const GREEN = [['g1', 'GR', '1st Brigade', 'Green corps', 'PR', 'inf', 3200, 'green', 0.85, 840], ['g2', 'GR', '2nd Brigade', 'Green corps', 'PR', 'inf', 3200, 'green', 0.85, 855],
+const GREEN = [['g1', 'GR', 'Green 1st Brigade', 'Green corps', 'PR', 'inf', 3200, 'green', 0.85, 840], ['g2', 'GR', 'Green 2nd Brigade', 'Green corps', 'PR', 'inf', 3200, 'green', 0.85, 855],
   ['gc', 'GR', 'Green Horse', 'Green corps', 'PR', 'cav', 800, 'green', 0.85, 865], ['ga', 'GR', 'Green battery', 'Green corps', 'PR', 'art', 8, 'green', 0.85, 870]];
 const FORCES = [{ group: 'green', marches: true, units: GREEN, fatigue0: 30 }];
 
@@ -77,10 +79,13 @@ P.register('leader', 'toy-ridge', { era: 'napoleonic', people: {
 }, source: 'invented for the test battle', confidence: 'none: fiction' });
 P.register('battle', 'toy-ridge', {
   name: 'The ridge at Saint-Ail (test)', date: '1815-07-02', era: 'napoleonic', nations: ['GB', 'NL', 'FR', 'PR'],
+  // posture: how its generic commanders fight (attack, defend); reserve: the corps they hold back; objectives: what an objective is worth to
+  // this army when it differs from the map's value (Red's aim is the ridge, the farm and the village only on the way; Green marches on Red's
+  // rear, the rise where Red's reserve and guns stand)
   sides: [
     { id: 'BL', name: 'Blue', morale0: 70, coalition: 'BL', chief: 'azur', rear: 'N', retreat: 'blueRetreat', posture: 'defend', reserve: ['blueRes'] },
-    { id: 'RD', name: 'Red', morale0: 75, coalition: 'RD', chief: 'carmin', rear: 'S', retreat: 'redRetreat', exit: edge(2000, HM - 20), rearguard: ll(2000, 2900), posture: 'attack', reserve: ['redRes'] },
-    { id: 'GR', name: 'Green', morale0: 70, coalition: 'BL', chief: 'sinople', rear: 'E', retreat: 'greenRetreat', posture: 'attack' },
+    { id: 'RD', name: 'Red', morale0: 75, coalition: 'RD', chief: 'carmin', rear: 'S', retreat: 'redRetreat', exit: edge(2000, HM - 20), rearguard: ll(2000, 2900), posture: 'attack', reserve: ['redRes'], objectives: { ailRidge: 2 } },
+    { id: 'GR', name: 'Green', morale0: 70, coalition: 'BL', chief: 'sinople', rear: 'E', retreat: 'greenRetreat', posture: 'attack', objectives: { redRise: 2 } },
   ],
   starts: { '1100': { t: 660, wet0: 0.3 } },
   weather: { vis: [[600, 7000], [1200, 6000]] },
@@ -89,7 +94,7 @@ P.register('battle', 'toy-ridge', {
   corpsNames: { green: 'the Green corps' },
   metrics: [
     { id: 'fermeFall', when: 'taken', place: 'ferme', by: 'RD' }, { id: 'stailFall', when: 'taken', place: 'stail', by: 'RD' },
-    { id: 'greenEngaged', when: 'fires', side: 'GR', at: 'RD' },
+    { id: 'greenEngaged', when: 'fires', side: 'GR', at: 'RD' }, { id: 'ridgeTaken', when: 'line', line: 'ailRidge' },
   ],
   leaders: [{ id: 'azur', side: 'BL', at: ll(2000, 900) }, { id: 'cobalt', side: 'BL', unit: 'b2' }, { id: 'carmin', side: 'RD', at: ll(2000, 2800) },
     { id: 'vermillon', side: 'RD', unit: 'r1' }, { id: 'garance', side: 'RD', unit: 'r3' }, { id: 'sinople', side: 'GR', corps: 'green' }],

@@ -188,12 +188,13 @@ function validate(id) {
     }
   }
   // (phase 2) turning points, valued places and lines
-  const WHEN = ['taken', 'fires', 'near', 'prestige'], mids = new Set();
+  const WHEN = ['taken', 'fires', 'near', 'prestige', 'line'], mids = new Set();
   for (const m of B.metrics || []) {
     if (!m.id || mids.has(m.id)) E(`metric "${m.id}": missing or repeated id`); mids.add(m.id);
     if (!WHEN.includes(m.when)) { E(`metric ${m.id}: when "${m.when}" must be one of ${WHEN.join(', ')}`); continue; }
     if ((m.when === 'taken' || m.when === 'near') && !(W.STRONGPOINTS || []).some(sp => sp.id === m.place)) E(`metric ${m.id}: place "${m.place}" is not a strongpoint`);
     if (m.when === 'taken' && !new Set(sides.map(x => x.coalition || x.id)).has(m.by)) E(`metric ${m.id}: by "${m.by}" is not a coalition`);
+    if (m.when === 'line' && !((W.OBJECTIVES || {})[m.line] || {}).line) E(`metric ${m.id}: line "${m.line}" is not an objective with a line`);
     if ((m.when === 'fires' || m.when === 'near') && !m.side && !m.corps) E(`metric ${m.id}: needs a side or a corps`);
     if (m.side && !sideIds.has(m.side)) E(`metric ${m.id}: side "${m.side}" is not one of the battle's sides`);
     if (m.after && !(B.metrics || []).some(x => x.id === m.after)) E(`metric ${m.id}: after "${m.after}" is not a metric`);

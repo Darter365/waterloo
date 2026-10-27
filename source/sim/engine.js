@@ -1234,10 +1234,10 @@ function create(opts = {}) {
     }
     // a line worth holding (battle objectives with a value): the enemy's foot stand on it with none of the holders close; the holders have it
     // back once it has been clear a while
-    for (const o of Object.values(E.objectives)) {
+    for (const [k, o] of Object.entries(E.objectives)) {
       if (!o.value || !o.line || !o.holder) continue;
       const on = E.units.filter(u => COAL[u.side] !== o.holder && formed(u) && foot(u) && polyDist(u.x, u.y, o.line) < E.K.LINE_NEAR && !near(u.x, u.y, E.K.LINE_CLEAR, e => COAL[e.side] === o.holder && formed(e) && !served(e)).length);
-      if (on.length && !o.takenAt) { o.takenAt = E.t; o.by = COAL[on[0].side]; placeMorale(o.value, o.by, o.holder); if (o.flag) E.flags[o.flag] = E.t; log('place', o.says ? o.says.taken : `The enemy stand on ${o.name}.`, { side: on[0].side, important: true }); }
+      if (on.length && !o.takenAt) { o.takenAt = E.t; o.by = COAL[on[0].side]; placeMorale(o.value, o.by, o.holder); if (o.flag) E.flags[o.flag] = E.t; for (const m of METRICS) if (m.when === 'line' && m.line === k && E.metrics[m.id] == null) E.metrics[m.id] = E.t; log('place', o.says ? o.says.taken : `The enemy stand on ${o.name}.`, { side: on[0].side, important: true }); }
       else if (!on.length && o.takenAt && E.t - o.takenAt > E.K.LINE_BACK) { placeMorale(o.value, o.holder, o.by); o.takenAt = null; if (o.flag) E.flags[o.flag] = null; log('place', o.says ? o.says.regained : `${o.name} is clear again.`, { side: o.holder }); }
     }
   }
