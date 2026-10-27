@@ -1,0 +1,11 @@
+# build products and test output (the built site lives at the repository root)
+sim/game.html
+sim/p?.html
+sim/*.png
+sim/*.log
+sim/uiaudit.json
+sim/f[0-9]_*.json
+sim/tmp/
+offline/site/
+__pycache__/
+node_modules/

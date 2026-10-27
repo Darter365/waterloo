@@ -1,0 +1,1367 @@
+<title>Waterloo Umpire's Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&display=swap">
+<style>
+:root{
+  --bg:#e7ddc6; --fg:#2e251c; --fg-2:#65543f; --fg-3:#8a7860; --line:#cbbc9a; --panel:#f2ead7; --chip:#e8ddc4; --accent:#8a4a17; --focus:#2d4c86;
+  --m-paper:#f3ead2; --m-ink:#392c20; --m-hach:#56412d; --m-contour:#9b7a52; --m-water:#3b6a8e; --m-wood:#98a468; --m-woodink:#4b5829;
+  --m-build:#983828; --m-road:#e3c98f; --m-fr:#2c4b85; --m-al:#aa2f25; --m-pr:#24262a; --m-flag:#b0601c; --m-debate:#6c4a8a;
+  --m-dead:74,50,28; --m-ok:#2e6a3a; --m-no:#b0302a;
+  --serif:"EB Garamond", Garamond, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --fell:"IM Fell English", "EB Garamond", Garamond, Georgia, serif;
+  --fellsc:"IM Fell English SC", "IM Fell English", Garamond, Georgia, serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15110d; --fg:#ebe0c8; --fg-2:#b9a98c; --fg-3:#8d7e67; --line:#3a3127; --panel:#1d1813; --chip:#2a231b; --accent:#dba45f; --focus:#9db4e0;
+    --m-paper:#d5c7a4; --m-ink:#2f241a; --m-hach:#4a3725; --m-contour:#86683f; --m-water:#30597a; --m-wood:#7f8b50; --m-woodink:#3f4a20;
+    --m-build:#86301f; --m-road:#cdb179; --m-fr:#24427a; --m-al:#9c281f; --m-pr:#1e2023; --m-flag:#9a5214; --m-debate:#5d3e7a;
+    --m-dead:58,38,20; --m-ok:#22582c; --m-no:#9c281f;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15110d; --fg:#ebe0c8; --fg-2:#b9a98c; --fg-3:#8d7e67; --line:#3a3127; --panel:#1d1813; --chip:#2a231b; --accent:#dba45f; --focus:#9db4e0;
+  --m-paper:#d5c7a4; --m-ink:#2f241a; --m-hach:#4a3725; --m-contour:#86683f; --m-water:#30597a; --m-wood:#7f8b50; --m-woodink:#3f4a20;
+  --m-build:#86301f; --m-road:#cdb179; --m-fr:#24427a; --m-al:#9c281f; --m-pr:#1e2023; --m-flag:#9a5214; --m-debate:#5d3e7a;
+  --m-dead:58,38,20; --m-ok:#22582c; --m-no:#9c281f;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--serif);font-size:16px;line-height:1.45;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:14px 28px}
+button,select,input{font:inherit;color:inherit}
+.top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 24px;margin:0 auto 12px;max-width:1500px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.top h1{font-family:var(--fellsc);font-weight:400;font-size:clamp(1.45rem,2.6vw,2rem);letter-spacing:.02em;margin:0;line-height:1.1;text-wrap:balance}
+.top h1 span{font-family:var(--fell);font-style:italic;color:var(--fg-2);font-size:.8em}
+.top p{margin:2px 0 0;color:var(--fg-2);font-size:.95rem}
+.stamp{font-family:var(--fellsc);font-size:.85rem;letter-spacing:.08em;color:var(--accent);border:1px solid var(--accent);padding:2px 8px;border-radius:2px;white-space:nowrap}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 352px;gap:16px;max-width:1500px;margin:0 auto;align-items:start}
+@media (max-width:980px){.layout{grid-template-columns:minmax(0,1fr)}}
+.sheet{min-width:0}
+.mapbox{position:relative;height:calc(100dvh - 150px);min-height:440px;border:1px solid var(--line);background:var(--bg);overflow:hidden;touch-action:none;border-radius:2px}
+@media (max-width:980px){.mapbox{height:64dvh;min-height:360px}}
+#map{display:block;width:100%;height:100%;cursor:grab}
+#map.pan{cursor:grabbing}
+#map.tool{cursor:crosshair}
+.cartouche{position:absolute;left:10px;top:10px;max-width:min(330px,62%);padding:8px 12px 9px;background:color-mix(in srgb,var(--m-paper) 92%,transparent);border:1px solid color-mix(in srgb,var(--m-ink) 55%,transparent);outline:3px double color-mix(in srgb,var(--m-ink) 30%,transparent);outline-offset:-7px;color:var(--m-ink);pointer-events:none}
+.cartouche b{display:block;font-family:var(--fellsc);font-weight:400;font-size:.98rem;letter-spacing:.03em;line-height:1.15}
+.cartouche i{font-family:var(--fell);font-size:.86rem;display:block;margin-top:2px}
+@media (max-width:560px){.cartouche{padding:5px 8px;max-width:58%}.cartouche b{font-size:.78rem}.cartouche i{display:none}}
+.zoomctl{position:absolute;right:10px;bottom:12px;display:flex;flex-direction:column;gap:4px}
+.zoomctl button{width:34px;height:34px;border:1px solid color-mix(in srgb,var(--m-ink) 50%,transparent);background:color-mix(in srgb,var(--m-paper) 94%,transparent);color:var(--m-ink);font-size:1.15rem;line-height:1;cursor:pointer;border-radius:2px}
+.zoomctl button:hover{background:var(--m-paper)}
+.zoomctl button:focus-visible,.panel button:focus-visible,.panel input:focus-visible,.panel select:focus-visible,.panel summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.modehint{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;background:var(--m-ink);color:var(--m-paper);padding:5px 12px;font-size:.88rem;border-radius:2px;max-width:calc(100% - 110px);text-align:center}
+.tip{position:absolute;pointer-events:none;z-index:5;max-width:300px;background:var(--m-paper);color:var(--m-ink);border:1px solid var(--m-ink);box-shadow:2px 3px 0 color-mix(in srgb,var(--m-ink) 22%,transparent);padding:7px 10px 8px;font-size:.88rem;line-height:1.35}
+.tip b{font-family:var(--fellsc);font-weight:400;font-size:1.02rem;letter-spacing:.02em}
+.tip .sub{color:color-mix(in srgb,var(--m-ink) 72%,transparent);font-style:italic}
+.tip .conf{margin-top:3px;font-size:.8rem;color:var(--m-flag)}
+.status{font-size:.88rem;color:var(--fg-2);padding:6px 2px 0;min-height:1.7em;font-variant-numeric:tabular-nums lining-nums}
+.panel{display:flex;flex-direction:column;gap:10px;min-width:0}
+.panel details{background:var(--panel);border:1px solid var(--line);border-radius:2px}
+.panel summary{cursor:pointer;list-style:none;padding:9px 12px;font-family:var(--fellsc);font-size:1.06rem;letter-spacing:.03em;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.panel summary::-webkit-details-marker{display:none}
+.panel summary::after{content:"+";font-family:var(--serif);color:var(--fg-3)}
+.panel details[open] summary::after{content:"−"}
+.panel .body{padding:0 12px 12px;font-size:.93rem}
+.panel p{margin:.35em 0}
+.small{font-size:.84rem;color:var(--fg-2)}
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.checks button{width:100%;text-align:left;background:var(--chip);border:1px solid var(--line);padding:7px 10px;cursor:pointer;border-radius:2px;line-height:1.3}
+.checks button:hover{border-color:var(--fg-3)}
+.checks b{font-weight:600}
+.checks span{display:block;font-size:.84rem;color:var(--fg-2);margin-top:1px}
+.layers{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
+.layers label{display:flex;gap:7px;align-items:center;cursor:pointer;font-size:.92rem}
+.layers input{accent-color:var(--accent)}
+.seg{display:flex;border:1px solid var(--line);border-radius:2px;overflow:hidden;margin:4px 0 8px}
+.seg button{flex:1;border:0;background:transparent;padding:6px 4px;cursor:pointer;font-size:.9rem;color:var(--fg-2)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--chip);color:var(--fg);font-weight:600}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:5px 0}
+.row label{font-size:.88rem;color:var(--fg-2);min-width:68px}
+.row select{flex:1;min-width:0;background:var(--chip);border:1px solid var(--line);padding:4px 6px;border-radius:2px}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.btns button{background:var(--chip);border:1px solid var(--line);padding:4px 9px;border-radius:2px;cursor:pointer;font-size:.86rem}
+.btns button:hover{border-color:var(--fg-3)}
+.result{margin-top:8px;font-size:.9rem}
+.result .verdict{font-family:var(--fellsc);font-size:1.02rem;letter-spacing:.02em}
+.result svg{width:100%;height:auto;display:block;margin-top:6px;background:var(--m-paper);border:1px solid var(--line)}
+.unitcard h3{font-family:var(--fellsc);font-weight:400;margin:2px 0 0;font-size:1.15rem}
+.unitcard dl{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:6px 0 0;font-size:.9rem}
+.unitcard dt{color:var(--fg-2)}
+.unitcard dd{margin:0;font-variant-numeric:tabular-nums lining-nums}
+table.forces{width:100%;border-collapse:collapse;font-size:.9rem;font-variant-numeric:tabular-nums lining-nums}
+table.forces th,table.forces td{padding:3px 4px;border-bottom:1px solid var(--line);text-align:right}
+table.forces th:first-child,table.forces td:first-child{text-align:left}
+table.forces thead th{font-weight:600;color:var(--fg-2);font-size:.82rem}
+.legend{display:grid;grid-template-columns:34px 1fr;gap:5px 9px;align-items:center;font-size:.88rem}
+.legend canvas{width:34px;height:18px}
+.notes{font-size:.86rem;color:var(--fg-2)}
+.notes p{margin:.45em 0}
+.notes b{color:var(--fg);font-weight:600}
+.dot{display:inline-block;width:.7em;height:.7em;border-radius:50%;vertical-align:baseline;margin-right:4px}
+</style>
+
+<header class="top">
+  <div>
+    <h1>Waterloo <span>· the umpire’s map</span></h1>
+    <p>True positions at 11:00 on 18 June 1815, before the first shot at Hougoumont. Static review build: terrain, ground features and starting positions only.</p>
+  </div>
+  <span class="stamp">Step 4 · for checking</span>
+</header>
+
+<main class="layout">
+  <section class="sheet">
+    <div class="mapbox" id="mapbox">
+      <canvas id="map" role="img" aria-label="Staff map of the Waterloo battlefield with hachured relief, roads, farms, woods and the positions of every brigade at 11:00."></canvas>
+      <div class="cartouche"><b>Plan du champ de bataille de Mont-Saint-Jean</b><i>18 juin 1815 · positions à onze heures · carte de l’arbitre</i></div>
+      <div class="zoomctl">
+        <button id="zin" aria-label="Zoom in">+</button>
+        <button id="zout" aria-label="Zoom out">−</button>
+        <button id="zfit" aria-label="Show whole sheet">⤢</button>
+      </div>
+      <div class="modehint" id="modehint" hidden></div>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+    <div class="status" id="status">Drag to pan, scroll or pinch to zoom. Hover the ground for its height; hover a block for the brigade.</div>
+  </section>
+
+  <aside class="panel">
+    <details open>
+      <summary>What to check</summary>
+      <div class="body">
+        <p class="small">Each item jumps the map to that sector. Anything drawn with a dotted halo is placed from accounts rather than surveyed; tell me what looks wrong and I’ll move it.</p>
+        <ul class="checks" id="checks"></ul>
+      </div>
+    </details>
+
+    <details open id="unitDetails" hidden>
+      <summary>Selected</summary>
+      <div class="body unitcard" id="unitcard"></div>
+    </details>
+
+    <details open>
+      <summary>Sight &amp; dead ground</summary>
+      <div class="body">
+        <div class="seg" role="group" aria-label="Map tool">
+          <button data-mode="inspect" aria-pressed="true">Inspect</button>
+          <button data-mode="sight" aria-pressed="false">Sight line</button>
+          <button data-mode="view" aria-pressed="false">Dead ground</button>
+        </div>
+        <div class="row"><label for="eye">Observer</label>
+          <select id="eye"><option value="2.5">Mounted officer · eye 2.5 m</option><option value="1.6">On foot · eye 1.6 m</option><option value="4.5">On a farm roof · 4.5 m</option></select></div>
+        <div class="row"><label for="tgt">Looking for</label>
+          <select id="tgt"><option value="1.8">Standing infantry · 1.8 m</option><option value="2.6">Cavalry · 2.6 m</option><option value="0.5">Men lying down · 0.5 m</option><option value="0">Bare ground</option></select></div>
+        <div class="btns" id="presets"></div>
+        <div class="result" id="result"><p class="small">Pick <b>Sight line</b> and click two points, or <b>Dead ground</b> and click where the observer stands. Woods count as 15 m high, farm buildings 8 m, village houses 7 m. Smoke and haze are not modelled on this sheet.</p></div>
+      </div>
+    </details>
+
+    <details open>
+      <summary>Layers</summary>
+      <div class="body">
+        <div class="layers" id="layers"></div>
+      </div>
+    </details>
+
+    <details>
+      <summary>Forces on the sheet at 11:00</summary>
+      <div class="body" id="forces"></div>
+    </details>
+
+    <details>
+      <summary>Legend</summary>
+      <div class="body"><div class="legend" id="legend"></div></div>
+    </details>
+
+    <details>
+      <summary>About the data</summary>
+      <div class="body notes">
+        <p><b>Ground.</b> Heights are EU-DEM 25 m (Copernicus), read through OpenTopoData as 48 north–south transects of 100 points: one every 0.003° of longitude (about 212 m apart), with points about 79 m apart along each. They are interpolated bicubically to a 50 m grid of 199 × 156 nodes covering 9.9 × 7.75 km.</p>
+        <p><b>Checks.</b> Against a separate 100-point transect down the Brussels road the grid is within 0.8 m RMS (worst 2.4 m). Spot heights: La Belle Alliance 133.5 m against 134.0 m, Mont-Saint-Jean farm 124.4 against 123.9, Rossomme 138.3 against 139.4, Le Caillou 134.0 against 136.4.</p>
+        <p><b>Known distortions.</b> EU-DEM is a surface model, so today’s woods and buildings can add up to about 20 m where they stand. The Lion’s Mound (1823–26) has been removed. The ridge beside it was dug away to build the mound, and today’s ground there may be lower than in 1815; how much lower isn’t recorded in my sources. Modern road cuttings and embankments may move the ground by a few metres. Features narrower than about 200 m east–west (sunken lanes, banks, the sandpit) are too small for the grid and are drawn as symbols.</p>
+        <p><b>Relief.</b> Height is shown three ways. A watercolour tint changes every 5 m, from sage in the Lasne valley to terracotta on the southern plateau. Contours run every 5 m and are numbered every 10 m. Lehmann hachures (1799) run straight downhill, and their ink weight shows the slope. Lehmann’s scale reaches solid black at 45°; this sheet reaches it at 12°, because nothing here is steeper than about 15° and at Lehmann’s scale the main ridges would be almost blank.</p>
+        <p><b>Smoothing.</b> For drawing only, the heights are smoothed over about 80 m. That hides the small bumps, which are mostly modern trees, buildings and data noise rather than 1815 ground. The sight-line and dead-ground tools and the height readout still use the unsmoothed grid, so the readout can differ from the tint band by a metre or two.</p>
+        <p><b>Water.</b> The brooks are worked out from the terrain itself: every stream draining more than 0.75 km² is drawn. They were not surveyed, but they land where the Smohain and the Lasne actually run.</p>
+        <p><b>Features.</b> The Brussels chaussée is drawn through surveyed points (Wikipedia’s list of battlefield locations). Farms are placed at surveyed coordinates. Other roads, the woods, hedges and enclosures are traced from memory of period plans and are good to about 100–200 m. Village houses are symbolic. The edge of the Forêt de Soignes in 1815 is uncertain and is not drawn.</p>
+        <p><b>Positions.</b> Brigade strengths come from the order of battle in the rules doc, with II Corps reduced for Quatre Bras and the Young Guard for Ligny. French II Corps is cut proportionally, by 21.5%. Allied brigades are at campaign strength, less the detachments shown in the farms. Placement follows the standard accounts (Siborne, Adkin and others). The French I Corps line follows the lane from La Belle Alliance toward La Haye, 1,000–1,200 m from the allied crest, which agrees with Project Hougoumont’s reading. The uncertainty halos show how far I would trust each position.</p>
+      </div>
+    </details>
+  </aside>
+</main>
+
+<script>
+(() => {
+'use strict';
+/* ================= projection & terrain ================= */
+const LAT0 = 50.708, LON0 = 4.360, MLAT = 111230, MLON = 111320 * Math.cos(50.673 * Math.PI / 180);
+const NX = 199, NY = 156, CELL = 50, WM = (NX - 1) * CELL, HM = (NY - 1) * CELL;
+const ll2m = (lat, lon) => [(lon - LON0) * MLON, (LAT0 - lat) * MLAT];
+const m2ll = (x, y) => [LAT0 - y / MLAT, LON0 + x / MLON];
+const TB64 = "__TERRAIN_B64__";
+const H = (() => { const b = atob(TB64), dv = new DataView(new ArrayBuffer(b.length)); for (let i = 0; i < b.length; i++) dv.setUint8(i, b.charCodeAt(i)); const a = new Float32Array(NX * NY); for (let i = 0; i < NX * NY; i++) a[i] = dv.getInt16(i * 2, true) / 10; return a; })();
+let ZMIN = Infinity, ZMAX = -Infinity; for (const v of H) { if (v < ZMIN) ZMIN = v; if (v > ZMAX) ZMAX = v; }
+function samp(A, x, y) {
+  let fx = x / CELL, fy = y / CELL;
+  if (fx < 0) fx = 0; else if (fx > NX - 1.0001) fx = NX - 1.0001;
+  if (fy < 0) fy = 0; else if (fy > NY - 1.0001) fy = NY - 1.0001;
+  const c = fx | 0, r = fy | 0, tx = fx - c, ty = fy - r, i = r * NX + c;
+  return (A[i] * (1 - tx) + A[i + 1] * tx) * (1 - ty) + (A[i + NX] * (1 - tx) + A[i + NX + 1] * tx) * ty;
+}
+const hAt = (x, y) => samp(H, x, y);
+const GX = new Float32Array(NX * NY), GY = new Float32Array(NX * NY);
+for (let r = 0; r < NY; r++) for (let c = 0; c < NX; c++) {
+  const i = r * NX + c, cl = Math.max(0, c - 1), cr = Math.min(NX - 1, c + 1), ru = Math.max(0, r - 1), rd = Math.min(NY - 1, r + 1);
+  GX[i] = (H[r * NX + cr] - H[r * NX + cl]) / ((cr - cl) * CELL);
+  GY[i] = (H[rd * NX + c] - H[ru * NX + c]) / ((rd - ru) * CELL);
+}
+const slopeDegAt = (x, y) => Math.atan(Math.hypot(samp(GX, x, y), samp(GY, x, y))) * 180 / Math.PI;
+
+/* ================= display surface (smoothed ~80 m, for drawing only; sight lines use H) ================= */
+const HD = (() => {
+  const sig = 1.6, R = 5, k = []; let ks = 0;
+  for (let i = -R; i <= R; i++) { const v = Math.exp(-i * i / (2 * sig * sig)); k.push(v); ks += v; }
+  for (let i = 0; i < k.length; i++) k[i] /= ks;
+  const tmp = new Float32Array(NX * NY), out = new Float32Array(NX * NY);
+  for (let r = 0; r < NY; r++) for (let c = 0; c < NX; c++) { let a = 0; for (let i = -R; i <= R; i++) a += H[r * NX + Math.min(NX - 1, Math.max(0, c + i))] * k[i + R]; tmp[r * NX + c] = a; }
+  for (let r = 0; r < NY; r++) for (let c = 0; c < NX; c++) { let a = 0; for (let i = -R; i <= R; i++) a += tmp[Math.min(NY - 1, Math.max(0, r + i)) * NX + c] * k[i + R]; out[r * NX + c] = a; }
+  return out;
+})();
+const hdAt = (x, y) => samp(HD, x, y);
+const GXD = new Float32Array(NX * NY), GYD = new Float32Array(NX * NY);
+for (let r = 0; r < NY; r++) for (let c = 0; c < NX; c++) {
+  const i = r * NX + c, cl = Math.max(0, c - 1), cr = Math.min(NX - 1, c + 1), ru = Math.max(0, r - 1), rd = Math.min(NY - 1, r + 1);
+  GXD[i] = (HD[r * NX + cr] - HD[r * NX + cl]) / ((cr - cl) * CELL);
+  GYD[i] = (HD[rd * NX + c] - HD[ru * NX + c]) / ((rd - ru) * CELL);
+}
+/* height tint: 5 m bands, muted watercolour ramp, drawn with multiply over the paper */
+const BAND = 5;
+const TINT_STOPS = [[60, [192, 210, 178]], [90, [214, 223, 188]], [110, [237, 234, 198]], [125, [244, 230, 192]], [140, [239, 214, 170]], [155, [230, 195, 155]], [172, [217, 172, 138]]];
+function rampColor(h) {
+  if (h <= TINT_STOPS[0][0]) return TINT_STOPS[0][1];
+  for (let i = 1; i < TINT_STOPS.length; i++) { const [h1, c1] = TINT_STOPS[i]; if (h <= h1) { const [h0, c0] = TINT_STOPS[i - 1], t = (h - h0) / (h1 - h0); return c0.map((v, j) => Math.round(v + (c1[j] - v) * t)); } }
+  return TINT_STOPS[TINT_STOPS.length - 1][1];
+}
+function bandColor(h) { const b = Math.floor(h / BAND), c = rampColor(b * BAND + BAND / 2), f = b % 2 ? 1 : 0.965; return c.map(v => Math.round(v * f)); }
+const TINT = (() => {
+  const K = 6, W = (NX - 1) * K + 1, Hh = (NY - 1) * K + 1, c = document.createElement('canvas'); c.width = W; c.height = Hh;
+  const x = c.getContext('2d'), im = x.createImageData(W, Hh), d = im.data;
+  for (let py = 0; py < Hh; py++) for (let px = 0; px < W; px++) { const col = bandColor(hdAt(px / K * CELL, py / K * CELL)), o = 4 * (py * W + px); d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = 255; }
+  x.putImageData(im, 0, 0); return c;
+})();
+
+/* ================= contours (marching squares, cached per level) ================= */
+const contourCache = new Map();
+function chaikin(p, closed) {
+  const n = p.length / 2; if (n < 3) return p;
+  const out = [];
+  if (!closed) out.push(p[0], p[1]);
+  const lim = closed ? n : n - 1;
+  for (let i = 0; i < lim; i++) {
+    const j = (i + 1) % n, ax = p[2 * i], ay = p[2 * i + 1], bx = p[2 * j], by = p[2 * j + 1];
+    out.push(ax * .75 + bx * .25, ay * .75 + by * .25, ax * .25 + bx * .75, ay * .25 + by * .75);
+  }
+  if (!closed) out.push(p[2 * n - 2], p[2 * n - 1]);
+  return out;
+}
+function contours(L) {
+  if (contourCache.has(L)) return contourCache.get(L);
+  const segs = [], pt = new Map();
+  const ep = id => {
+    let p = pt.get(id); if (p) return p;
+    const k = id >> 1, r = (k / NX) | 0, c = k - r * NX;
+    if ((id & 1) === 0) { const a = HD[k], b = HD[k + 1], t = (L - a) / (b - a); p = [(c + t) * CELL, r * CELL]; }
+    else { const a = HD[k], b = HD[k + NX], t = (L - a) / (b - a); p = [c * CELL, (r + t) * CELL]; }
+    pt.set(id, p); return p;
+  };
+  for (let r = 0; r < NY - 1; r++) for (let c = 0; c < NX - 1; c++) {
+    const i = r * NX + c, v0 = HD[i], v1 = HD[i + 1], v2 = HD[i + NX + 1], v3 = HD[i + NX];
+    const code = (v0 >= L ? 8 : 0) | (v1 >= L ? 4 : 0) | (v2 >= L ? 2 : 0) | (v3 >= L ? 1 : 0);
+    if (code === 0 || code === 15) continue;
+    const T = 2 * i, R = 2 * (i + 1) + 1, B = 2 * (i + NX), Lf = 2 * i + 1;
+    switch (code) {
+      case 1: case 14: segs.push(Lf, B); break;
+      case 2: case 13: segs.push(B, R); break;
+      case 3: case 12: segs.push(Lf, R); break;
+      case 4: case 11: segs.push(T, R); break;
+      case 6: case 9: segs.push(T, B); break;
+      case 7: case 8: segs.push(Lf, T); break;
+      case 5: { const m = (v0 + v1 + v2 + v3) / 4; if (m >= L) segs.push(Lf, T, B, R); else segs.push(T, R, Lf, B); break; }
+      case 10: { const m = (v0 + v1 + v2 + v3) / 4; if (m >= L) segs.push(T, R, Lf, B); else segs.push(Lf, T, B, R); break; }
+    }
+  }
+  const adj = new Map();
+  for (let k = 0; k < segs.length; k += 2) for (const e of [segs[k], segs[k + 1]]) { const l = adj.get(e); if (l) l.push(k); else adj.set(e, [k]); }
+  const used = new Uint8Array(segs.length / 2), lines = [];
+  const walk = start => { const out = []; let cur = start; for (;;) { const l = adj.get(cur); let nx = -1; if (l) for (const s of l) if (!used[s / 2]) { nx = s; break; } if (nx < 0) break; used[nx / 2] = 1; cur = segs[nx] === cur ? segs[nx + 1] : segs[nx]; out.push(cur); } return out; };
+  for (let k = 0; k < segs.length; k += 2) {
+    if (used[k / 2]) continue; used[k / 2] = 1;
+    const fwd = walk(segs[k + 1]), back = walk(segs[k]);
+    const ids = back.reverse().concat([segs[k], segs[k + 1]], fwd);
+    let p = []; for (const id of ids) { const q = ep(id); p.push(q[0], q[1]); }
+    const closed = ids.length > 3 && ids[0] === ids[ids.length - 1];
+    if (closed) p.length -= 2;
+    p = chaikin(p, closed);
+    let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+    for (let j = 0; j < p.length; j += 2) { if (p[j] < bx0) bx0 = p[j]; if (p[j] > bx1) bx1 = p[j]; if (p[j + 1] < by0) by0 = p[j + 1]; if (p[j + 1] > by1) by1 = p[j + 1]; }
+    lines.push({ p: Float32Array.from(p), closed, bx0, by0, bx1, by1 });
+  }
+  contourCache.set(L, lines);
+  return lines;
+}
+
+/* ================= features ================= */
+const LM = [
+  ['Ferme de Mont-Saint-Jean', 50.685861, 4.4099194], ['Hougoumont', 50.6706306, 4.3948], ["the Lion's Mound site", 50.67833, 4.40472],
+  ["Wellington's elm", 50.6801611, 4.4116889], ['La Haye Sainte', 50.67806, 4.4118528], ['Papelotte', 50.68028, 4.43389], ['La Haye', 50.6804306, 4.4362194],
+  ['Smohain', 50.6807306, 4.4425194], ['Frischermont', 50.6776306, 4.4449], ['La Belle Alliance', 50.668333, 4.413611], ["Decoster's house", 50.6640889, 4.4138111],
+  ['Plancenoit church', 50.6606611, 4.4295111], ['Rossomme', 50.65675, 4.4133306], ['Le Caillou', 50.6461, 4.4207694], ['Chantelet', 50.6504528, 4.4338861],
+  ["Braine-l'Alleud", 50.683, 4.367], ['Ohain', 50.700, 4.467], ['Lasne', 50.683, 4.483], ['Mont-Saint-Jean village', 50.6925, 4.4074]
+].map(([n, la, lo]) => { const [x, y] = ll2m(la, lo); return { n, x, y }; });
+
+const toM = pts => pts.map(([la, lo]) => ll2m(la, lo));
+const ROADS = [
+  { kind: 'chaussee', conf: 'doc', name: 'Chaussée de Bruxelles', pts: toM([[50.7083, 4.4014], [50.6925, 4.4074], [50.6859, 4.4105], [50.6802, 4.4119], [50.6781, 4.4123], [50.6730, 4.4130], [50.6683, 4.4134], [50.6641, 4.4136], [50.6568, 4.4136], [50.6505, 4.4172], [50.6461, 4.4205], [50.6380, 4.4270]]) },
+  { kind: 'chaussee', conf: 'approx', name: 'Chaussée de Nivelles', pts: toM([[50.6925, 4.4074], [50.6850, 4.4010], [50.6790, 4.3965], [50.6735, 4.3905], [50.6660, 4.3838], [50.6580, 4.3767], [50.6500, 4.3696], [50.6392, 4.3600]]) },
+  { kind: 'lane', conf: 'approx', name: "Chemin d'Ohain", pts: toM([[50.6802, 4.4119], [50.6808, 4.4180], [50.6816, 4.4250], [50.6826, 4.4310], [50.6840, 4.4380], [50.6870, 4.4450], [50.6920, 4.4540], [50.7000, 4.4670]]) },
+  { kind: 'lane', conf: 'approx', name: "Chemin de Braine-l'Alleud", pts: toM([[50.6802, 4.4119], [50.6800, 4.4050], [50.6803, 4.3965], [50.6812, 4.3850], [50.6830, 4.3700]]) },
+  { kind: 'lane', conf: 'approx', name: 'Chemin de Plancenoit et de Lasne', pts: toM([[50.6683, 4.4136], [50.6655, 4.4200], [50.6625, 4.4260], [50.6607, 4.4295], [50.6625, 4.4400], [50.6660, 4.4500], [50.6700, 4.4580], [50.6750, 4.4680], [50.6800, 4.4780], [50.6830, 4.4830], [50.6900, 4.4950], [50.6933, 4.5003]]) },
+  { kind: 'lane', conf: 'approx', name: 'Lane, Papelotte to Frischermont', pts: toM([[50.6826, 4.4310], [50.6803, 4.4339], [50.6804, 4.4362], [50.6807, 4.4425], [50.6776, 4.4449], [50.6745, 4.4505]]) },
+  { kind: 'lane', conf: 'approx', name: 'Hollow way north of Hougoumont', pts: toM([[50.6712, 4.3945], [50.6750, 4.3952], [50.6790, 4.3965]]) },
+  { kind: 'track', conf: 'approx', name: 'Track from La Belle Alliance toward La Haye', pts: toM([[50.6683, 4.4136], [50.6700, 4.4185], [50.6716, 4.4268], [50.6735, 4.4345], [50.6765, 4.4365], [50.6804, 4.4362]]) },
+];
+const SUNKEN = [toM([[50.68015, 4.4086], [50.6802, 4.4119], [50.6806, 4.4160], [50.6808, 4.4180]])];
+const HEDGES = [
+  toM([[50.68005, 4.4123], [50.68045, 4.4180], [50.6812, 4.4250], [50.6822, 4.4305]]),
+];
+const WOODS = [
+  { name: 'Bois de Hougoumont', conf: 'approx', pts: toM([[50.6699, 4.3912], [50.6699, 4.3940], [50.6695, 4.3986], [50.6672, 4.3990], [50.6666, 4.3952], [50.6668, 4.3914]]) },
+  { name: 'Bois de Paris', conf: 'approx', pts: toM([[50.6755, 4.4535], [50.6750, 4.4610], [50.6715, 4.4660], [50.6670, 4.4640], [50.6655, 4.4570], [50.6685, 4.4520], [50.6725, 4.4515]]) },
+];
+// rect: [lat, lon, widthEW, heightNS, rotDeg]
+const rectM = (la, lo, w, h, rot = 0) => { const [x, y] = ll2m(la, lo); return { x, y, w, h, rot }; };
+const BUILDINGS = [
+  { n: 'Hougoumont', ...rectM(50.67063, 4.3947, 70, 55) }, { n: 'La Haye Sainte', ...rectM(50.67806, 4.41175, 45, 55) },
+  { n: 'Ferme de Mont-Saint-Jean', ...rectM(50.685861, 4.40985, 60, 70) }, { n: 'Papelotte', ...rectM(50.68028, 4.43389, 45, 40) },
+  { n: 'La Haye', ...rectM(50.68043, 4.43622, 35, 30) }, { n: 'Frischermont', ...rectM(50.67763, 4.4449, 60, 45) },
+  { n: 'La Belle Alliance', ...rectM(50.668333, 4.41385, 18, 35) }, { n: 'Decoster', ...rectM(50.66409, 4.41405, 12, 9) },
+  { n: 'Rossomme', ...rectM(50.65675, 4.41300, 40, 35) }, { n: 'Le Caillou', ...rectM(50.6461, 4.42110, 22, 30, 30) },
+  { n: 'Chantelet', ...rectM(50.65045, 4.43389, 25, 18) },
+];
+const ENCLOSURES = [ // walls & hedged orchards (approx)
+  { kind: 'wall', n: 'Hougoumont garden wall', ...rectM(50.67060, 4.39655, 190, 105) },
+  { kind: 'orchard', n: 'Hougoumont great orchard', ...rectM(50.67055, 4.39925, 175, 140) },
+  { kind: 'orchard', n: 'La Haye Sainte orchard', ...rectM(50.67735, 4.41150, 110, 80) },
+];
+const SANDPIT = rectM(50.6786, 4.4134, 40, 30);
+const VILLAGES = [
+  { n: 'MONT-SAINT-JEAN', la: 50.6925, lo: 4.4074, r: 260, k: 26, church: false },
+  { n: 'PLANCENOIT', la: 50.6607, lo: 4.4295, r: 300, k: 32, church: true },
+  { n: 'Smohain', la: 50.6807, lo: 4.4425, r: 120, k: 8, church: false },
+  { n: "BRAINE-L'ALLEUD", la: 50.683, lo: 4.367, r: 420, k: 52, church: true },
+  { n: 'OHAIN', la: 50.700, lo: 4.467, r: 280, k: 26, church: true },
+  { n: 'LASNE', la: 50.683, lo: 4.483, r: 260, k: 22, church: true },
+  { n: 'Merbe-Braine', la: 50.6880, lo: 4.3805, r: 170, k: 12, church: false, approxPos: true },
+];
+const LABELS = [ // text, lat, lon, style, align
+  ['PLANCENOIT', 50.6584, 4.4296, 'village', 'c'], ['MONT-SAINT-JEAN', 50.6950, 4.4100, 'village', 'l'], ["BRAINE-L'ALLEUD", 50.6788, 4.3606, 'village', 'l'],
+  ['OHAIN', 50.7025, 4.4672, 'village', 'c'], ['LASNE', 50.6862, 4.4855, 'village', 'c'], ['Smohain', 50.6822, 4.4458, 'hamlet', 'l'], ['Merbe-Braine (?)', 50.6902, 4.3808, 'hamlet', 'c'],
+  ['Hougoumont', 50.6716, 4.3928, 'farm', 'r'], ['La Haye Sainte', 50.6779, 4.4110, 'farm', 'r'], ['Papelotte', 50.6795, 4.4330, 'farm', 'r'], ['La Haye', 50.6812, 4.4368, 'farm', 'l'],
+  ['Frischermont', 50.6767, 4.4462, 'farm', 'l'], ['Ferme de Mont-Saint-Jean', 50.6862, 4.4090, 'farm', 'r'], ['La Belle Alliance', 50.6683, 4.4148, 'farm', 'l'],
+  ['Decoster', 50.6640, 4.4150, 'farm', 'l'], ['Rossomme', 50.6566, 4.4146, 'farm', 'l'], ['Le Caillou', 50.6461, 4.4222, 'farm', 'l'], ['Chantelet', 50.6500, 4.4352, 'farm', 'l'],
+  ['Bois de Paris', 50.6705, 4.4590, 'wood', 'c'], ['Bois de Hougoumont', 50.6681, 4.3951, 'wood', 'c'], ['sablière', 50.6791, 4.4142, 'small', 'l'],
+  ['Plateau de Mont-Saint-Jean', 50.6922, 4.4300, 'ridge', 'c'], ['Hauteurs de la Belle-Alliance', 50.6610, 4.4005, 'ridge', 'c'],
+];
+const EDGE_LABELS = [ // where roads leave the sheet
+  ['Waterloo 1 km · Bruxelles 18 km', 50.7083, 4.4014, 'n'], ['Genappe 4 km · Charleroi', 50.6380, 4.4270, 's'], ['Nivelles 10 km', 50.6392, 4.3600, 's'],
+];
+const STREAMS = __STREAMS_JSON__;
+
+/* ================= units at 11:00 ================= */
+const NAT = { FR: 'French', GB: 'British', KGL: "King's German Legion", HAN: 'Hanoverian', NL: 'Netherlands', NAS: 'Nassau', BRU: 'Brunswick', MIX: 'Mixed' };
+const RAW = [
+ // id, side, name, parent, nat, type, strength (men, or guns for artillery), lat, lon, facing°, formation, ±m, note, extra
+ // ---- Anglo-allied: first line, right to left
+ ['byng','AL','Byng','2nd Guards Bde · Cooke · I Corps','GB','inf',1818,50.6818,4.3940,180,'twoLines',150,'2nd Coldstream, 2/3rd Guards. Light companies (≈200, est.) are in Hougoumont.',{F:300}],
+ ['maitland','AL','Maitland','1st Guards Bde · Cooke · I Corps','GB','inf',1979,50.6818,4.3990,180,'twoLines',150,'2/1st and 3/1st Foot Guards.',{F:300}],
+ ['chalkett','AL','C. Halkett','5th Bde · Alten · I Corps','GB','inf',2232,50.6812,4.4028,180,'columns',150,'30th, 33rd, 69th, 73rd.',{F:250}],
+ ['kielm','AL','Kielmansegg','1st Hanoverian Bde · Alten','HAN','inf',3016,50.6812,4.4064,180,'columns',150,'Field jäger companies (≈300) detached to Hougoumont.',{F:250}],
+ ['ompteda','AL','Ompteda','2nd KGL Bde · Alten','KGL','inf',1292,50.6814,4.4096,180,'columns',150,"Baring's 2nd Light Battalion (390) is in La Haye Sainte.",{F:190}],
+ ['kempt','AL','Kempt','8th Bde · Picton · Reserve','GB','inf',2315,50.6820,4.4152,180,'twoLines',150,'28th, 32nd, 79th, 1/95th. Rifle companies (≈200, est.) hold the sandpit.',{F:400}],
+ ['bylandt','AL','Bylandt','1st Bde · Perponcher · I Corps','NL','inf',3337,50.6799,4.4192,180,'twoLines',200,'Forward of the lane on the slope at the start. When it pulled back behind the hedge is debated.',{F:400}],
+ ['pack','AL','Pack','9th Bde · Picton','GB','inf',2310,50.6828,4.4222,180,'twoLines',200,'1st, 42nd, 44th, 92nd.',{F:380}],
+ ['best','AL','Best','4th Hanoverian Bde · 6th Div','HAN','inf',2481,50.6834,4.4282,180,'twoLines',200,'',{F:320}],
+ ['vincke','AL','Vincke','5th Hanoverian Bde · 5th Div','HAN','inf',2508,50.6845,4.4337,180,'twoLines',250,'',{F:320}],
+ ['bernhard','AL','Prince Bernhard','2nd Bde · Perponcher · I Corps','NAS','inf',2775,50.6850,4.4395,180,'columns',250,'Main body. Outposts (≈1,000, est.) hold Papelotte, La Haye, Smohain and Frischermont; 1/2nd Nassau is at Hougoumont.',{F:280}],
+ // reserves
+ ['lambert','AL','Lambert','10th Bde · 6th Div','GB','inf',2389,50.6872,4.4150,180,'columns',250,'Came up from Brussels during the morning.',{F:280}],
+ ['kruse','AL','Kruse','1st Nassau Regiment','NAS','inf',2880,50.6848,4.4050,180,'columns',250,'',{F:330}],
+ ['bruAv','AL','Brunswick advance guard','Brunswick Corps (Olfermann)','BRU','inf',672,50.6866,4.3990,180,'columns',300,'The Duke was killed at Quatre Bras.',{F:110}],
+ ['bruButlar','AL','Butlar','Brunswick light bde','BRU','inf',2691,50.6874,4.4030,180,'columns',300,'',{F:300}],
+ ['bruSpecht','AL','Specht','Brunswick line bde','BRU','inf',2019,50.6886,4.4064,180,'columns',300,'',{F:260}],
+ ['adam','AL','Adam','3rd Bde · Clinton · II Corps','GB','inf',2723,50.6832,4.3872,180,'columns',300,'52nd, 71st, 2/95th, 3/95th.',{F:300}],
+ ['duplat','AL','du Plat','1st KGL Bde · Clinton','KGL','inf',1996,50.6815,4.3838,180,'columns',300,'',{F:240}],
+ ['hhalkett','AL','H. Halkett','3rd Hanoverian Bde · Clinton','HAN','inf',2453,50.6853,4.3828,180,'columns',300,'',{F:280}],
+ ['mitchell','AL','Mitchell','4th Bde · Colville · II Corps','GB','inf',1916,50.6752,4.3892,200,'columns',200,"The rest of Colville's division is at Hal.",{F:220}],
+ ['detmers','AL','Detmers','1st Bde · Chassé · I Corps','NL','inf',3090,50.6822,4.3712,180,'columns',300,"Covering Braine-l'Alleud.",{F:330}],
+ ['aubreme','AL',"d'Aubremé",'2nd Bde · Chassé · I Corps','NL','inf',3405,50.6848,4.3738,180,'columns',300,'',{F:350}],
+ // strongpoints
+ ['gHoug','AL','Hougoumont','Garrison under Macdonell','MIX','gar',1360,50.6703,4.3958,180,'garrison',50,'1/2nd Nassau (≈860), Hanoverian jäger (≈300), light companies of the Coldstream and 3rd Guards (≈200, est.). Buildings, garden, orchard and wood.',{R:150}],
+ ['gLHS','AL','La Haye Sainte','Baring · 2nd Light Bn KGL','KGL','gar',390,50.67806,4.41185,180,'garrison',30,'Baker rifles; ammunition is the known weakness.',{R:45}],
+ ['gSand','AL','Sandpit','1/95th Rifles, detached companies','GB','gar',200,50.6786,4.4134,180,'garrison',60,'Strength est.',{R:35}],
+ ['gPap','AL','Papelotte','Nassau outpost','NAS','gar',300,50.68028,4.43389,180,'garrison',40,'Strength est.',{R:40}],
+ ['gLaHaye','AL','La Haye','Nassau outpost','NAS','gar',250,50.68043,4.43622,180,'garrison',40,'Strength est.',{R:35}],
+ ['gSmo','AL','Smohain','Nassau outpost','NAS','gar',250,50.68073,4.44252,180,'garrison',60,'Strength est.',{R:60}],
+ ['gFri','AL','Frischermont','Nassau outpost','NAS','gar',200,50.67763,4.4449,180,'garrison',40,'A French patrol drove in the pickets here at 10:30.',{R:45}],
+ // cavalry
+ ['somerset','AL','Somerset','Household Cavalry Bde','GB','cav',1213,50.6850,4.4092,180,'columns',200,'Life Guards, Royal Horse Guards, 1st Dragoon Guards.',{F:220}],
+ ['ponsonby','AL','Ponsonby','Union Bde','GB','cav',1119,50.6858,4.4175,180,'columns',200,'Royals, Scots Greys, Inniskillings.',{F:220}],
+ ['vandeleur','AL','Vandeleur','4th Cavalry Bde','GB','cav',1305,50.6870,4.4335,180,'columns',250,'Far left until Zieten arrives.',{F:240}],
+ ['vivian','AL','Vivian','6th Cavalry Bde','GB','cav',1463,50.6880,4.4425,180,'columns',250,'Far left until Zieten arrives.',{F:260}],
+ ['dornberg','AL','Dörnberg','3rd Cavalry Bde','GB','cav',1408,50.6845,4.3985,180,'columns',250,'',{F:250}],
+ ['grant','AL','Grant','5th Cavalry Bde','GB','cav',1444,50.6840,4.3925,180,'columns',300,'',{F:250}],
+ ['arent','AL','Arentschildt','7th Cavalry Bde','KGL','cav',1143,50.6862,4.3935,180,'columns',300,'',{F:220}],
+ ['trip','AL','Trip','Heavy Bde · Collaert','NL','cav',1241,50.6898,4.4085,180,'columns',300,'Carabiniers.',{F:230}],
+ ['ghigny','AL','Ghigny','Light Bde · Collaert','NL','cav',1085,50.6880,4.4205,180,'columns',300,'',{F:210}],
+ ['merlen','AL','van Merlen','Light Bde · Collaert','NL','cav',1063,50.6886,4.3960,180,'columns',300,'',{F:210}],
+ ['cumb','AL','Cumberland Hussars','Hanoverian','HAN','cav',497,50.6905,4.4140,180,'columns',300,'',{F:130}],
+ ['brucav','AL','Brunswick cavalry','Brunswick Corps','BRU','cav',922,50.6900,4.4010,180,'columns',300,'',{F:180}],
+ // artillery (placements est.)
+ ['aBull','AL',"Bull's troop",'Royal Horse Artillery','GB','art',6,50.6808,4.3925,190,'battery',250,'Six 5½-inch howitzers, able to lob shells into the Hougoumont wood.'],
+ ['aCooke','AL',"Cooke's batteries",'Sandham, Kuhlmann','GB','art',12,50.6810,4.3965,180,'battery',200,''],
+ ['aAlten','AL',"Alten's batteries",'Lloyd, Cleeves','GB','art',12,50.6806,4.4045,180,'battery',200,''],
+ ['aRoss','AL',"Ross's troop",'Royal Horse Artillery','GB','art',6,50.6804,4.4126,180,'battery',100,'Two guns stand in the road at the crossroads.'],
+ ['aPicton','AL',"Picton's batteries",'Rogers, Braun','GB','art',12,50.6812,4.4205,180,'battery',200,''],
+ ['aBijl','AL',"Bijleveld's battery",'Netherlands horse artillery','NL','art',8,50.6793,4.4163,180,'battery',200,'Forward with Bylandt.'],
+ ['aRett','AL',"Rettberg's battery",'Hanoverian foot artillery','HAN','art',6,50.6830,4.4305,180,'battery',250,''],
+ ['aClinton','AL',"Clinton's batteries",'Bolton, Sympher','GB','art',12,50.6822,4.3900,180,'battery',300,''],
+ ['aBru','AL','Brunswick batteries','','BRU','art',16,50.6878,4.4000,180,'battery',300,''],
+ ['aChasse','AL',"Chassé's batteries",'Krahmer, van der Smissen','NL','art',16,50.6835,4.3760,180,'battery',300,''],
+ ['aRes','AL','Reserve horse artillery','Mercer, Ramsay, Webber-Smith, Whinyates (rockets), others','GB','art',36,50.6905,4.4100,180,'park',300,'Grouped here for the sheet; the troops were spread more widely.'],
+ ['hqW','AL','Wellington','Headquarters','GB','hq',0,50.6801611,4.4116889,180,'hq',100,'By the elm at the crossroads; rides the whole line during the day.'],
+ // ---- French: I Corps along the track from La Belle Alliance toward La Haye
+ ['charlet','FR','Charlet','1st Div (Quiot, for Allix) · I Corps','FR','inf',2110,50.66991,4.41810,344,'line',150,'54th, 55th Line.'],
+ ['bourgeois','FR','Bourgeois','1st Div (Quiot)','FR','inf',1881,50.66888,4.41858,344,'line',150,'28th, 105th Line.'],
+ ['schmitz','FR','Schmitz','2nd Div (Donzelot)','FR','inf',2930,50.67153,4.42680,344,'line',150,'13th Light, 17th Line.'],
+ ['aulard','FR','Aulard','2nd Div (Donzelot)','FR','inf',2200,50.67050,4.42728,344,'line',150,'19th, 51st Line.'],
+ ['nogues','FR','Noguès','3rd Div (Marcognet)','FR','inf',1928,50.67309,4.43522,344,'line',150,'21st, 46th Line.'],
+ ['grenier','FR','Grenier','3rd Div (Marcognet)','FR','inf',1977,50.67206,4.43570,344,'line',150,'25th, 45th Line.'],
+ ['pegot','FR','Pégot','4th Div (Durutte)','FR','inf',2126,50.67442,4.44238,344,'line',200,'8th, 29th Line.'],
+ ['brue','FR','Brue','4th Div (Durutte)','FR','inf',1731,50.67339,4.44286,344,'line',200,'85th, 95th Line.'],
+ ['bruno','FR','Bruno','1st Cav Div (Jacquinot) · I Corps','FR','cav',801,50.6722,4.4478,20,'columns',250,'7th Hussars, 3rd Chasseurs. Watching Frischermont and Smohain.'],
+ ['gobrecht','FR','Gobrecht','1st Cav Div (Jacquinot)','FR','cav',703,50.6705,4.4490,20,'columns',250,'3rd, 4th Lancers.'],
+ // II Corps, after Quatre Bras (×0.7845)
+ ['husson','FR','Husson','5th Div (Bachelu) · II Corps','FR','inf',1837,50.66759,4.40941,340,'line',150,'2nd Light, 61st Line.'],
+ ['campi','FR','Campi','5th Div (Bachelu)','FR','inf',1603,50.66657,4.40999,340,'line',150,'72nd, 108th Line.'],
+ ['gauthier','FR','Gauthier','9th Div (Foy)','FR','inf',1538,50.66621,4.40344,340,'line',150,'92nd, 93rd Line.'],
+ ['jamin','FR','Jamin','9th Div (Foy)','FR','inf',2116,50.66519,4.40402,340,'line',150,'4th Light, 100th Line.'],
+ ['bauduin','FR','Bauduin','6th Div (Jérôme)','FR','inf',3253,50.66433,4.39531,340,'line',150,'1st Light, 3rd Line. Will lead the attacks on Hougoumont.'],
+ ['soye','FR','Soye','6th Div (Jérôme)','FR','inf',2770,50.66331,4.39589,340,'line',150,'1st, 2nd Line.'],
+ ['huber','FR','Huber','2nd Cav Div (Piré) · II Corps','FR','cav',821,50.6630,4.3835,330,'columns',250,'1st, 6th Chasseurs. Covers the Nivelles road.'],
+ ['wathiez','FR','Wathiez','2nd Cav Div (Piré)','FR','cav',623,50.6618,4.3800,330,'columns',250,'5th, 6th Lancers.'],
+ // VI Corps and attached light cavalry
+ ['bellair','FR','Bellair','19th Div (Simmer) · VI Corps','FR','inf',2148,50.6650,4.4178,0,'columns',200,'5th, 11th Line.'],
+ ['thevenet','FR','Thevenet','19th Div (Simmer)','FR','inf',1760,50.6641,4.4180,0,'columns',200,'27th, 84th Line.'],
+ ['bony','FR','Bony','20th Div (Jeanin)','FR','inf',1505,50.6632,4.4182,0,'columns',200,'5th Light, 10th Line.'],
+ ['tromelin','FR','Tromelin','20th Div (Jeanin)','FR','inf',736,50.6624,4.4184,0,'columns',200,'107th Line.'],
+ ['dommanget','FR','Dommanget','3rd Cav Div (Domon)','FR','cav',700,50.6652,4.4228,0,'columns',250,'Chasseurs. Detached from III Corps.'],
+ ['vinot','FR','Vinot','3rd Cav Div (Domon)','FR','cav',319,50.6644,4.4242,0,'columns',250,'Chasseurs.'],
+ ['colbert','FR','Colbert','5th Cav Div (Subervie)','FR','cav',836,50.6634,4.4230,0,'columns',250,'Lancers.'],
+ ['merlin','FR','Merlin','5th Cav Div (Subervie)','FR','cav',486,50.6626,4.4244,0,'columns',250,'Chasseurs.'],
+ // cavalry corps
+ ['dubois','FR','Dubois','13th Cav Div (Watier) · IV Cav Corps (Milhaud)','FR','cav',800,50.6680,4.4245,344,'columns',250,'Cuirassiers.'],
+ ['travers','FR','Travers','13th Cav Div (Watier)','FR','cav',439,50.6674,4.4268,344,'columns',250,'Cuirassiers.'],
+ ['farine','FR','Farine','14th Cav Div (Delort)','FR','cav',878,50.6690,4.4315,344,'columns',250,'Cuirassiers.'],
+ ['vial','FR','Vial','14th Cav Div (Delort)','FR','cav',698,50.6684,4.4338,344,'columns',250,'Cuirassiers.'],
+ ['picquet','FR','Picquet',"11th Cav Div (L'Héritier) · III Cav Corps (Kellermann)",'FR','cav',1111,50.6609,4.3960,340,'columns',250,'Dragoons.'],
+ ['guiton','FR','Guiton',"11th Cav Div (L'Héritier)",'FR','cav',792,50.6603,4.3988,340,'columns',250,'Cuirassiers.'],
+ ['blanchard','FR','Blanchard',"12th Cav Div (Roussel d'Hurbal)",'FR','cav',848,50.6617,4.4018,340,'columns',250,'Carabiniers.'],
+ ['donop','FR','Donop',"12th Cav Div (Roussel d'Hurbal)",'FR','cav',792,50.6611,4.4045,340,'columns',250,'Cuirassiers.'],
+ // Imperial Guard
+ ['guyot','FR','Guyot','Guard heavy cavalry','FR','cav',1718,50.6592,4.4015,340,'columns',250,"Grenadiers à cheval, Empress Dragoons, Gendarmes d'élite."],
+ ['gchev','FR','Chasseurs à cheval','Guard light cavalry (Lefebvre-Desnouettes)','FR','cav',1223,50.6660,4.4280,344,'columns',250,''],
+ ['glanc','FR','Red and Polish Lancers','Guard light cavalry (Lefebvre-Desnouettes)','FR','cav',1334,50.6655,4.4308,344,'columns',250,''],
+ ['g1gren','FR','1er Grenadiers','Old Guard · Friant','FR','inf',1280,50.6578,4.4108,0,'columns',150,'The last reserve.',{nBn:2}],
+ ['g2gren','FR','2e Grenadiers','Old Guard · Friant','FR','inf',1091,50.6578,4.4083,0,'columns',150,'',{nBn:2}],
+ ['g3gren','FR','3e Grenadiers','Middle Guard','FR','inf',1164,50.6592,4.4108,0,'columns',150,'',{nBn:2}],
+ ['g4gren','FR','4e Grenadiers','Middle Guard','FR','inf',520,50.6592,4.4086,0,'columns',150,'A single battalion.',{nBn:1}],
+ ['g1chas','FR','1er Chasseurs','Old Guard · Morand','FR','inf',1307,50.6578,4.4162,0,'columns',150,'Cambronne.',{nBn:2}],
+ ['g2chas','FR','2e Chasseurs','Old Guard · Morand','FR','inf',1163,50.6578,4.4188,0,'columns',150,'',{nBn:2}],
+ ['g3chas','FR','3e Chasseurs','Middle Guard','FR','inf',1062,50.6592,4.4162,0,'columns',150,'',{nBn:2}],
+ ['g4chas','FR','4e Chasseurs','Middle Guard','FR','inf',1071,50.6592,4.4188,0,'columns',150,'',{nBn:2}],
+ ['yg1','FR','Chartrand','Young Guard (Duhesme)','FR','inf',2138,50.6562,4.4098,0,'columns',200,'Tirailleurs and voltigeurs; Ligny losses taken off (est.).',{nBn:4}],
+ ['yg2','FR','Guye','Young Guard (Duhesme)','FR','inf',1795,50.6562,4.4175,0,'columns',200,'Tirailleurs and voltigeurs; Ligny losses taken off (est.).',{nBn:4}],
+ // French artillery
+ ['aQuiot','FR',"Quiot's battery",'1st Div foot artillery','FR','art',8,50.67077,4.41770,344,'battery',150,'Six 6-pounders, two howitzers.'],
+ ['aIres','FR','I Corps reserve','12-pounder battery','FR','art',8,50.6716,4.4222,344,'battery',200,''],
+ ['aDonz','FR',"Donzelot's battery",'2nd Div foot artillery','FR','art',8,50.67239,4.42640,344,'battery',150,''],
+ ['aMarc','FR',"Marcognet's battery",'3rd Div foot artillery','FR','art',8,50.67395,4.43482,344,'battery',150,''],
+ ['aDur','FR',"Durutte's battery",'4th Div foot artillery','FR','art',6,50.67528,4.44198,344,'battery',150,'Four guns, two howitzers.'],
+ ['aBach','FR',"Bachelu's battery",'5th Div foot artillery','FR','art',8,50.66844,4.40893,340,'battery',150,''],
+ ['aIIres','FR','II Corps reserve','12-pounder battery','FR','art',8,50.6690,4.4065,340,'battery',200,''],
+ ['aFoy','FR',"Foy's battery",'9th Div foot artillery','FR','art',8,50.66706,4.40296,340,'battery',150,''],
+ ['aJer','FR',"Jérôme's battery",'6th Div foot artillery','FR','art',8,50.66518,4.39483,340,'battery',150,''],
+ ['aVI','FR','VI Corps artillery','Two foot batteries and a 12-pounder reserve','FR','art',24,50.6658,4.4152,0,'park',200,''],
+ ['aGuard','FR','Guard artillery','Including 24 twelve-pounders','FR','art',96,50.6550,4.4136,0,'park',200,'Its 12-pounders are the ones Napoleon can send to the grand battery.'],
+ ['hqN','FR','Napoleon','Imperial headquarters','FR','hq',0,50.65675,4.41333,0,'hq',100,'Observing from Rossomme; spent the night at Le Caillou.'],
+];
+const FORM = { line: 'in line', twoLines: 'in two lines', columns: 'battalion columns', garrison: 'garrison', battery: 'in battery', park: 'artillery park', hq: '' };
+const UNITS = RAW.map(r => {
+  const [id, side, name, parent, nat, type, str, la, lo, facing, form, conf, note, ex = {}] = r;
+  const [x, y] = ll2m(la, lo);
+  let F, D;
+  if (type === 'inf') {
+    const ranks = (nat === 'GB' || nat === 'KGL') ? 2 : 3, line = str / ranks * 0.6 * 1.15;
+    const nBn = ex.nBn || Math.max(1, Math.round(str / (side === 'FR' ? 520 : 560)));
+    if (form === 'line') { F = line; D = 26; } else if (form === 'twoLines') { F = line / 2; D = 110; } else { F = nBn * 70; D = 60; }
+  } else if (type === 'cav') { F = Math.max(110, str * 0.22); D = 60; }
+  else if (type === 'art') { if (form === 'park') { F = Math.min(260, 40 + str * 2.2); D = 80; } else { F = Math.max(30, str * 15); D = 30; } }
+  else { F = 0; D = 0; }
+  if (ex.F) F = ex.F; if (ex.D) D = ex.D;
+  const nBn = ex.nBn || Math.max(1, Math.round(str / (side === 'FR' ? 520 : 560)));
+  return { id, side, name, parent, nat, type, str, x, y, facing, form, conf, note, F, D, R: ex.R || 0, la, lo, nBn };
+});
+const OFFMAP = [
+  { side: 'PR', la: 50.6933, lo: 4.5040, title: 'Bülow · IV Corps', text: '≈30,000. Van near Chapelle-Saint-Lambert, just past this edge; the rest strung back to Wavre. Must cross the Lasne.' },
+  { side: 'PR', la: 50.6790, lo: 4.5040, title: 'Pirch I · II Corps', text: 'Following Bülow out of Wavre.' },
+  { side: 'PR', la: 50.7083, lo: 4.4860, title: 'Zieten · I Corps', text: 'At Wavre, ≈14 km NE. Marches about noon, by Ohain.' },
+  { side: 'AL', la: 50.6700, lo: 4.3590, title: 'Prince Frederik', text: '≈17,000 at Hal and Tubize, 12–15 km W.' },
+  { side: 'FR', la: 50.6380, lo: 4.4960, title: 'Grouchy', text: '≈33,000 around Walhain, ≈20 km SE.' },
+];
+const GROUPS = [ // corps and division labels for the whole-sheet view
+  { t: 'I CORPS', s: "d'Erlon", side: 'FR', la: 50.6692, lo: 4.4430 },
+  { t: 'II CORPS', s: 'Reille', side: 'FR', la: 50.6618, lo: 4.3905 },
+  { t: 'VI CORPS', s: 'Lobau', side: 'FR', la: 50.6661, lo: 4.4185 },
+  { t: 'III CAV', s: 'Kellermann', side: 'FR', la: 50.6597, lo: 4.3935 },
+  { t: 'IV CAV', s: 'Milhaud', side: 'FR', la: 50.6670, lo: 4.4372 },
+  { t: 'GARDE', s: 'Drouot', side: 'FR', la: 50.6545, lo: 4.4045 },
+  { t: 'COOKE', s: 'Guards', side: 'AL', la: 50.6833, lo: 4.3965 },
+  { t: 'ALTEN', s: '', side: 'AL', la: 50.6847, lo: 4.4063 },
+  { t: 'PICTON', s: '', side: 'AL', la: 50.6868, lo: 4.4282 },
+  { t: 'CLINTON', s: '', side: 'AL', la: 50.6856, lo: 4.3846 },
+  { t: 'CHASSÉ', s: '', side: 'AL', la: 50.6857, lo: 4.3725 },
+];
+const DEBATED = {
+  siteA: toM([[50.67059, 4.41420], [50.67362, 4.43053]]),
+  siteB: toM([[50.6743, 4.4155], [50.6749, 4.4180], [50.6754, 4.4200], [50.6759, 4.4225], [50.6757, 4.4250]]),
+  bylandtBack: toM([[50.6799, 4.4192], [50.6812, 4.4196]]),
+};
+const LION = ll2m(50.67833, 4.40472);
+
+/* ================= deterministic village houses ================= */
+function rng(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const hashStr = s => { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
+const HOUSES = [];
+for (const v of VILLAGES) {
+  const [cx, cy] = ll2m(v.la, v.lo), R = rng(hashStr(v.n));
+  const segs = [];
+  for (const rd of ROADS) for (let i = 0; i < rd.pts.length - 1; i++) {
+    const [ax, ay] = rd.pts[i], [bx, by] = rd.pts[i + 1];
+    for (let t = 0; t <= 1; t += 0.05) { const px = ax + (bx - ax) * t, py = ay + (by - ay) * t; if (Math.hypot(px - cx, py - cy) < v.r) { segs.push([ax, ay, bx, by]); break; } }
+  }
+  v.cx = cx; v.cy = cy; v.houses = [];
+  for (let k = 0; k < v.k; k++) {
+    let x, y, rot;
+    if (segs.length && R() < 0.8) {
+      const s = segs[(R() * segs.length) | 0]; let tries = 0;
+      do { const t = R(); x = s[0] + (s[2] - s[0]) * t; y = s[1] + (s[3] - s[1]) * t; tries++; } while (Math.hypot(x - cx, y - cy) > v.r && tries < 12);
+      const ang = Math.atan2(s[3] - s[1], s[2] - s[0]), side = R() < 0.5 ? -1 : 1, off = 16 + R() * 18;
+      x += -Math.sin(ang) * off * side; y += Math.cos(ang) * off * side; rot = ang * 180 / Math.PI;
+    } else { const a = R() * Math.PI * 2, d = Math.sqrt(R()) * v.r * 0.8; x = cx + Math.cos(a) * d; y = cy + Math.sin(a) * d; rot = R() * 90; }
+    const hse = { x, y, w: 10 + R() * 12, h: 7 + R() * 6, rot };
+    v.houses.push(hse); HOUSES.push(hse);
+  }
+}
+
+/* ================= obstacles (for sight lines) ================= */
+function inPoly(x, y, pts) { let ins = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) ins = !ins; } return ins; }
+function inRect(x, y, r, pad = 0) { const a = -r.rot * Math.PI / 180, dx = x - r.x, dy = y - r.y, u = dx * Math.cos(a) - dy * Math.sin(a), v = dx * Math.sin(a) + dy * Math.cos(a); return Math.abs(u) <= r.w / 2 + pad && Math.abs(v) <= r.h / 2 + pad; }
+function obstacleAt(x, y) {
+  for (const w of WOODS) if (inPoly(x, y, w.pts)) return [15, 'wood', w.name];
+  for (const b of BUILDINGS) if (inRect(x, y, b, 3)) return [8, 'building', b.n];
+  for (const v of VILLAGES) if (Math.hypot(x - v.cx, y - v.cy) < v.r + 40) for (const hs of v.houses) if (inRect(x, y, hs, 2)) return [7, 'houses', v.n];
+  return [0, '', ''];
+}
+const OB = new Float32Array(NX * NY);
+for (let r = 0; r < NY; r++) for (let c = 0; c < NX; c++) {
+  const x = c * CELL, y = r * CELL; let h = 0;
+  for (const w of WOODS) if (inPoly(x, y, w.pts)) h = 15;
+  if (!h) for (const b of BUILDINGS) if (inRect(x, y, b, 18)) h = 8;
+  if (!h) for (const v of VILLAGES) if (Math.hypot(x - v.cx, y - v.cy) < v.r * 0.7) h = 6;
+  OB[r * NX + c] = h;
+}
+
+/* ================= palette ================= */
+let PAL = {};
+function readPalette() {
+  const cs = getComputedStyle(document.documentElement), g = n => cs.getPropertyValue(n).trim();
+  PAL = { paper: g('--m-paper'), ink: g('--m-ink'), hach: g('--m-hach'), contour: g('--m-contour'), water: g('--m-water'), wood: g('--m-wood'), woodink: g('--m-woodink'),
+    build: g('--m-build'), road: g('--m-road'), FR: g('--m-fr'), AL: g('--m-al'), PR: g('--m-pr'), flag: g('--m-flag'), debate: g('--m-debate'), dead: g('--m-dead'), ok: g('--m-ok'), no: g('--m-no'), bg: g('--bg'), fg2: g('--fg-2') };
+  paperPattern = null;
+}
+let paperPattern = null;
+function makePaperPattern(g) {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'), R = rng(1815);
+  x.fillStyle = PAL.paper; x.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 26; i++) { const px = R() * 256, py = R() * 256, rr = 20 + R() * 60; const gr = x.createRadialGradient(px, py, 0, px, py, rr); gr.addColorStop(0, 'rgba(120,90,40,0.045)'); gr.addColorStop(1, 'rgba(120,90,40,0)'); x.fillStyle = gr; x.fillRect(px - rr, py - rr, rr * 2, rr * 2); }
+  x.strokeStyle = 'rgba(90,70,40,0.07)'; x.lineWidth = 0.6;
+  for (let i = 0; i < 140; i++) { const px = R() * 256, py = R() * 256, a = R() * Math.PI, l = 3 + R() * 10; x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l); x.stroke(); }
+  x.fillStyle = 'rgba(70,50,30,0.08)'; for (let i = 0; i < 500; i++) x.fillRect(R() * 256, R() * 256, 0.8, 0.8);
+  return g.createPattern(c, 'repeat');
+}
+
+/* ================= view & canvas ================= */
+const canvas = document.getElementById('map'), ctx = canvas.getContext('2d'), box = document.getElementById('mapbox');
+let cssW = 0, cssH = 0, dpr = 1, s0 = 0.1;
+const view = { s: 0.1, tx: 0, ty: 0 };
+const layers = { tint: true, hach: true, contours: true, woods: true, water: true, roads: true, units: true, ulabels: true, halos: true, debated: true, flags: true };
+const P = (x, y) => [x * view.s + view.tx, y * view.s + view.ty];
+function fitView() {
+  const pad = 14; s0 = Math.min((cssW - pad * 2) / WM, (cssH - pad * 2) / HM);
+  view.s = s0; view.tx = (cssW - WM * s0) / 2; view.ty = (cssH - HM * s0) / 2;
+}
+function resize() {
+  const r = box.getBoundingClientRect(); const first = !cssW;
+  const oldS0 = s0, cx = cssW / 2, cy = cssH / 2;
+  cssW = Math.max(200, r.width); cssH = Math.max(200, r.height); dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
+  if (first) { fitView(); if (cssW < 700) { const [cx, cy] = ll2m(50.6745, 4.4100); view.s = cssW / 4300; view.tx = cssW / 2 - cx * view.s; view.ty = cssH / 2 - cy * view.s; } }
+  else { const wx = (cx - view.tx) / view.s, wy = (cy - view.ty) / view.s, z = view.s / oldS0; s0 = Math.min((cssW - 28) / WM, (cssH - 28) / HM); view.s = s0 * z; view.tx = cssW / 2 - wx * view.s; view.ty = cssH / 2 - wy * view.s; }
+  scheduleTerrain(true); requestDraw();
+}
+
+/* ================= terrain cache ================= */
+const tcan = document.createElement('canvas'), tctx = tcan.getContext('2d');
+let tview = null, terrTimer = 0;
+function scheduleTerrain(now) { clearTimeout(terrTimer); if (now) renderTerrain(); else terrTimer = setTimeout(() => { renderTerrain(); requestDraw(); }, 160); }
+function pickInterval(s) { return s >= 0.3 ? 2.5 : 5; }
+function renderTerrain() {
+  if (!cssW) return;
+  const M = 0.18, cw = Math.ceil(cssW * (1 + 2 * M)), ch = Math.ceil(cssH * (1 + 2 * M)), ox = cssW * M, oy = cssH * M;
+  tcan.width = Math.round(cw * dpr); tcan.height = Math.round(ch * dpr);
+  const s = view.s, cx0 = view.tx + ox, cy0 = view.ty + oy; // world->cache: q = x*s + cx0
+  tview = { s, cx0, cy0, cw, ch };
+  const g = tctx; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, cw, ch);
+  const Q = (x, y) => [x * s + cx0, y * s + cy0];
+  // paper
+  const [sx0, sy0] = Q(0, 0), [sx1, sy1] = Q(WM, HM);
+  if (!paperPattern) paperPattern = makePaperPattern(g);
+  paperPattern.setTransform(new DOMMatrix([1, 0, 0, 1, sx0, sy0]));
+  g.save(); g.beginPath(); g.rect(sx0, sy0, sx1 - sx0, sy1 - sy0); g.clip();
+  g.fillStyle = paperPattern; g.fillRect(Math.max(0, sx0), Math.max(0, sy0), Math.min(cw, sx1) - Math.max(0, sx0), Math.min(ch, sy1) - Math.max(0, sy0));
+  const wx0 = -cx0 / s, wy0 = -cy0 / s, wx1 = (cw - cx0) / s, wy1 = (ch - cy0) / s;
+  let contourLabs = null; const labs = [];
+  // height tint
+  if (layers.tint) { g.save(); g.globalCompositeOperation = 'multiply'; g.globalAlpha = 0.85; g.imageSmoothingEnabled = true; g.drawImage(TINT, sx0, sy0, sx1 - sx0, sy1 - sy0); g.restore(); }
+  // contours: every 5 m, heavier and labelled every 10 m
+  if (layers.contours) {
+    g.strokeStyle = PAL.contour; g.lineJoin = 'round'; const showLab = s / 0.095 >= 1.5;
+    for (let L = Math.ceil(ZMIN / BAND) * BAND; L <= ZMAX; L += BAND) {
+      const idx = L % 10 === 0;
+      g.lineWidth = idx ? 0.95 : 0.5; g.globalAlpha = idx ? 0.62 : 0.38; g.beginPath();
+      for (const pl of contours(L)) { if (pl.bx1 < wx0 || pl.bx0 > wx1 || pl.by1 < wy0 || pl.by0 > wy1) continue; const p = pl.p; g.moveTo(p[0] * s + cx0, p[1] * s + cy0); for (let j = 2; j < p.length; j += 2) g.lineTo(p[j] * s + cx0, p[j + 1] * s + cy0); if (pl.closed) g.closePath(); if (idx && showLab) labs.push([L, pl]); }
+      g.stroke();
+    }
+    g.globalAlpha = 1;
+    contourLabs = () => {
+      g.font = `italic 10.5px 'EB Garamond', Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+      for (const [L, pl] of labs) {
+        const p = pl.p, n = p.length / 2; let acc = 140;
+        for (let i = 0; i < n - 1; i++) {
+          const ax = p[2 * i] * s + cx0, ay = p[2 * i + 1] * s + cy0, bx = p[2 * i + 2] * s + cx0, by = p[2 * i + 3] * s + cy0, seg = Math.hypot(bx - ax, by - ay);
+          acc -= seg; if (acc > 0) continue; acc = 380;
+          const mx = (ax + bx) / 2, my = (ay + by) / 2; if (mx < 20 || my < 20 || mx > cw - 20 || my > ch - 20) continue;
+          let an = Math.atan2(by - ay, bx - ax); if (an > Math.PI / 2) an -= Math.PI; if (an < -Math.PI / 2) an += Math.PI;
+          g.save(); g.translate(mx, my); g.rotate(an); g.lineWidth = 3; g.strokeStyle = PAL.paper; g.globalAlpha = 0.9; g.strokeText(String(L), 0, 0); g.globalAlpha = 1; g.fillStyle = PAL.hach; g.fillText(String(L), 0, 0); g.restore();
+        }
+      }
+    }
+  }
+  // hachures
+  if (layers.hach) drawHachures(g, s, cx0, cy0, wx0, wy0, wx1, wy1);
+  // woods
+  if (layers.woods) for (const w of WOODS) drawWood(g, w, s, cx0, cy0);
+  // water
+  if (layers.water) {
+    g.strokeStyle = PAL.water; g.lineCap = 'round'; g.lineJoin = 'round';
+    const zf = Math.pow(s / 0.095, 0.35);
+    for (const st of STREAMS) {
+      let pts = []; for (let i = 0; i < st.length; i += 3) pts.push(st[i], st[i + 1]);
+      const accs = []; for (let i = 2; i < st.length; i += 3) accs.push(st[i]);
+      pts = chaikin(chaikin(pts, false), false);
+      const n = pts.length / 2;
+      for (let i = 0; i < n - 1; i++) {
+        const a = accs[Math.min(accs.length - 1, Math.floor(i / n * accs.length))];
+        if (a < 300) continue;
+        g.lineWidth = Math.min(3, 0.7 + 0.42 * Math.log2(a / 300)) * zf;
+        g.beginPath(); g.moveTo(pts[2 * i] * s + cx0, pts[2 * i + 1] * s + cy0); g.lineTo(pts[2 * i + 2] * s + cx0, pts[2 * i + 3] * s + cy0); g.stroke();
+      }
+    }
+  }
+  if (contourLabs && labs.length) contourLabs();
+  g.restore();
+}
+function drawHachures(g, s, cx0, cy0, wx0, wy0, wx1, wy1) {
+  const dz = pickInterval(s), sp = 4.4, stepM = Math.max(1.2, 2.0 / s), maxLen = 46, tanMin = Math.tan(1.0 * Math.PI / 180);
+  const buckets = new Map(), mx = 40 / s;
+  const add = (w, pts) => { const k = Math.round(w * 5) / 5; let p = buckets.get(k); if (!p) { p = []; buckets.set(k, p); } p.push(pts); };
+  for (let L = Math.ceil((ZMIN + 0.01) / dz) * dz; L <= ZMAX; L += dz) {
+    for (const pl of contours(L)) {
+      if (pl.bx1 < wx0 - mx || pl.bx0 > wx1 + mx || pl.by1 < wy0 - mx || pl.by0 > wy1 + mx) continue;
+      const p = pl.p, n = p.length / 2; let carry = sp * 0.5;
+      const segN = pl.closed ? n : n - 1;
+      for (let i = 0; i < segN; i++) {
+        const j = (i + 1) % n, ax = p[2 * i], ay = p[2 * i + 1], bx = p[2 * j], by = p[2 * j + 1];
+        const segPx = Math.hypot(bx - ax, by - ay) * s; let d = carry;
+        while (d <= segPx) {
+          const t = d / segPx, x = ax + (bx - ax) * t, y = ay + (by - ay) * t; d += sp;
+          if (x < wx0 || x > wx1 || y < wy0 || y > wy1) continue;
+          let px = x, py = y, len = 0, ssum = 0, k = 0, cnt = 0; const path = [px * s + cx0, py * s + cy0], target = L - dz;
+          for (; k < 70; k++) {
+            const gx = samp(GXD, px, py), gy = samp(GYD, px, py), gm = Math.hypot(gx, gy);
+            if (gm < tanMin) break;
+            ssum += gm; cnt++; px -= gx / gm * stepM; py -= gy / gm * stepM; len += stepM * s;
+            const h = hdAt(px, py);
+            if (h <= target || len >= maxLen) { path.push(px * s + cx0, py * s + cy0); break; }
+            if (k % 3 === 2) path.push(px * s + cx0, py * s + cy0);
+          }
+          if (path.length < 4 || !ssum) continue;
+          const sd = Math.atan(ssum / cnt) * 180 / Math.PI, w = Math.min(sp * 0.9, sp * sd / 12);
+          if (w < 0.16) continue;
+          add(w, path);
+        }
+        carry = d - segPx;
+      }
+    }
+  }
+  g.strokeStyle = PAL.hach; g.lineCap = 'butt'; g.lineJoin = 'round'; g.globalAlpha = 0.72;
+  for (const [w, list] of buckets) {
+    g.lineWidth = w; g.beginPath();
+    for (const pts of list) { g.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); }
+    g.stroke();
+  }
+  g.globalAlpha = 1;
+}
+function drawWood(g, w, s, cx0, cy0) {
+  const pts = w.pts;
+  g.save(); g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x * s + cx0, y * s + cy0) : g.moveTo(x * s + cx0, y * s + cy0)); g.closePath();
+  g.fillStyle = PAL.wood; g.globalAlpha = 0.32; g.fill(); g.globalAlpha = 1; g.clip();
+  let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity; for (const [x, y] of pts) { bx0 = Math.min(bx0, x); bx1 = Math.max(bx1, x); by0 = Math.min(by0, y); by1 = Math.max(by1, y); }
+  const step = Math.max(14, 8 / s), R = rng(hashStr(w.name)), rad = Math.min(4.2, Math.max(1.3, 6.5 * s));
+  g.fillStyle = PAL.woodink;
+  for (let y = by0; y <= by1; y += step) for (let x = bx0 + ((y / step) % 2) * step / 2; x <= bx1; x += step) {
+    const jx = x + (R() - 0.5) * step * 0.6, jy = y + (R() - 0.5) * step * 0.6;
+    if (!inPoly(jx, jy, pts)) continue;
+    const qx = jx * s + cx0, qy = jy * s + cy0;
+    g.globalAlpha = 0.55; g.beginPath(); g.arc(qx, qy, rad, 0, Math.PI * 2); g.fill();
+    g.globalAlpha = 0.9; g.fillStyle = PAL.paper; g.beginPath(); g.arc(qx - rad * 0.3, qy - rad * 0.3, rad * 0.35, 0, Math.PI * 2); g.fill(); g.fillStyle = PAL.woodink;
+  }
+  g.restore();
+  g.save(); g.strokeStyle = PAL.woodink; g.lineWidth = 0.9; g.globalAlpha = 0.8;
+  g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x * s + cx0, y * s + cy0) : g.moveTo(x * s + cx0, y * s + cy0)); g.closePath(); g.stroke(); g.restore();
+}
+
+/* ================= live drawing ================= */
+let drawPending = false;
+function requestDraw() { if (!drawPending) { drawPending = true; requestAnimationFrame(draw); } }
+let unitHits = [], LB = [], PEND = [];
+const FONT = { village: ["'IM Fell English SC'", 13, 'normal', 0.14], hamlet: ["'IM Fell English'", 12, 'italic', 0.02], farm: ["'IM Fell English'", 12, 'italic', 0], wood: ["'IM Fell English'", 12.5, 'italic', 0.04], small: ["'IM Fell English'", 10.5, 'italic', 0], ridge: ["'IM Fell English'", 15, 'italic', 0.22], water: ["'IM Fell English'", 12, 'italic', 0.06], unit: ["'IM Fell English'", 10.5, 'italic', 0], group: ["'IM Fell English SC'", 11.5, 'normal', 0.1], edge: ["'IM Fell English'", 11, 'italic', 0] };
+const REF_S = 0.095; // px per metre of the desktop whole-sheet view
+const zoomF = () => view.s / REF_S;
+function fontPx(style, mul = 1) {
+  const z = zoomF(), base = FONT[style][1];
+  if (style === 'unit') return base * Math.max(0.9, Math.min(1.5, Math.pow(z / 2.1, 0.35))) * mul;
+  if (style === 'group') return base * Math.max(0.85, Math.min(1.4, Math.pow(z, 0.3))) * mul;
+  if (style === 'edge') return base * mul;
+  return base * Math.max(0.82, Math.min(2.1, Math.pow(z, 0.42))) * mul;
+}
+function label(str, x, y, style, align, color, pri, force, mul = 1) { PEND.push({ str, x, y, style, align, color, pri, force, mul }); }
+function drawLabels(g) {
+  LB = []; PEND.sort((a, b) => a.pri - b.pri);
+  for (const L of PEND) {
+    const [fam, , fst, track] = FONT[L.style], px = fontPx(L.style, L.mul);
+    g.font = `${fst} ${px.toFixed(1)}px ${fam}, 'EB Garamond', Georgia, serif`;
+    if ('letterSpacing' in g) g.letterSpacing = (track * px).toFixed(1) + 'px';
+    const w = g.measureText(L.str).width, dx = L.align === 'l' ? 6 : L.align === 'r' ? -6 : 0;
+    const x0 = L.align === 'l' ? L.x + dx : L.align === 'r' ? L.x + dx - w : L.x - w / 2;
+    const box = [x0 - 2, L.y - px * 0.55, x0 + w + 2, L.y + px * 0.55];
+    if (!L.force && LB.some(o => !(box[2] < o[0] || box[0] > o[2] || box[3] < o[1] || box[1] > o[3]))) continue;
+    LB.push(box);
+    g.textAlign = L.align === 'l' ? 'left' : L.align === 'r' ? 'right' : 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    g.lineWidth = 3.2; g.strokeStyle = PAL.paper; g.globalAlpha = 0.88; g.strokeText(L.str, L.x + dx, L.y); g.globalAlpha = 1;
+    g.fillStyle = L.color; g.fillText(L.str, L.x + dx, L.y);
+  }
+  if ('letterSpacing' in g) g.letterSpacing = '0px';
+  PEND = [];
+}
+function polyPath(g, pts) { pts.forEach(([x, y], i) => { const [a, b] = P(x, y); i ? g.lineTo(a, b) : g.moveTo(a, b); }); }
+function rectPath(g, r) {
+  const a = r.rot * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a), hw = r.w / 2, hh = r.h / 2;
+  [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].forEach(([u, v], i) => { const [px, py] = P(r.x + u * c - v * sn, r.y + u * sn + v * c); i ? g.lineTo(px, py) : g.moveTo(px, py); }); g.closePath();
+}
+function draw() {
+  drawPending = false; PEND = [];
+  const g = ctx; g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = PAL.bg; g.fillRect(0, 0, cssW, cssH);
+  const [sx0, sy0] = P(0, 0), [sx1, sy1] = P(WM, HM);
+  g.fillStyle = 'rgba(30,20,10,0.22)'; g.fillRect(sx0 + 3, sy0 + 4, sx1 - sx0, sy1 - sy0);
+  g.fillStyle = PAL.paper; g.fillRect(sx0, sy0, sx1 - sx0, sy1 - sy0);
+  if (tview) { const k = view.s / tview.s; g.drawImage(tcan, view.tx - tview.cx0 * k, view.ty - tview.cy0 * k, tview.cw * k, tview.ch * k); }
+  g.save(); g.beginPath(); g.rect(sx0, sy0, sx1 - sx0, sy1 - sy0); g.clip();
+  if (viewshedImg) drawViewshed(g);
+  if (layers.roads) drawRoads(g);
+  if (layers.flags) drawFlags(g);
+  if (layers.debated) drawDebated(g);
+  if (layers.units) drawUnits(g); else unitHits = [];
+  placeLabels();
+  drawLabels(g);
+  if (sight) drawSight(g);
+  g.restore();
+  drawOffmap(g);
+  drawFrame(g);
+  drawScale(g); drawHeightKey(g); drawNorth(g);
+}
+function drawRoads(g) {
+  const zf = zoomF();
+  for (const e of ENCLOSURES) {
+    g.beginPath(); rectPath(g, e);
+    if (e.kind === 'wall') { g.strokeStyle = PAL.ink; g.lineWidth = 1.3; g.stroke(); }
+    else { g.setLineDash([1, 3.2]); g.lineCap = 'round'; g.strokeStyle = PAL.woodink; g.lineWidth = 2.2; g.stroke(); g.setLineDash([]); g.lineCap = 'butt';
+      if (zf > 2.2) { const R = rng(hashStr(e.n)); g.fillStyle = PAL.woodink; g.globalAlpha = 0.6; for (let u = -e.w / 2 + 12; u < e.w / 2 - 6; u += 22) for (let v = -e.h / 2 + 12; v < e.h / 2 - 6; v += 22) { const [px, py] = P(e.x + u + (R() - 0.5) * 6, e.y + v + (R() - 0.5) * 6); g.beginPath(); g.arc(px, py, Math.max(1, 3 * view.s), 0, 7); g.fill(); } g.globalAlpha = 1; } }
+  }
+  for (const r of ROADS) {
+    g.lineJoin = 'round'; g.lineCap = 'round';
+    if (r.kind === 'chaussee') {
+      const w = Math.max(3.2, 16 * view.s);
+      g.beginPath(); polyPath(g, r.pts); g.strokeStyle = PAL.ink; g.lineWidth = w; g.stroke();
+      g.beginPath(); polyPath(g, r.pts); g.strokeStyle = PAL.road; g.lineWidth = Math.max(1.6, w - 1.8); g.stroke();
+    } else if (r.kind === 'lane') {
+      const w = Math.max(2.2, 8 * view.s);
+      g.beginPath(); polyPath(g, r.pts); g.strokeStyle = PAL.ink; g.globalAlpha = 0.85; g.lineWidth = w; g.stroke();
+      g.beginPath(); polyPath(g, r.pts); g.strokeStyle = PAL.paper; g.globalAlpha = 1; g.lineWidth = Math.max(0.8, w - 1.6); g.stroke();
+    } else {
+      g.beginPath(); polyPath(g, r.pts); g.strokeStyle = PAL.ink; g.globalAlpha = 0.75; g.lineWidth = 1; g.setLineDash([5, 3.5]); g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+    }
+  }
+  for (const pts of SUNKEN) {
+    g.strokeStyle = PAL.hach; g.lineWidth = 0.9;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [ax, ay] = pts[i], [bx, by] = pts[i + 1], L = Math.hypot(bx - ax, by - ay), nx = -(by - ay) / L, ny = (bx - ax) / L, step = Math.max(9, 5 / view.s);
+      for (let d = 0; d < L; d += step) for (const sd of [-1, 1]) {
+        const x = ax + (bx - ax) * d / L, y = ay + (by - ay) * d / L, o = Math.max(2.4, 8.5 * view.s) / view.s;
+        const [p1x, p1y] = P(x + nx * o * sd, y + ny * o * sd), [p2x, p2y] = P(x + nx * (o + 4 / view.s) * sd, y + ny * (o + 4 / view.s) * sd);
+        g.beginPath(); g.moveTo(p1x, p1y); g.lineTo(p2x, p2y); g.stroke();
+      }
+    }
+  }
+  for (const pts of HEDGES) { g.beginPath(); polyPath(g, pts); g.setLineDash([0.5, 3.6]); g.lineCap = 'round'; g.strokeStyle = PAL.woodink; g.lineWidth = 2.6; g.stroke(); g.setLineDash([]); g.lineCap = 'butt'; }
+  g.beginPath(); rectPath(g, SANDPIT); g.fillStyle = PAL.road; g.fill(); g.strokeStyle = PAL.hach; g.lineWidth = 0.8; g.stroke();
+  g.fillStyle = PAL.build; g.strokeStyle = PAL.ink; g.lineWidth = 0.6;
+  for (const hs of HOUSES) { g.beginPath(); rectPath(g, { ...hs, w: Math.max(hs.w, 2.2 / view.s), h: Math.max(hs.h, 1.8 / view.s) }); g.fill(); }
+  for (const b of BUILDINGS) { g.beginPath(); rectPath(g, { ...b, w: Math.max(b.w, 4 / view.s), h: Math.max(b.h, 4 / view.s) }); g.fill(); g.stroke(); }
+  for (const v of VILLAGES) if (v.church) { const [x, y] = P(v.cx, v.cy); g.strokeStyle = PAL.ink; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x, y - 6); g.lineTo(x, y + 4); g.moveTo(x - 3.5, y - 2.5); g.lineTo(x + 3.5, y - 2.5); g.stroke(); }
+  { const [x, y] = ll2m(50.6801611, 4.4116889), [px, py] = P(x, y); g.fillStyle = PAL.woodink; g.beginPath(); g.arc(px - 5, py - 5, 2.6, 0, 7); g.fill(); }
+}
+const KEY_FARMS = ['Hougoumont', 'La Haye Sainte', 'Papelotte', 'La Belle Alliance', 'Frischermont', 'Le Caillou'];
+function placeLabels() {
+  const zf = zoomF(), close = zf >= 2.1;
+  for (const [t, la, lo, st, al] of LABELS) {
+    if (st === 'small' && zf < 2.6) continue;
+    if (st === 'ridge' && (zf < 1.3 || zf > 3.6)) continue;
+    const [x, y] = ll2m(la, lo), [px, py] = P(x, y), key = KEY_FARMS.includes(t);
+    const col = st === 'wood' ? PAL.woodink : st === 'ridge' ? PAL.hach : PAL.ink;
+    let pri, force;
+    if (st === 'village') { pri = 1; force = true; }
+    else if (st === 'farm' || st === 'hamlet') { pri = close ? 1.5 : (key ? 3 : 7); force = close; if (!close && zf < 1.35 && !key) continue; }
+    else if (st === 'ridge') { pri = 8; force = false; }
+    else { pri = 5; force = false; }
+    label(t, px, py, st, al, col, pri, force);
+  }
+  if (layers.water) {
+    const near = (la, lo, minA) => { const [tx, ty] = ll2m(la, lo); let best = null, bd = Infinity; for (const st of STREAMS) for (let i = 0; i < st.length; i += 3) { if (st[i + 2] < minA) continue; const d = Math.hypot(st[i] - tx, st[i + 1] - ty); if (d < bd) { bd = d; best = [st[i], st[i + 1]]; } } return best; };
+    const a = near(50.6790, 4.4890, 800), b = near(50.6885, 4.4610, 400);
+    if (a) { const [px, py] = P(a[0], a[1]); label('la Lasne', px, py, 'water', 'l', PAL.water, 5, false); }
+    if (b) { const [px, py] = P(b[0], b[1]); label('ruisseau de Smohain', px, py, 'water', 'l', PAL.water, 5, false); }
+  }
+  for (const [t, la, lo, edge] of EDGE_LABELS) {
+    const [x, y] = ll2m(la, lo), [px, py] = P(x, y);
+    if (edge === 'n') label('↑ ' + t, px, py + 10, 'edge', 'l', PAL.ink, 4, false);
+    else label('↓ ' + t, px, py - 10, 'edge', 'l', PAL.ink, 4, false);
+  }
+}
+function drawFlags(g) {
+  g.save(); g.strokeStyle = PAL.flag; g.lineCap = 'round';
+  if (zoomF() >= 2) for (const r of ROADS) if (r.conf === 'approx') { g.lineWidth = Math.max(6, 20 * view.s); g.globalAlpha = 0.1; g.beginPath(); polyPath(g, r.pts); g.stroke(); }
+  g.globalAlpha = 0.7; g.setLineDash([1.5, 3]); g.lineWidth = 1.4;
+  for (const w of WOODS) { g.beginPath(); polyPath(g, w.pts); g.closePath(); g.stroke(); }
+  const [lx, ly] = P(LION[0], LION[1]), rr = Math.max(5, 85 * view.s);
+  g.setLineDash([2, 2.5]); g.globalAlpha = 0.9; g.lineWidth = 1.2; g.beginPath(); g.arc(lx, ly, rr, 0, 7); g.stroke();
+  for (const v of VILLAGES) if (v.approxPos) { const [x, y] = P(v.cx, v.cy); g.globalAlpha = 0.7; g.setLineDash([1.5, 3]); g.lineWidth = 1.3; g.beginPath(); g.arc(x, y, Math.max(8, v.r * view.s), 0, 7); g.stroke(); }
+  g.restore();
+  if (zoomF() > 1.8) label('butte du Lion (1826), retirée du relief', lx, ly + rr + 9, 'small', 'c', PAL.flag, 6, false);
+}
+function drawDebated(g) {
+  g.save(); g.strokeStyle = PAL.debate; g.fillStyle = PAL.debate; g.lineCap = 'round';
+  const band = (pts, lab, sub) => {
+    g.globalAlpha = 0.8; g.lineWidth = Math.max(4, 22 * view.s); g.setLineDash([Math.max(3, 18 * view.s), Math.max(3, 14 * view.s)]); g.beginPath(); polyPath(g, pts); g.stroke(); g.setLineDash([]);
+    if (zoomF() > 1.5) { const [x, y] = P(pts[pts.length - 1][0], pts[pts.length - 1][1]); label(lab, x + 4, y - 3, 'small', 'l', PAL.debate, 6, false, 1.05); if (sub && zoomF() > 2.6) label(sub, x + 4, y + 11, 'small', 'l', PAL.debate, 6.5, false, 0.95); }
+  };
+  band(DEBATED.siteA, 'Grand battery, site A', 'main ridge, in front of I Corps');
+  band(DEBATED.siteB, 'Grand battery, site B', 'intermediate rise, ≈650 m from the allied crest');
+  const [a, b] = DEBATED.bylandtBack, [ax, ay] = P(a[0], a[1]), [bx, by] = P(b[0], b[1]);
+  if (zoomF() > 2) { g.globalAlpha = 0.9; g.lineWidth = 1.4; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(ax + 18, ay); g.lineTo(bx + 18, by); g.stroke(); g.setLineDash([]); const ang = Math.atan2(by - ay, bx - ax); g.beginPath(); g.moveTo(bx + 18, by); g.lineTo(bx + 18 - 7 * Math.cos(ang - 0.45), by - 7 * Math.sin(ang - 0.45)); g.lineTo(bx + 18 - 7 * Math.cos(ang + 0.45), by - 7 * Math.sin(ang + 0.45)); g.closePath(); g.fill(); }
+  g.restore();
+}
+function sideColor(side) { return side === 'FR' ? PAL.FR : side === 'AL' ? PAL.AL : PAL.PR; }
+function unitBlocks(u, detail) {
+  // returns list of [along, forward, width, depth] in metres, relative to the unit centre
+  const F = u.F, D = u.D, out = [];
+  const nBn = Math.max(1, u.nBn);
+  if (u.type === 'inf') {
+    if (u.form === 'line') out.push([0, 0, F, D]);
+    else if (u.form === 'twoLines') {
+      const bd = 20, n1 = Math.ceil(nBn / 2), n2 = nBn - n1;
+      const row = (n, fwd) => { if (!detail || n < 2) { out.push([0, fwd, F, bd]); return; } const gap = 10, w = (F - gap * (n - 1)) / n; for (let i = 0; i < n; i++) out.push([-F / 2 + w / 2 + i * (w + gap), fwd, w, bd]); };
+      row(n1, D / 2 - bd / 2); if (n2) row(n2, -D / 2 + bd / 2);
+    } else {
+      if (!detail) out.push([0, 0, F, D]);
+      else { const w = Math.min(42, F / nBn * 0.55); for (let i = 0; i < nBn; i++) out.push([-F / 2 + F / nBn * (i + 0.5), 0, w, 50]); }
+    }
+  } else if (u.type === 'cav') {
+    if (!detail) out.push([0, 0, F, D]);
+    else { const nSq = Math.max(2, Math.round(u.str / 150)), n1 = Math.ceil(nSq / 2), n2 = nSq - n1; for (const [n, fwd] of [[n1, D / 2 - 8], [n2, -D / 2 + 8]]) { if (!n) continue; const w = Math.min(46, F / n1 * 0.62); for (let i = 0; i < n; i++) out.push([-F / 2 + F / n1 * (i + 0.5), fwd, w, 16]); } }
+  } else out.push([0, 0, F, D]);
+  return out;
+}
+function drawUnits(g) {
+  unitHits = []; const zf = zoomF(), s = view.s, detail = zf >= 2.2;
+  if (layers.halos) {
+    g.save(); g.setLineDash([1.2, 3]); g.lineCap = 'round'; g.lineWidth = 1;
+    for (const u of UNITS) { if (u.type === 'hq') continue; const [x, y] = P(u.x, u.y); const rr = (u.conf + (u.type === 'gar' ? 0 : Math.max(u.F, u.D) / 2)) * s; if (rr < 5) continue; g.strokeStyle = sideColor(u.side); g.globalAlpha = 0.22; g.beginPath(); g.arc(x, y, rr, 0, 7); g.stroke(); }
+    g.restore();
+  }
+  for (const u of UNITS) {
+    const col = sideColor(u.side), sel = selected === u;
+    if (u.type === 'hq') continue;
+    if (u.type === 'gar') {
+      const [x, y] = P(u.x, u.y), rr = Math.max(4.5, u.R * s);
+      g.save(); g.strokeStyle = col; g.lineWidth = sel ? 3 : 2; g.beginPath(); g.arc(x, y, rr, 0, 7); g.stroke();
+      g.fillStyle = col; g.globalAlpha = 0.16; g.fill(); g.globalAlpha = 1; g.fillRect(x - 2.5, y - 2.5, 5, 5); g.restore();
+      unitHits.push({ u, kind: 'circle', x, y, r: rr + 3 });
+      continue;
+    }
+    const th = u.facing * Math.PI / 180, fx = Math.sin(th), fy = -Math.cos(th), ax = Math.cos(th), ay = Math.sin(th);
+    const quad = (al, fw, w, d, minW, minD) => { const W = Math.max(w, minW / s), Dd = Math.max(d, minD / s), cx = u.x + ax * al + fx * fw, cy = u.y + ay * al + fy * fw; const c = (a, f) => P(cx + ax * a * W / 2 + fx * f * Dd / 2, cy + ay * a * W / 2 + fy * f * Dd / 2); return [c(-1, 1), c(1, 1), c(1, -1), c(-1, -1)]; };
+    const env = quad(0, 0, u.F, u.D, 6, 3.2);
+    const blocks = unitBlocks(u, detail).map(([al, fw, w, d]) => quad(al, fw, w, d, u.form === 'twoLines' ? 3 : 2.5, u.form === 'twoLines' ? 1.6 : (u.type === 'art' ? 3 : 3.2)));
+    g.save();
+    for (const sp of blocks) {
+      g.beginPath(); sp.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath();
+      if (u.type === 'inf') { g.fillStyle = col; g.globalAlpha = 0.92; g.fill(); g.globalAlpha = 1; g.strokeStyle = PAL.ink; g.lineWidth = 0.5; g.stroke(); }
+      else if (u.type === 'cav') {
+        g.fillStyle = PAL.paper; g.globalAlpha = 0.85; g.fill(); g.globalAlpha = 1; g.save(); g.clip();
+        g.strokeStyle = col; g.lineWidth = 1.05; const xs = sp.map(p => p[0]), ys = sp.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+        g.beginPath(); for (let d = x0 - (y1 - y0); d < x1; d += 3.1) { g.moveTo(d, y1); g.lineTo(d + (y1 - y0), y0); } g.stroke(); g.restore();
+        g.strokeStyle = col; g.lineWidth = 1.1; g.beginPath(); sp.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.stroke();
+      } else if (u.type === 'art') {
+        g.fillStyle = PAL.paper; g.fill(); g.strokeStyle = col; g.lineWidth = 1.1; g.stroke();
+        const n = Math.min(u.str, Math.max(2, Math.floor(Math.hypot(sp[1][0] - sp[0][0], sp[1][1] - sp[0][1]) / 4)));
+        g.fillStyle = col;
+        for (let k = 0; k < n; k++) { const t = (k + 0.5) / n, x = sp[0][0] + (sp[1][0] - sp[0][0]) * t, y = sp[0][1] + (sp[1][1] - sp[0][1]) * t, mx = (sp[3][0] - sp[0][0]) * 0.5, my = (sp[3][1] - sp[0][1]) * 0.5; g.beginPath(); g.arc(x + mx * 0.6, y + my * 0.6, 1.25, 0, 7); g.fill(); }
+      }
+      g.beginPath(); g.moveTo(sp[0][0], sp[0][1]); g.lineTo(sp[1][0], sp[1][1]); g.strokeStyle = PAL.ink; g.lineWidth = sel ? 2.4 : 1.4; g.stroke();
+    }
+    if (sel) { g.beginPath(); env.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); g.strokeStyle = PAL.ink; g.lineWidth = 1; g.setLineDash([3, 2]); g.stroke(); g.setLineDash([]); }
+    g.restore();
+    unitHits.push({ u, kind: 'poly', pts: env });
+  }
+  for (const u of UNITS) if (u.type === 'hq') {
+    const [x, y] = P(u.x, u.y), col = sideColor(u.side);
+    g.save(); g.strokeStyle = PAL.ink; g.lineWidth = 1.3; g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - 18); g.stroke();
+    g.fillStyle = col; g.beginPath(); g.moveTo(x, y - 18); g.lineTo(x + 12, y - 15); g.lineTo(x, y - 11); g.closePath(); g.fill(); g.stroke(); g.restore();
+    if (zf > 1.2) label(u.name, x + 10, y - 23, 'farm', 'l', col, 2, true, 1.05);
+    unitHits.push({ u, kind: 'circle', x: x + 4, y: y - 12, r: 11 });
+  }
+  if (!layers.ulabels) return;
+  if (zf >= 2.1) {
+    for (const u of UNITS) {
+      if (u.type === 'hq' || u.type === 'gar' || (u.type === 'art' && zf < 3.2)) continue;
+      const [x, y] = P(u.x, u.y), th = u.facing * Math.PI / 180, back = (u.D / 2 * s + 9);
+      label(u.name, x - Math.sin(th) * back, y + Math.cos(th) * back, 'unit', 'c', sideColor(u.side), u.type === 'art' ? 4.6 : 4, false);
+    }
+  } else {
+    for (const gr of GROUPS) {
+      const [x, y] = P(...ll2m(gr.la, gr.lo)), col = sideColor(gr.side);
+      label(gr.t, x, y, 'group', 'c', col, 0, true);
+      if (gr.s && zf > 1.15) label(gr.s, x, y + fontPx('group') * 1.3, 'small', 'c', col, 0.5, false);
+    }
+  }
+}
+let offHits = [];
+function drawOffmap(g) {
+  offHits = [];
+  const [sx0, sy0] = P(0, 0), [sx1, sy1] = P(WM, HM);
+  for (const o of OFFMAP) {
+    const [wx, wy] = ll2m(o.la, o.lo);
+    const ex = Math.min(Math.max(wx, 0), WM), ey = Math.min(Math.max(wy, 0), HM); // anchor on the sheet edge
+    const [cx, cy] = P(ex, ey);
+    if (cx < -4 || cy < -4 || cx > cssW + 4 || cy > cssH + 4) continue;
+    let dir = wx > WM ? [1, 0] : wx < 0 ? [-1, 0] : wy < 0 ? [0, -1] : [0, 1];
+    if (wy > HM && wx > WM * 0.9) dir = [0.7, 0.7];
+    const col = sideColor(o.side), ax = cx - dir[0] * 4, ay = cy - dir[1] * 4;
+    g.save(); g.fillStyle = col; g.strokeStyle = col; g.lineWidth = 2.2;
+    g.beginPath(); g.moveTo(ax - dir[0] * 16, ay - dir[1] * 16); g.lineTo(ax, ay); g.stroke();
+    const an = Math.atan2(dir[1], dir[0]); g.beginPath(); g.moveTo(ax + Math.cos(an) * 4, ay + Math.sin(an) * 4); g.lineTo(ax - Math.cos(an - 0.5) * 9, ay - Math.sin(an - 0.5) * 9); g.lineTo(ax - Math.cos(an + 0.5) * 9, ay - Math.sin(an + 0.5) * 9); g.closePath(); g.fill();
+    g.font = `12px 'IM Fell English SC', Georgia, serif`; g.textBaseline = 'middle';
+    const lx = dir[0] > 0 ? ax - 22 : dir[0] < 0 ? ax + 22 : ax - (dir[0] ? 0 : 10), ly = dir[1] > 0 ? ay - 18 : dir[1] < 0 ? ay + 18 : ay;
+    g.textAlign = dir[0] > 0 ? 'right' : dir[0] < 0 ? 'left' : 'center';
+    g.lineWidth = 3; g.strokeStyle = PAL.paper; g.globalAlpha = 0.9; g.strokeText(o.title, lx, ly); g.globalAlpha = 1; g.fillText(o.title, lx, ly);
+    g.restore();
+    offHits.push({ o, x: cx, y: cy, r: 22 });
+  }
+}
+function drawFrame(g) {
+  const [x0, y0] = P(0, 0), [x1, y1] = P(WM, HM);
+  g.save(); g.strokeStyle = PAL.ink; g.lineWidth = 0.8; g.strokeRect(x0, y0, x1 - x0, y1 - y0);
+  g.strokeStyle = PAL.fg2; g.lineWidth = 2.2; g.strokeRect(x0 - 5, y0 - 5, x1 - x0 + 10, y1 - y0 + 10);
+  g.lineWidth = 0.8; g.font = `9.5px 'EB Garamond', Georgia, serif`; g.fillStyle = PAL.fg2;
+  const stepPx = 0.01 * MLON * view.s, every = stepPx > 46 ? 1 : stepPx > 23 ? 2 : 5;
+  let k = 0;
+  for (let lo = 4.37; lo < 4.5001; lo += 0.01, k++) { const [x] = P(...ll2m(LAT0, lo)); if (x < 0 || x > cssW) continue; g.beginPath(); g.moveTo(x, y1 + 5); g.lineTo(x, y1 + 9); g.moveTo(x, y0 - 5); g.lineTo(x, y0 - 9); g.stroke(); if (k % every === 0 && y1 + 22 < cssH) { g.textAlign = 'center'; g.textBaseline = 'top'; g.fillText(lo.toFixed(2) + '°E', x, y1 + 11); } }
+  const stepPy = 0.01 * MLAT * view.s, everyY = stepPy > 30 ? 1 : 2; k = 0;
+  for (let la = 50.64; la < 50.708; la += 0.01, k++) { const [, y] = P(...ll2m(la, LON0)); if (y < 0 || y > cssH) continue; g.beginPath(); g.moveTo(x0 - 5, y); g.lineTo(x0 - 9, y); g.moveTo(x1 + 5, y); g.lineTo(x1 + 9, y); g.stroke(); if (k % everyY === 0 && x0 > 52) { g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(la.toFixed(2) + '°N', x0 - 11, y); } }
+  g.restore();
+}
+function drawScale(g) {
+  const target = Math.min(140, cssW * 0.32) / view.s; let L = 50; for (const c of [50, 100, 200, 250, 500, 1000, 2000, 2500, 5000]) if (c <= target) L = c;
+  const px = L * view.s, x = 14, y = cssH - 26, segs = 4;
+  g.save(); g.fillStyle = PAL.paper; g.globalAlpha = 0.88; g.fillRect(x - 6, y - 22, px + 56, 42); g.globalAlpha = 1;
+  g.strokeStyle = PAL.ink; g.lineWidth = 0.8;
+  for (let i = 0; i < segs; i++) { g.fillStyle = i % 2 ? PAL.paper : PAL.ink; g.fillRect(x + px * i / segs, y, px / segs, 5); }
+  g.strokeRect(x, y, px, 5);
+  g.fillStyle = PAL.ink; g.font = `11px 'EB Garamond', Georgia, serif`; g.textBaseline = 'bottom'; g.textAlign = 'center';
+  g.fillText('0', x, y - 2); g.fillText(L >= 1000 ? (L / 1000) + ' km' : L + ' m', x + px, y - 2);
+  const yd = L * 1.0936 >= 100 ? Math.round(L * 1.0936 / 10) * 10 : Math.round(L * 1.0936 / 5) * 5, ypx = yd / 1.0936 * view.s;
+  g.textBaseline = 'top'; g.globalAlpha = 0.8; g.fillText(yd + ' yards', x + ypx, y + 8); g.beginPath(); g.moveTo(x + ypx, y + 5); g.lineTo(x + ypx, y + 9); g.stroke();
+  g.restore();
+}
+function drawHeightKey(g) {
+  if (!layers.tint) return;
+  const lo = 60, hi = 170, n = (hi - lo) / BAND, bw = Math.max(3, Math.min(5, (cssW * 0.3) / n)), w = n * bw, x = 14, y = cssH - 78;
+  if (y < 60) return;
+  g.save(); g.font = `italic 10.5px 'IM Fell English', Georgia, serif`; const tw = g.measureText('Height above sea level, metres · 5 m bands').width;
+  g.fillStyle = PAL.paper; g.globalAlpha = 0.88; g.fillRect(x - 6, y - 17, Math.max(w, tw) + 12, 40); g.globalAlpha = 1;
+  g.globalCompositeOperation = 'multiply';
+  for (let i = 0; i < n; i++) { const c = bandColor(lo + i * BAND + 0.1); g.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`; g.fillRect(x + i * bw, y, bw + 0.5, 8); }
+  g.globalCompositeOperation = 'source-over';
+  g.strokeStyle = PAL.ink; g.lineWidth = 0.6; g.strokeRect(x, y, w, 8);
+  g.fillStyle = PAL.ink; g.font = `10px 'EB Garamond', Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'top';
+  for (let h = 80; h <= 160; h += 20) { const px = x + (h - lo) / BAND * bw; g.beginPath(); g.moveTo(px, y + 8); g.lineTo(px, y + 11); g.stroke(); g.fillText(String(h), px, y + 11); }
+  g.textAlign = 'left'; g.textBaseline = 'bottom'; g.font = `italic 10.5px 'IM Fell English', Georgia, serif`; g.fillText('Height above sea level, metres · 5 m bands', x, y - 2);
+  g.restore();
+}
+function drawNorth(g) {
+  const x = cssW - 26, y = 44;
+  g.save(); g.fillStyle = PAL.paper; g.globalAlpha = 0.85; g.beginPath(); g.arc(x, y - 10, 17, 0, 7); g.fill(); g.globalAlpha = 1;
+  g.fillStyle = PAL.ink; g.strokeStyle = PAL.ink; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(x, y - 22); g.lineTo(x + 5, y); g.lineTo(x, y - 4); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(x, y - 22); g.lineTo(x - 5, y); g.lineTo(x, y - 4); g.closePath(); g.fillStyle = PAL.paper; g.fill(); g.stroke();
+  g.font = `11px 'IM Fell English SC', Georgia, serif`; g.fillStyle = PAL.ink; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('N', x, y + 1 - 26 + 30);
+  g.restore();
+}
+
+/* ================= sight line & dead ground ================= */
+const K_CURV = 0.87 / (2 * 6371000);
+let sight = null, sightA = null, viewshedImg = null, vsObs = null;
+const eyeH = () => +document.getElementById('eye').value, tgtH = () => +document.getElementById('tgt').value;
+function computeSight(A, B) {
+  const L = Math.hypot(B[0] - A[0], B[1] - A[1]), n = Math.max(2, Math.ceil(L / 5)), h0 = hAt(A[0], A[1]) + eyeH(), th = tgtH();
+  const prof = []; let maxS = -Infinity, blockAt = null;
+  for (let i = 0; i <= n; i++) {
+    const d = L * i / n, x = A[0] + (B[0] - A[0]) * i / n, y = A[1] + (B[1] - A[1]) * i / n, gnd = hAt(x, y);
+    const ob = (i > 0 && i < n) ? obstacleAt(x, y) : [0, '', ''], curv = d * d * K_CURV;
+    let vis = true;
+    if (i > 0) { const sT = (gnd + th - curv - h0) / d; vis = sT >= maxS; }
+    prof.push({ d, x, y, gnd, ob: ob[0], obk: ob[1], obn: ob[2], vis });
+    if (i > 0 && i < n) { const sG = (gnd + ob[0] - curv - h0) / d; if (sG > maxS) maxS = sG; }
+  }
+  const last = prof[n]; const ok = last.vis;
+  let minClear = Infinity; { const htc = last.gnd + th - L * L * K_CURV; for (let i = 1; i < n; i++) { const p = prof[i], lineH = h0 + (htc - h0) * p.d / L; const c = lineH - (p.gnd + p.ob - p.d * p.d * K_CURV); if (c < minClear) minClear = c; } }
+  if (!ok) { // first point where the line from eye to target is cut
+    const ht = last.gnd + th - n * 0;
+    for (let i = 1; i < n; i++) { const p = prof[i], lineH = h0 + (ht - L * L * K_CURV - h0) * p.d / L + p.d * p.d * K_CURV; if (p.gnd + p.ob > lineH - 0.0001) { blockAt = p; break; } }
+  }
+  return { A, B, L, h0, ht: last.gnd + th, prof, ok, blockAt, minClear };
+}
+function computeViewshed(O) {
+  const h0 = hAt(O[0], O[1]) + eyeH(), th = tgtH(), vis = new Uint8Array(NX * NY);
+  const ends = []; for (let c = 0; c < NX; c++) ends.push([c, 0], [c, NY - 1]); for (let r = 1; r < NY - 1; r++) ends.push([0, r], [NX - 1, r]);
+  const step = CELL * 0.5, oc = Math.round(O[1] / CELL) * NX + Math.round(O[0] / CELL);
+  for (const [c, r] of ends) {
+    const ex = c * CELL, ey = r * CELL, L = Math.hypot(ex - O[0], ey - O[1]), n = Math.ceil(L / step), dx = (ex - O[0]) / L, dy = (ey - O[1]) / L;
+    let maxS = -Infinity;
+    for (let i = 1; i <= n; i++) {
+      const d = i * step, x = O[0] + dx * d, y = O[1] + dy * d, idx = Math.round(y / CELL) * NX + Math.round(x / CELL);
+      if (idx < 0 || idx >= NX * NY) break;
+      const gnd = hAt(x, y), curv = d * d * K_CURV, sT = (gnd + th - curv - h0) / d;
+      if (sT >= maxS) vis[idx] = 2; else if (!vis[idx]) vis[idx] = 1;
+      const ob = d > 60 ? OB[idx] : 0, sG = (gnd + ob - curv - h0) / d; if (sG > maxS) maxS = sG;
+    }
+  }
+  vis[oc] = 2;
+  const c = document.createElement('canvas'); c.width = NX; c.height = NY; const x = c.getContext('2d'), im = x.createImageData(NX, NY);
+  const [dr, dg, db] = PAL.dead.split(',').map(Number); let hidden = 0;
+  for (let i = 0; i < NX * NY; i++) { if (vis[i] !== 2) { im.data[4 * i] = dr; im.data[4 * i + 1] = dg; im.data[4 * i + 2] = db; im.data[4 * i + 3] = 96; hidden++; } }
+  x.putImageData(im, 0, 0);
+  return { img: c, frac: 1 - hidden / (NX * NY), vis };
+}
+function drawViewshed(g) {
+  const [x0, y0] = P(-CELL / 2, -CELL / 2), [x1, y1] = P(WM + CELL / 2, HM + CELL / 2);
+  g.save(); g.imageSmoothingEnabled = true; g.drawImage(viewshedImg.img, x0, y0, x1 - x0, y1 - y0);
+  const [ox, oy] = P(vsObs[0], vsObs[1]);
+  g.strokeStyle = PAL.ink; g.globalAlpha = 0.5; g.setLineDash([2, 4]); g.lineWidth = 1;
+  for (const km of [1, 2, 3, 4]) { g.beginPath(); g.arc(ox, oy, km * 1000 * view.s, 0, 7); g.stroke(); }
+  g.setLineDash([]); g.globalAlpha = 1; eyeGlyph(g, ox, oy); g.restore();
+}
+function eyeGlyph(g, x, y) { g.save(); g.fillStyle = PAL.paper; g.strokeStyle = PAL.ink; g.lineWidth = 1.5; g.beginPath(); g.arc(x, y, 6, 0, 7); g.fill(); g.stroke(); g.fillStyle = PAL.ink; g.beginPath(); g.arc(x, y, 2.2, 0, 7); g.fill(); g.restore(); }
+function drawSight(g) {
+  if (sight.pending) { const [x, y] = P(sight.A[0], sight.A[1]); eyeGlyph(g, x, y); return; }
+  const pr = sight.prof; g.save(); g.lineWidth = 2.4; g.lineCap = 'round';
+  for (let i = 1; i < pr.length; i++) { const a = pr[i - 1], b = pr[i]; const [ax, ay] = P(a.x, a.y), [bx, by] = P(b.x, b.y); g.strokeStyle = b.vis ? PAL.ok : PAL.no; g.setLineDash(b.vis ? [] : [3, 3]); g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke(); }
+  g.setLineDash([]);
+  const [ax, ay] = P(sight.A[0], sight.A[1]), [bx, by] = P(sight.B[0], sight.B[1]);
+  eyeGlyph(g, ax, ay); g.fillStyle = sight.ok ? PAL.ok : PAL.no; g.beginPath(); g.arc(bx, by, 5, 0, 7); g.fill(); g.strokeStyle = PAL.ink; g.stroke();
+  if (sight.blockAt) { const [px, py] = P(sight.blockAt.x, sight.blockAt.y); g.strokeStyle = PAL.no; g.lineWidth = 2; g.beginPath(); g.moveTo(px - 5, py - 5); g.lineTo(px + 5, py + 5); g.moveTo(px + 5, py - 5); g.lineTo(px - 5, py + 5); g.stroke(); }
+  g.restore();
+}
+
+/* ================= descriptions ================= */
+const COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+const bearing = (dx, dy) => (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+const comp = b => COMPASS[Math.round(b / 22.5) % 16];
+function whereIs(x, y) {
+  let best = null, bd = Infinity; for (const l of LM) { const d = Math.hypot(l.x - x, l.y - y); if (d < bd) { bd = d; best = l; } }
+  if (bd < 40) return 'at ' + best.n;
+  const dist = bd < 1000 ? Math.round(bd / 10) * 10 + ' m' : (bd / 1000).toFixed(1) + ' km';
+  return `${dist} ${comp(bearing(x - best.x, y - best.y))} of ${best.n}`;
+}
+const fmt = n => n.toLocaleString('en-GB');
+const formOf = u => u.type === 'cav' && u.form === 'columns' ? 'columns of squadrons' : (FORM[u.form] || '');
+const place = (x, y) => { const w = whereIs(x, y); return w.startsWith('at ') ? w.slice(3) : w; };
+function unitHTML(u, rich) {
+  const what = u.type === 'art' ? `${u.str} guns` : u.type === 'hq' ? '' : `${fmt(u.str)} men`;
+  const kind = { inf: 'infantry', cav: 'cavalry', art: 'artillery', gar: 'garrison', hq: 'headquarters' }[u.type];
+  const face = u.type === 'hq' || u.type === 'gar' ? '' : `, facing ${comp(u.facing)}`;
+  const nat = NAT[u.nat] || '';
+  if (!rich) return `<b>${u.name}</b><div class="sub">${u.parent}</div><div>${nat} ${kind}${what ? ' · ' + what : ''}${formOf(u) ? ' · ' + formOf(u) : ''}${face}</div>${u.note ? `<div>${u.note}</div>` : ''}<div class="conf">Position good to about ±${u.conf} m</div>`;
+  return `<h3>${u.name}</h3><div class="small"><i>${u.parent}</i></div><dl>
+    <dt>Army</dt><dd>${u.side === 'FR' ? 'Armée du Nord' : 'Anglo-allied'} · ${nat}</dd>
+    <dt>Arm</dt><dd>${kind}${what ? ' · ' + what : ''}</dd>
+    ${u.type !== 'hq' ? `<dt>Order</dt><dd>${formOf(u)}${face}</dd>` : ''}
+    ${u.F ? `<dt>Frontage</dt><dd>≈${Math.round(u.F / 10) * 10} m × ${Math.round(u.D / 10) * 10} m deep</dd>` : ''}
+    <dt>Where</dt><dd>${u.la.toFixed(4)}°N ${u.lo.toFixed(4)}°E · ${hAt(u.x, u.y).toFixed(0)} m above sea level<br>${whereIs(u.x, u.y)}</dd>
+    <dt>Confidence</dt><dd>±${u.conf} m</dd></dl>${u.note ? `<p class="small" style="margin-top:6px">${u.note}</p>` : ''}`;
+}
+
+/* ================= interaction ================= */
+let mode = 'inspect', selected = null;
+const tip = document.getElementById('tip'), status = document.getElementById('status'), hint = document.getElementById('modehint');
+const pointers = new Map(); let dragStart = null, pinch = null, moved = false;
+function screenToWorld(x, y) { return [(x - view.tx) / view.s, (y - view.ty) / view.s]; }
+function clampView() { const minS = s0 * 0.8, maxS = s0 * 16; view.s = Math.min(maxS, Math.max(minS, view.s));
+  const mx = cssW * 0.6, my = cssH * 0.6; view.tx = Math.min(cssW - mx * 0.2, Math.max(view.tx, cssW * 0.4 - WM * view.s)); view.ty = Math.min(cssH - my * 0.2, Math.max(view.ty, cssH * 0.4 - HM * view.s)); }
+function zoomAt(px, py, f) { const [wx, wy] = screenToWorld(px, py); view.s *= f; clampView(); view.tx = px - wx * view.s; view.ty = py - wy * view.s; clampView(); requestDraw(); scheduleTerrain(false); }
+let anim = null;
+function flyTo(la, lo, z) {
+  const [wx, wy] = ll2m(la, lo), S = s0 * z, T = { s: S, tx: cssW / 2 - wx * S, ty: cssH / 2 - wy * S }, F = { ...view }, t0 = performance.now();
+  cancelAnimationFrame(anim);
+  const stepF = now => { const t = Math.min(1, (now - t0) / 520), e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const ls = Math.log(F.s) + (Math.log(T.s) - Math.log(F.s)) * e; view.s = Math.exp(ls);
+    const cxF = (cssW / 2 - F.tx) / F.s, cyF = (cssH / 2 - F.ty) / F.s, cxT = wx, cyT = wy, cx = cxF + (cxT - cxF) * e, cy = cyF + (cyT - cyF) * e;
+    view.tx = cssW / 2 - cx * view.s; view.ty = cssH / 2 - cy * view.s; requestDraw();
+    if (t < 1) anim = requestAnimationFrame(stepF); else scheduleTerrain(true), requestDraw(); };
+  anim = requestAnimationFrame(stepF);
+}
+function hitUnit(x, y) {
+  for (let i = unitHits.length - 1; i >= 0; i--) { const h = unitHits[i];
+    if (h.kind === 'circle') { if (Math.hypot(x - h.x, y - h.y) <= h.r) return h.u; }
+    else { let ins = false; const p = h.pts; for (let a = 0, b = p.length - 1; a < p.length; b = a++) { if ((p[a][1] > y) !== (p[b][1] > y) && x < (p[b][0] - p[a][0]) * (y - p[a][1]) / (p[b][1] - p[a][1]) + p[a][0]) ins = !ins; } if (ins) return h.u;
+      // generous margin for thin blocks
+      const cx = p.reduce((s, q) => s + q[0], 0) / 4, cy = p.reduce((s, q) => s + q[1], 0) / 4; if (Math.hypot(x - cx, y - cy) < 5) return h.u; } }
+  return null;
+}
+function hitOff(x, y) { for (const h of offHits) if (Math.hypot(x - h.x, y - h.y) < h.r) return h.o; return null; }
+function showTip(html, x, y) { tip.innerHTML = html; tip.hidden = false; const tw = tip.offsetWidth, th = tip.offsetHeight; let lx = x + 16, ly = y + 14; if (lx + tw > cssW - 6) lx = x - tw - 14; if (ly + th > cssH - 6) ly = y - th - 12; tip.style.left = Math.max(6, lx) + 'px'; tip.style.top = Math.max(6, ly) + 'px'; }
+function readGround(x, y) {
+  const [wx, wy] = screenToWorld(x, y);
+  if (wx < 0 || wy < 0 || wx > WM || wy > HM) { status.textContent = 'Off the sheet.'; return; }
+  const [la, lo] = m2ll(wx, wy), ob = obstacleAt(wx, wy);
+  status.textContent = `${la.toFixed(4)}°N ${lo.toFixed(4)}°E · ground ${hAt(wx, wy).toFixed(1)} m (±2) · slope ${slopeDegAt(wx, wy).toFixed(1)}° · ${whereIs(wx, wy)}${ob[0] ? ' · in ' + (ob[1] === 'wood' ? ob[2] : ob[1] === 'building' ? 'the buildings of ' + ob[2] : ob[2]) : ''}`;
+}
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, [e.offsetX, e.offsetY]);
+  if (pointers.size === 1) { dragStart = { x: e.offsetX, y: e.offsetY, tx: view.tx, ty: view.ty }; moved = false; }
+  if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), s: view.s, cx: (a[0] + b[0]) / 2, cy: (a[1] + b[1]) / 2, w: screenToWorld((a[0] + b[0]) / 2, (a[1] + b[1]) / 2) }; moved = true; }
+});
+canvas.addEventListener('pointermove', e => {
+  const x = e.offsetX, y = e.offsetY;
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId, [x, y]);
+  if (pinch && pointers.size === 2) { const [a, b] = [...pointers.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2; view.s = pinch.s * d / pinch.d; clampView(); view.tx = cx - pinch.w[0] * view.s; view.ty = cy - pinch.w[1] * view.s; clampView(); requestDraw(); scheduleTerrain(false); return; }
+  if (dragStart && pointers.size === 1) {
+    const dx = x - dragStart.x, dy = y - dragStart.y;
+    if (!moved && Math.hypot(dx, dy) > 5) { moved = true; canvas.classList.add('pan'); tip.hidden = true; }
+    if (moved) { view.tx = dragStart.tx + dx; view.ty = dragStart.ty + dy; clampView(); requestDraw(); scheduleTerrain(false); return; }
+  }
+  if (e.pointerType === 'mouse') {
+    readGround(x, y);
+    const u = hitUnit(x, y), o = u ? null : hitOff(x, y);
+    if (u) showTip(unitHTML(u, false), x, y); else if (o) showTip(`<b>${o.title}</b><div>${o.text}</div><div class="conf">Off the sheet at 11:00</div>`, x, y); else tip.hidden = true;
+    if (mode === 'sight' && sight && sight.pending) { /* preview */ }
+  }
+});
+function endPointer(e) {
+  const wasMoved = moved; pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinch = null;
+  if (pointers.size === 1) { const [q] = [...pointers.values()]; dragStart = { x: q[0], y: q[1], tx: view.tx, ty: view.ty }; }
+  if (pointers.size === 0) { canvas.classList.remove('pan'); dragStart = null; if (wasMoved) { scheduleTerrain(true); requestDraw(); } else if (e.type === 'pointerup') click(e.offsetX, e.offsetY, e.pointerType); }
+}
+canvas.addEventListener('pointerup', endPointer); canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('pointerleave', () => { tip.hidden = true; });
+canvas.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.offsetX, e.offsetY, Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0016))); }, { passive: false });
+canvas.addEventListener('dblclick', e => { if (mode === 'inspect') zoomAt(e.offsetX, e.offsetY, 1.8); });
+function click(x, y, ptype) {
+  const W = screenToWorld(x, y);
+  if (mode === 'inspect') {
+    const u = hitUnit(x, y), o = u ? null : hitOff(x, y);
+    selectUnit(u); readGround(x, y);
+    if (ptype !== 'mouse') { if (u) showTip(unitHTML(u, false), x, y); else if (o) showTip(`<b>${o.title}</b><div>${o.text}</div>`, x, y); else tip.hidden = true; }
+    return;
+  }
+  if (W[0] < 0 || W[1] < 0 || W[0] > WM || W[1] > HM) return;
+  if (mode === 'sight') {
+    if (!sight || !sight.pending) { sight = { pending: true, A: W }; setHint('Now click the point to look at.'); }
+    else { sight = computeSight(sight.A, W); reportSight(); setHint('Click to start a new sight line.'); }
+    requestDraw();
+  } else if (mode === 'view') { runViewshed(W); }
+}
+function runViewshed(W, label) {
+  vsObs = W; const r = computeViewshed(W); viewshedImg = r; requestDraw();
+  const [la, lo] = m2ll(W[0], W[1]);
+  document.getElementById('result').innerHTML = `<div class="verdict">${label || 'Dead ground from ' + place(W[0], W[1])}</div>
+    <p>Observer at ${hAt(W[0], W[1]).toFixed(0)} m, eye ${eyeH()} m up. The shaded ground hides ${document.getElementById('tgt').selectedOptions[0].text.split(' · ')[0].toLowerCase()}. About <b>${Math.round(r.frac * 100)}%</b> of the sheet is in view. Rings are at 1 km intervals.</p>
+    <p class="small">${la.toFixed(4)}°N ${lo.toFixed(4)}°E. Haze, rain and powder smoke would cut this down a lot in the game.</p>`;
+}
+function reportSight() {
+  const s = sight, km = s.L >= 1000 ? (s.L / 1000).toFixed(2) + ' km' : Math.round(s.L) + ' m', b = Math.round(bearing(s.B[0] - s.A[0], s.B[1] - s.A[1]));
+  let verdict, why = '';
+  if (s.ok) { verdict = 'In sight'; why = `${document.getElementById('tgt').selectedOptions[0].text.split(' · ')[0]} there would be in view.`; }
+  else { verdict = 'Hidden'; const p = s.blockAt; if (p) why = `The line is cut ${p.d >= 1000 ? (p.d / 1000).toFixed(2) + ' km' : Math.round(p.d) + ' m'} out, ${p.ob ? 'by ' + (p.obk === 'wood' ? p.obn : p.obk === 'building' ? 'the buildings of ' + p.obn : 'the houses of ' + p.obn) : 'by the ground (' + p.gnd.toFixed(1) + ' m)'}, ${whereIs(p.x, p.y)}.`; }
+  const marg = Math.abs(s.minClear), close = isFinite(s.minClear) && marg < 2;
+  const note = !isFinite(s.minClear) ? '' : s.ok ? `The line clears the ground by ${marg.toFixed(1)} m at its closest.` : (marg < 0.1 ? 'The obstruction only just touches the line.' : `The obstruction rises ${marg.toFixed(1)} m above the line.`);
+  document.getElementById('result').innerHTML = `<div class="verdict" style="color:${s.ok ? PAL.ok : PAL.no}">${verdict}${close ? ' (marginal)' : ''} · ${km} · bearing ${b}°</div><p>${why} ${note}${close ? ' That is inside the ±2 m error of the height data, so treat this one as a coin toss.' : ''}</p>${profileSVG(s)}<p class="small">From ${place(s.A[0], s.A[1])} (eye at ${s.h0.toFixed(1)} m) to ${place(s.B[0], s.B[1])}. Earth curvature and refraction included.</p>`;
+}
+function profileSVG(s) {
+  const W = 300, Ht = 120, pr = s.prof; let lo = Infinity, hi = -Infinity;
+  for (const p of pr) { lo = Math.min(lo, p.gnd); hi = Math.max(hi, p.gnd + p.ob); } hi = Math.max(hi, s.h0, s.ht); lo -= 3; hi += 3;
+  const X = d => 8 + d / s.L * (W - 16), Y = h => Ht - 14 - (h - lo) / (hi - lo) * (Ht - 26);
+  let ground = `M${X(0)},${Ht - 14}`; for (const p of pr) ground += `L${X(p.d).toFixed(1)},${Y(p.gnd).toFixed(1)}`; ground += `L${X(s.L)},${Ht - 14}Z`;
+  let obs = ''; for (let i = 1; i < pr.length; i++) if (pr[i].ob) { const p = pr[i]; obs += `<rect x="${X(p.d).toFixed(1)}" y="${Y(p.gnd + p.ob).toFixed(1)}" width="${Math.max(0.8, X(s.L / pr.length) - 8 + 0.4).toFixed(1)}" height="${(Y(p.gnd) - Y(p.gnd + p.ob)).toFixed(1)}" fill="${p.obk === 'wood' ? PAL.wood : PAL.build}" opacity=".75"/>`; }
+  const col = s.ok ? PAL.ok : PAL.no;
+  const bl = s.blockAt ? `<circle cx="${X(s.blockAt.d)}" cy="${Y(s.blockAt.gnd + s.blockAt.ob)}" r="3.5" fill="none" stroke="${PAL.no}" stroke-width="1.5"/>` : '';
+  return `<svg viewBox="0 0 ${W} ${Ht}" role="img" aria-label="Ground profile along the sight line"><path d="${ground}" fill="${PAL.hach}" opacity=".22" stroke="${PAL.hach}" stroke-width="1"/>${obs}<line x1="${X(0)}" y1="${Y(s.h0)}" x2="${X(s.L)}" y2="${Y(s.ht)}" stroke="${col}" stroke-width="1.6" stroke-dasharray="${s.ok ? '' : '4 3'}"/>${bl}<circle cx="${X(0)}" cy="${Y(s.h0)}" r="3" fill="${PAL.ink}"/><circle cx="${X(s.L)}" cy="${Y(s.ht)}" r="3" fill="${col}"/><text x="8" y="${Ht - 2}" font-size="9" fill="${PAL.ink}" font-family="EB Garamond, serif">0</text><text x="${W - 8}" y="${Ht - 2}" font-size="9" fill="${PAL.ink}" text-anchor="end" font-family="EB Garamond, serif">${(s.L / 1000).toFixed(2)} km</text><text x="${W - 8}" y="11" font-size="9" fill="${PAL.ink}" text-anchor="end" font-family="EB Garamond, serif">${lo.toFixed(0)}–${hi.toFixed(0)} m, vertical ×${Math.max(1, Math.round((s.L / (W - 16)) / ((hi - lo) / (Ht - 26))))}</text></svg>`;
+}
+function setHint(t) { if (t) { hint.textContent = t; hint.hidden = false; } else hint.hidden = true; }
+function selectUnit(u) {
+  selected = u; const d = document.getElementById('unitDetails');
+  if (u) { d.hidden = false; d.open = true; document.getElementById('unitcard').innerHTML = unitHTML(u, true); } else d.hidden = true;
+  requestDraw();
+}
+document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+  mode = b.dataset.mode; document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+  canvas.classList.toggle('tool', mode !== 'inspect');
+  if (mode === 'sight') { viewshedImg = null; sight = null; setHint('Click where the observer stands.'); }
+  else if (mode === 'view') { sight = null; setHint('Click where the observer stands.'); }
+  else { setHint(null); }
+  requestDraw();
+}));
+['eye', 'tgt'].forEach(id => document.getElementById(id).addEventListener('change', () => { if (sight && !sight.pending) { sight = computeSight(sight.A, sight.B); reportSight(); } if (viewshedImg) runViewshed(vsObs); requestDraw(); }));
+const PRESETS = [
+  ['From Rossomme', 50.65675, 4.41333, "Napoleon's view from Rossomme"],
+  ['From the elm', 50.6801611, 4.4116889, "Wellington's view from the elm"],
+  ['From La Belle Alliance', 50.668333, 4.413611, 'The view from La Belle Alliance'],
+  ['From the Bois de Paris', 50.6735, 4.4520, 'What Bülow sees leaving the Bois de Paris'],
+];
+const pre = document.getElementById('presets');
+for (const [t, la, lo, lab] of PRESETS) { const b = document.createElement('button'); b.textContent = t; b.addEventListener('click', () => { const vb = document.querySelector('.seg button[data-mode="view"]'); if (mode !== 'view') vb.click(); setHint(null); runViewshed(ll2m(la, lo), lab); }); pre.appendChild(b); }
+{ const b = document.createElement('button'); b.textContent = 'Clear'; b.addEventListener('click', () => { sight = null; viewshedImg = null; document.getElementById('result').innerHTML = '<p class="small">Cleared.</p>'; requestDraw(); }); pre.appendChild(b); }
+document.getElementById('zin').addEventListener('click', () => zoomAt(cssW / 2, cssH / 2, 1.6));
+document.getElementById('zout').addEventListener('click', () => zoomAt(cssW / 2, cssH / 2, 1 / 1.6));
+document.getElementById('zfit').addEventListener('click', () => { fitView(); scheduleTerrain(true); requestDraw(); });
+window.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('select,input,textarea')) return;
+  if (e.key === '+' || e.key === '=') zoomAt(cssW / 2, cssH / 2, 1.4); else if (e.key === '-') zoomAt(cssW / 2, cssH / 2, 1 / 1.4);
+  else if (e.key.startsWith('Arrow')) { const d = 60; if (e.key === 'ArrowLeft') view.tx += d; if (e.key === 'ArrowRight') view.tx -= d; if (e.key === 'ArrowUp') view.ty += d; if (e.key === 'ArrowDown') view.ty -= d; clampView(); requestDraw(); scheduleTerrain(false); }
+  else if (e.key === 'Escape') { selectUnit(null); tip.hidden = true; }
+});
+
+/* ================= panel ================= */
+const CHECKS = [
+  ['Allied right', 'Hougoumont, the Guards, Clinton behind them, Mitchell on the Nivelles road', 50.6765, 4.3920, 3.2],
+  ['Allied centre', 'La Haye Sainte, the sandpit, Alten west of the road, Picton and Bylandt east of it', 50.6805, 4.4135, 3.8],
+  ['Allied left', 'Papelotte, La Haye, Smohain and Frischermont outposts; Vandeleur and Vivian', 50.6815, 4.4380, 3.2],
+  ['French line', "d'Erlon along the track toward La Haye, Reille west of La Belle Alliance, the cavalry corps behind", 50.6690, 4.4180, 2.4],
+  ['Grand battery', 'Two candidate sites for the guns Napoleon orders massed at 11:00', 50.6728, 4.4225, 3.4, 'debated'],
+  ['Guard and reserves', 'The Guard astride the chaussée at Rossomme; VI Corps and the light cavalry behind La Belle Alliance', 50.6600, 4.4150, 3.0],
+  ['East flank', 'The Bois de Paris, the Lasne valley and the road Bülow must come by', 50.6760, 4.4700, 2.0],
+];
+const ul = document.getElementById('checks');
+for (const [t, d, la, lo, z, lay] of CHECKS) { const li = document.createElement('li'), b = document.createElement('button'); b.innerHTML = `<b>${t}</b><span>${d}</span>`; b.addEventListener('click', () => { if (lay && !layers[lay]) { layers[lay] = true; document.querySelector(`[data-layer="${lay}"]`).checked = true; } flyTo(la, lo, z); }); li.appendChild(b); ul.appendChild(li); }
+const LAYERDEFS = [['tint', 'Height tint'], ['hach', 'Hachures'], ['contours', 'Contours'], ['woods', 'Woods'], ['water', 'Brooks'], ['roads', 'Roads & farms'], ['units', 'Troops'], ['ulabels', 'Troop names'], ['halos', 'Uncertainty'], ['debated', 'Debated sites'], ['flags', 'Data flags']];
+const lw = document.getElementById('layers');
+for (const [k, t] of LAYERDEFS) { const l = document.createElement('label'), i = document.createElement('input'); i.type = 'checkbox'; i.checked = layers[k]; i.dataset.layer = k; i.addEventListener('change', () => { layers[k] = i.checked; if (['tint', 'hach', 'contours', 'woods', 'water'].includes(k)) scheduleTerrain(true); requestDraw(); }); l.append(i, document.createTextNode(t)); lw.appendChild(l); }
+function forcesTable() {
+  const sum = (side, type) => UNITS.filter(u => u.side === side && u.type === type).reduce((a, u) => a + u.str, 0);
+  const row = (lab, side) => { const inf = sum(side, 'inf') + sum(side, 'gar'), cav = sum(side, 'cav'), gun = sum(side, 'art'); return `<tr><td>${lab}</td><td>${fmt(inf)}</td><td>${fmt(cav)}</td><td>${gun}</td></tr>`; };
+  document.getElementById('forces').innerHTML = `<table class="forces"><thead><tr><th></th><th>Infantry</th><th>Cavalry</th><th>Guns</th></tr></thead><tbody>${row('<span class="dot" style="background:var(--m-fr)"></span>French', 'FR')}${row('<span class="dot" style="background:var(--m-al)"></span>Anglo-allied', 'AL')}</tbody></table>
+  <p class="small">Gunners, engineers and staff aren't counted. French horse batteries (≈54 guns) travel with their cavalry divisions and aren't drawn. Allied artillery placements are estimates.</p>
+  <p class="small"><span class="dot" style="background:var(--m-pr)"></span><b>Prussians:</b> none on the sheet at 11:00. Bülow's van is near Chapelle-Saint-Lambert, just past the east edge. The edge arrows mark Bülow, Pirch, Zieten, Prince Frederik's force at Hal, and Grouchy.</p>`;
+}
+function legend() {
+  const items = [
+    ['tint', '', 'Ground height, 5 m bands; contours every 5 m, numbered every 10 m'], ['inf', 'FR', 'French infantry brigade, true frontage (front edge heavier)'], ['inf', 'AL', 'Anglo-allied infantry brigade'], ['cav', 'FR', 'Cavalry brigade (hatched)'],
+    ['art', 'AL', 'Battery; dots are guns'], ['gar', 'AL', 'Garrison in a farm or village'], ['halo', 'AL', 'How far I would trust a position'],
+    ['deb', '', 'Debated site'], ['flag', '', 'Approximate feature or data flag'], ['chaus', '', 'Paved chaussée'], ['lane', '', 'Lane; ticked where sunken'], ['hedge', '', 'Hedge'], ['build', '', 'Farm buildings (surveyed points)'],
+  ];
+  const L = document.getElementById('legend'); L.innerHTML = '';
+  for (const [k, side, t] of items) {
+    const c = document.createElement('canvas'); c.width = 68; c.height = 36; const g = c.getContext('2d'); g.scale(2, 2); g.fillStyle = PAL.paper; g.fillRect(0, 0, 34, 18);
+    const col = side ? sideColor(side) : PAL.ink;
+    if (k === 'tint') { for (let i = 0; i < 17; i++) { const c = bandColor(85 + i * 5); g.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`; g.fillRect(i * 2, 3, 2.2, 12); } g.strokeStyle = PAL.contour; g.lineWidth = 0.6; g.strokeRect(0, 3, 34, 12); }
+    if (k === 'inf') { g.fillStyle = col; g.fillRect(5, 6, 24, 7); g.fillStyle = PAL.ink; g.fillRect(5, 5, 24, 1.6); }
+    if (k === 'cav') { g.fillStyle = PAL.paper; g.fillRect(5, 5, 24, 8); g.save(); g.beginPath(); g.rect(5, 5, 24, 8); g.clip(); g.strokeStyle = col; g.lineWidth = 1; for (let d = -8; d < 30; d += 3) { g.beginPath(); g.moveTo(5 + d, 13); g.lineTo(13 + d, 5); g.stroke(); } g.restore(); g.strokeStyle = col; g.strokeRect(5, 5, 24, 8); g.fillStyle = PAL.ink; g.fillRect(5, 4.5, 24, 1.4); }
+    if (k === 'art') { g.strokeStyle = col; g.strokeRect(5, 6, 24, 6); g.fillStyle = col; for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(7 + i * 4, 8, 1.1, 0, 7); g.fill(); } }
+    if (k === 'gar') { g.strokeStyle = col; g.lineWidth = 1.6; g.beginPath(); g.arc(17, 9, 6, 0, 7); g.stroke(); g.fillStyle = col; g.fillRect(15, 7, 4, 4); }
+    if (k === 'halo') { g.strokeStyle = col; g.globalAlpha = 0.5; g.setLineDash([1, 2]); g.beginPath(); g.arc(17, 9, 7.5, 0, 7); g.stroke(); g.setLineDash([]); g.globalAlpha = 1; g.fillStyle = col; g.fillRect(12, 7, 10, 4); }
+    if (k === 'deb') { g.strokeStyle = PAL.debate; g.lineWidth = 4; g.setLineDash([5, 4]); g.beginPath(); g.moveTo(3, 9); g.lineTo(31, 9); g.stroke(); }
+    if (k === 'flag') { g.strokeStyle = PAL.flag; g.lineWidth = 1.3; g.setLineDash([1.5, 2.5]); g.beginPath(); g.arc(17, 9, 6.5, 0, 7); g.stroke(); }
+    if (k === 'chaus') { g.strokeStyle = PAL.ink; g.lineWidth = 5; g.beginPath(); g.moveTo(2, 9); g.lineTo(32, 9); g.stroke(); g.strokeStyle = PAL.road; g.lineWidth = 3; g.stroke(); }
+    if (k === 'lane') { g.strokeStyle = PAL.ink; g.lineWidth = 3; g.beginPath(); g.moveTo(2, 9); g.lineTo(32, 9); g.stroke(); g.strokeStyle = PAL.paper; g.lineWidth = 1.4; g.stroke(); g.strokeStyle = PAL.hach; g.lineWidth = 0.8; for (let x = 4; x < 32; x += 4) { g.beginPath(); g.moveTo(x, 5); g.lineTo(x, 3); g.moveTo(x, 13); g.lineTo(x, 15); g.stroke(); } }
+    if (k === 'hedge') { g.strokeStyle = PAL.woodink; g.lineWidth = 2.4; g.lineCap = 'round'; g.setLineDash([0.5, 3.2]); g.beginPath(); g.moveTo(3, 9); g.lineTo(31, 9); g.stroke(); }
+    if (k === 'build') { g.fillStyle = PAL.build; g.fillRect(10, 5, 9, 8); g.fillRect(19, 5, 5, 4); g.strokeStyle = PAL.ink; g.lineWidth = 0.6; g.strokeRect(10, 5, 9, 8); }
+    const sp = document.createElement('span'); sp.textContent = t; L.append(c, sp);
+  }
+}
+
+/* ================= boot ================= */
+function themeChanged() { readPalette(); legend(); scheduleTerrain(true); if (viewshedImg) runViewshed(vsObs); if (sight && !sight.pending) reportSight(); requestDraw(); }
+readPalette(); forcesTable(); legend();
+new ResizeObserver(() => resize()).observe(box);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeChanged);
+new MutationObserver(themeChanged).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+if (document.fonts && document.fonts.load) Promise.all(["13px 'IM Fell English SC'", "italic 12px 'IM Fell English'", "12px 'IM Fell English'", "11px 'EB Garamond'"].map(f => document.fonts.load(f).catch(() => 0))).then(() => requestDraw());
+})();
+</script>

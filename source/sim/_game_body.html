@@ -1,0 +1,191 @@
+<header class="top">
+  <div>
+    <h1>Waterloo <span>· Napoleon’s command</span></h1>
+    <p>You are the Emperor on the morning of 18 June 1815. You see the field from your post and learn the rest from riders. Every order you give is written, carried across the field and passed down before a single brigade moves.</p>
+  </div>
+  <span class="stamp">Release 3</span>
+</header>
+
+<main class="layout">
+  <section class="sheet">
+    <div class="mapbox" id="mapbox">
+      <canvas id="map" role="img" aria-label="Napoleon's staff map of the Waterloo battlefield: his own corps where they last reported, and the enemy where he was last seen."></canvas>
+      <div class="dusk" id="dusk"></div>
+      <div class="cartouche"><b>Bataille de Mont-Saint-Jean</b><div class="clock" id="clock" aria-live="off"></div><i id="cartsub">18 juin 1815 · carte de l’Empereur</i></div>
+      <div class="zoomctl">
+        <button id="zin" aria-label="Zoom in">+</button>
+        <button id="zout" aria-label="Zoom out">−</button>
+        <button id="zfit" aria-label="Show whole sheet">⤢</button>
+      </div>
+      <div class="penctl" id="penctl" role="toolbar" aria-label="Your pencil and glass">
+        <button type="button" id="glassbtn" aria-pressed="false" aria-label="Look through the glass" title="Look through the glass"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 15.5 L15.5 8 L17.5 11.5 L5 19 Z M15.5 8 L20 5.4 L21.8 8.6 L17.5 11.5 M8 17.4 L10 22 M8 17.4 L6 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
+        <button type="button" data-pen="line" aria-pressed="false" aria-label="Draw in pencil" title="Draw in pencil">✎</button>
+        <button type="button" data-pen="note" aria-pressed="false" aria-label="Write a note on the map" title="Write a note on the map"><i>Aa</i></button>
+        <button type="button" data-pen="rub" aria-pressed="false" aria-label="Rub out a mark" title="Rub out a mark">⌫</button>
+      </div>
+      <form class="pennote" id="pennote" hidden><label class="vh" for="pennote-in">Note</label><input id="pennote-in" maxlength="60" placeholder="Write a note" autocomplete="off"><button type="submit">Write</button></form>
+      <div class="glasscap" id="glasscap" hidden aria-live="polite"></div>
+      <div class="modehint" id="modehint" hidden></div>
+      <div class="tip" id="tip" hidden></div>
+      <div class="setup" id="setup">
+        <form class="setupcard" id="setupform">
+          <h2>Take command</h2>
+          <p>Wellington’s army stands on the ridge of Mont-Saint-Jean, astride the Brussels road. Grouchy is away to the east with a third of your army, following the Prussians. The battle begins at 11:00 and ends with the dark, or when an army breaks.</p>
+          <div class="row"><label for="s-scen">Start</label>
+            <select id="s-scen"><option value="1100">11:00, as in 1815: the ground soaked, drying through the day</option><option value="0500">05:00, dawn: the army still coming up, the ground soaked</option><option value="dry">11:00, but dry: what if it had not rained?</option></select></div>
+          <div class="row"><label for="s-hist">History</label>
+            <select id="s-hist"><option value="uncertain">Historical, with uncertainty</option><option value="strict">Strict history</option><option value="open">Open: wider swings</option></select></div>
+          <div class="row"><label for="s-staff">Staff</label>
+            <select id="s-staff"><option value="soult">Soult: orders take 5–15 minutes to write, one rider each</option><option value="berthier">Berthier: 3–8 minutes, two or three riders</option></select></div>
+          <div class="row"><label for="s-sil">Silence</label>
+            <select id="s-sil"><option value="20">The duty officer reports after 20 quiet minutes</option><option value="30">… after 30 quiet minutes</option><option value="45" selected>… after 45 quiet minutes</option><option value="60">… after 60 quiet minutes</option></select></div>
+          <div class="row"><label for="s-map">Your map</label>
+            <select id="s-map"><option value="napoleon">Napoleon’s map: only what he knew (realism)</option><option value="umpire">The umpire’s map: see everything as it happens</option></select></div>
+          <div class="row"><label for="s-stop">Clock</label>
+            <select id="s-stop"><option value="all">Stops for news, gathered over up to 15 minutes (8 for ★)</option><option value="decide">Stops only for dispatches marked ★</option></select></div>
+          <div class="row"><label for="s-seed">Seed</label><input id="s-seed" type="number" min="0" step="1" inputmode="numeric"><button type="button" id="s-rnd">Random</button></div>
+          <button type="submit" class="begin" id="s-go">Begin at 11:00</button>
+          <p class="small">The same seed with the same orders fights the same battle.</p>
+        </form>
+      </div>
+    </div>
+    <div class="runbar" id="runbar">
+      <span class="runtxt" id="runtxt" aria-live="polite"></span>
+      <span class="rideon" id="rideon" hidden><label class="vh" for="r-stop">When to stop the clock</label><select id="r-stop"><option value="all">Stop for news</option><option value="alarm">Stop for !! and ★</option><option value="decide">Stop for ★ only</option></select><label class="vh" for="r-to">Ride on to</label><select id="r-to"></select><button id="r-go" type="button">Ride on</button></span>
+      <button id="readbtn" class="ghost">Read</button>
+      <button id="go" class="primary">Continue</button>
+    </div>
+    <div class="endbox" id="endbox" hidden>
+      <p><b>Fight it out to the end.</b> The clock runs to nightfall without stopping, and you give no more orders. The after-action report follows.</p>
+      <div class="endmodes" id="endmodes" role="radiogroup" aria-label="Who commands from here"></div>
+      <div class="btns"><button id="end-go" type="button" class="primary">Fight it out</button><button id="end-no" type="button">Cancel</button></div>
+    </div>
+    <div class="viewbar" id="viewbar" hidden>
+      <span class="vb-lab">Umpire’s map mode</span>
+      <div class="seg" id="viewseg2" role="group" aria-label="Whose map"><button data-view="napoleon">Your map</button><button data-view="truth">Umpire’s</button><button data-view="compare">Both</button></div>
+    </div>
+    <div class="status" id="status">Drag to pan, scroll or pinch to zoom. Hover or tap a block to see what you know of it.</div>
+  </section>
+
+  <aside class="panel">
+    <details open id="verdictBox" hidden>
+      <summary>The verdict</summary>
+      <div class="body" id="verdict"></div>
+    </details>
+
+    <details open id="dispBox">
+      <summary>Dispatches <span class="count" id="dispcount"></span></summary>
+      <div class="body">
+        <div id="stopcards" class="stopcards"></div>
+        <details class="inner" id="earlierBox"><summary>Earlier dispatches</summary><ol class="inbox" id="inbox"></ol></details>
+      </div>
+    </details>
+
+    <details open id="obBox">
+      <summary>Write an order</summary>
+      <div class="body" id="ob"></div>
+    </details>
+
+    <details open>
+      <summary>Your orders</summary>
+      <div class="body"><div class="otl" id="otl"></div><ol class="orders" id="orders"></ol></div>
+    </details>
+
+    <details open>
+      <summary>Your army, as reported</summary>
+      <div class="body" id="army"></div>
+    </details>
+
+    <details>
+      <summary>The enemy, as you know him</summary>
+      <div class="body" id="enemy"></div>
+    </details>
+
+    <details>
+      <summary>Headquarters and the clock</summary>
+      <div class="body" id="hqbox"></div>
+    </details>
+
+    <details id="umpBox" hidden>
+      <summary>Umpire’s log</summary>
+      <div class="body"><p class="small">What really happened, newest first. Only in umpire’s map mode; nobody in your army knows these things yet.</p><ol class="hiddenlist" id="umplog"></ol></div>
+    </details>
+
+    <details open id="unitDetails" hidden>
+      <summary>Selected</summary>
+      <div class="body unitcard" id="unitcard"></div>
+    </details>
+
+    <details>
+      <summary>Jump to</summary>
+      <div class="body"><div class="sectors" id="sectors"></div></div>
+    </details>
+
+    <details>
+      <summary>Layers</summary>
+      <div class="body"><div class="layers" id="layers"></div></div>
+    </details>
+
+    <details>
+      <summary>Legend</summary>
+      <div class="body"><div class="legend" id="legend"></div></div>
+    </details>
+
+    <details>
+      <summary>How the game works</summary>
+      <div class="body notes">
+        <p><b>Your map is your belief.</b> Your own corps are drawn where they last reported. The enemy is drawn where he was last seen, from your post or in a report, and fades as the news ages; dotted rings show how far moving troops may have gone since. A <b>?</b> marks troops nobody has identified. Nothing on this map comes from the umpire until the battle ends.</p>
+        <p><b>When the clock stops.</b> News reaches you as corps reports, prisoners, the duty officer, guns heard in a new quarter, and things you see from your post: an attack going in, a brigade running, a farm changing hands, a cavalry charge, the enemy wavering. So that riders arriving close together make one stop, the clock runs on for up to 15 minutes after the first news, or 8 minutes after a ★ dispatch, and then stops with everything that has come in. Starred dispatches are the ones that most likely call for a decision: news you did not already have. Beside Continue you can switch to stopping only for ★, or ride on to a time and stop only for ★. You can always stop the clock by hand.</p>
+        <p><b>Orders.</b> Choose who, what and where; you can also say which brigades, how, and on what conditions. Each condition or instruction lowers the order’s clarity (rules doc: one action and one objective score 0.95; each condition costs 0.08, each instruction 0.03, urgency 0.15). A recipient misreads an order with chance (1 − clarity) × (1 − his skill) × 0.5. The order is written by your staff, carried by a rider who can be shot or captured, and passed down by the corps commander in 10–20 minutes. You learn it arrived when he acknowledges it in his next report.</p>
+        <p><b>Orders on the map.</b> While you write an order, the brigades it goes to are picked out and everyone else is dimmed, and a bold violet arrow shows where it sends them. Every order you have sent stays on the map, drawn by how far it has got as far as you know: dashed while you have had no word, long dashes once it is acknowledged, solid once a report shows the brigades doing it, then faded when done. For a move, a dashed outline shows where you expect them to end up; it goes once they report there. Tap an order in your list to find it on the map.</p>
+        <p><b>Letters with several steps.</b> After writing a step, choose “Add a next step for …” to give the same commander a next step in the same letter: bombard Hougoumont, then attack it 45 minutes after the guns open, say. One rider carries the letter and he acknowledges it once. A next step can wait until an earlier one begins or is done, plus a delay you choose. A bombardment “begins” when its guns first fire, not when the order is read: guns that must first move up can take half an hour or more, and if they have not opened 45 minutes after the order was read he takes it as begun. Any order can also wait until a given battery has fired on a given place for so many minutes; only fire on that very place counts, so the preview warns you if no order of yours has those guns firing there. He judges “done” by what his own brigades report, so it can be late. Each extra step lowers clarity by 0.05 and adds 30% to the writing time (my estimates).</p>
+        <p><b>The timeline.</b> Under Your orders, each live order is a row against the clock: written, riding, passed down, waiting on its conditions, and the expected start (◇). Ticks mark acknowledgements and the solid bar starts when a report says they are doing it. A condition you cannot time, such as a farm changing hands, leaves the row open. The order you are drafting shows as well, before you send it.</p>
+        <p><b>Dispatches on the map.</b> Tap a dispatch, or one line of what you saw, to see on the map what it told you: the enemy bodies it reported ringed in orange, your brigades it concerned picked out, dotted arrows for anything that has moved since you last heard of it, farms that changed hands, and for guns or musketry heard, the bearing from your post. Tap it again, or tap open ground, to clear it.</p>
+        <p><b>Tapping the map.</b> Tap one of your brigades to pick out its whole corps and see what you last heard of it and your latest order to it. Tap an enemy body to ring every body known to belong to the same corps. Tap open ground to clear every highlight.</p>
+        <p><b>Two ways to play.</b> On Napoleon’s map (realism) you see only what he knew. On the umpire’s map you also see every brigade where it really is, the riders on the road, the arrivals due off the map and the umpire’s log, and can switch between the two maps or lay one over the other. Orders, riders and reports work the same way in both; only what you can see changes.</p>
+        <p><b>Ney.</b> At the start Marshal Ney commands the whole front line, as he did on the day, and acts on his own judgement. Give him a sector and a goal and he will feed fresh brigades at it; tell him to hand the front back and his own initiatives stop. While his sector includes the cavalry (the whole front, the centre or the left) he may take the reserve cavalry forward on his own if he thinks the enemy is giving way, and once La Haye Sainte is taken he will push what infantry and horse guns he can find at the allied centre. You will see it happen from your post and he explains himself in his next report. To keep a corps out of his hands, order it to hold: brigades you have told to hold stay where they are until another order of yours moves them. Your army panel shows how free his hand is.</p>
+        <p><b>Your post.</b> You start at Rossomme (at Le Caillou if you start at 05:00). Moving forward lets you see more and shortens the riders’ journeys; the knoll by La Haye Sainte is under fire. Your staff can also send an aide to look at a place for you.</p>
+        <p><b>The glass.</b> Tap the telescope beside the map, then a place. The map closes in on it inside the eyepiece: ground you cannot see from your post (behind a crest, in a hollow, under smoke, beyond the day’s light) is shaded, and only what you yourself saw there in the last twenty minutes is ringed. It is worked out from your record and the lie of the land; it never shows you more than your own eyes did, and looking changes nothing.</p>
+        <p><b>Your pencil.</b> ✎ draws on the map with a finger or the mouse (two fingers still pan and zoom), <i>Aa</i> writes a short note where you tap, and ⌫ rubs out the mark you tap. Nothing in the battle reads your marks; your notes go into the after-action report.</p>
+        <p><b>Letters and the staff.</b> Orders go out as the letters Soult’s office wrote, in the Emperor’s name over the major-général’s signature, and reports come in as their writers signed them; switch to plain text under Headquarters. At the stops Soult, Drouot or an aide may speak up. They speak only from what headquarters knows, so, like the real staff, they are sometimes wrong. Nothing they say changes the battle.</p>
+        <p><b>!! on the map.</b> Quick events you see from headquarters (a new or renewed attack, a cavalry charge, a line breaking or running, the enemy close to headquarters) are marked !! in the notices and on the map, where the mark fades over twenty minutes. Click or tap a mark to open its notice. “Stop for !! and ★” beside Continue stops the clock within four minutes of one.</p>
+        <p><b>The map.</b> In the headquarters panel you can change the Emperor’s paper map for a colour map with relief. It shows the same knowledge; only the look changes.</p>
+        <p><b>Fighting it out, and retreating.</b> “To the end…” beside Ride on runs the clock to nightfall with no more stops: the front left to Ney, Napoleon’s own orders from that hour, or no more orders at all. To break off, write to <i>The whole army (general retreat)</i>: each corps commander gets a letter, makes for the high road and marches off toward Charleroi as it arrives, with the Guard or Lobau as rearguard at Rossomme. The enemy sees it within half an hour and follows; Blücher drives for the road. The battle is then judged on what you bring away.</p>
+        <p><b>An army’s nerve.</b> Each army’s will to fight wears down with the men it loses, with brigades seen breaking, and with the day’s great events: a farm lost, the crest taken, the Prussians coming in, the Guard thrown back. An army whose nerve goes breaks, brigade after brigade. You are never shown a number; your staff will tell you when the returns are heavy.</p>
+        <p><b>The end.</b> The battle ends at dark (about 21:30), forty minutes after an army breaks, or once a French retreat has left the field. Then the umpire’s map is opened and you see what really happened, what you were never told, and how your orders fared. Below the map, the after-action report sets the day out hour by hour against what you knew and when, fights your battle again in the background without each of your orders, with the orders that mattered most sent sooner, and with Napoleon’s own orders, and can fight your orders on other days to show how much was the dice. You can go back to any stop and fight on from there.</p>
+        <p><b>The umpire’s review.</b> At the end the umpire lists anything that looks wrong: figures far outside 1815, a farm changing hands again and again, orders that stuck. Tick any turning point that looks wrong to you and add a note, then save it for Claude (on the published page) or copy it to paste into a conversation. It carries your seed, settings and orders, so the same battle can be fought again to see what happened.</p>
+        <p><b>Without a signal.</b> The same game is at <a href="https://darter365.github.io/waterloo/" target="_blank" rel="noopener">darter365.github.io/waterloo</a>. Open it once in Safari (or Chrome), then Share → Add to Home Screen; after that it opens from its icon with no signal, after-action report and all. Reviews made there can be copied, not saved.</p>
+        <p><b>Limits.</b> Not in the game: Grouchy’s wing beyond what his replies tell you, and the night retreat after 21:30. The 05:00 bivouacs and the times the corps come up are estimates. The engine is calibrated against history with Napoleon’s own orders; it is not a prediction of what would happen if you did something different.</p>
+      </div>
+    </details>
+  </aside>
+</main>
+
+<section class="aar" id="aar" hidden aria-labelledby="aar-h">
+  <header class="aar-top"><h2 id="aar-h">After-action report</h2><p id="aar-sum"></p></header>
+  <div class="aar-part">
+    <h3>The day, hour by hour</h3>
+    <p class="small">What really happened, set against what you knew and when. Point at anything for its time.</p>
+    <div class="tscroll aar-chart" id="aar-chart"></div>
+  </div>
+  <div class="aar-part">
+    <h3>What if?</h3>
+    <p class="small">The same battle is fought again in the background with one thing changed: one of your orders left out, the orders that mattered most sent half an hour sooner, or Napoleon’s own orders instead of yours. The dice fall the same way until the change makes a difference; after that the battles go their own way. One re-run is one possible day, not a law.</p>
+    <div id="aar-head"></div>
+    <p class="small" id="aar-prog" aria-live="polite"></p>
+    <div id="aar-check"></div>
+    <div class="tscroll"><table class="forces whatif" id="aar-table"></table></div>
+  </div>
+  <div class="aar-part">
+    <h3>Skill or the dice?</h3>
+    <div id="aar-luck"></div>
+  </div>
+  <div class="aar-part">
+    <h3>The umpire’s review</h3>
+    <div id="aar-review"></div>
+  </div>
+  <div class="aar-part">
+    <h3>Fight it again from a moment</h3>
+    <div id="aar-again"></div>
+  </div>
+</section>

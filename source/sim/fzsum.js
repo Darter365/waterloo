@@ -1,0 +1,3 @@
+const fs=require('fs');let all=[],det={c:0,f:[]};for(const f of fs.readdirSync('.').filter(f=>/^fz_.*\.json$/.test(f))){const r=JSON.parse(fs.readFileSync(f));all=all.concat(r.findings);det.c+=r.determinism.checked;det.f=det.f.concat(r.determinism.failed);}
+const by={};for(const f of all){const k=(f.kind||'-')+' | '+f.what.replace(/-?\d+(\.\d+)?/g,'#');(by[k]=by[k]||[]).push(f.mode+':'+f.scen+':'+f.seed+'@'+f.t);}
+console.log('findings',all.length,'determinism',JSON.stringify(det));for(const [k,v] of Object.entries(by).sort((a,b)=>b[1].length-a[1].length))console.log(String(v.length).padStart(4),k.slice(0,150),'  e.g.',v.slice(0,3).join(' '));
