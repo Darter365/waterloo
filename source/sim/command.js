@@ -281,6 +281,8 @@ function install(E, opts = {}) {
     }
   }
   // Ney acts on his own: the reserve cavalry going forward is seen from any post, and he says why in his next report
+  // (3d) whether a field commander's own strokes are his to make: Ney's, while he commands a front that holds the cavalry and the centre
+  C.fieldFront = (id, sectors) => C.ney.active && sectors.includes(C.ney.sector); // (the command layer has one field commander)
   C.neyInitiative = function (kind, ids) {
     const us = (ids || []).map(id => E.byId[id]).filter(Boolean);
     // name the cavalry as a staff officer would, by corps

@@ -12,6 +12,7 @@
 'use strict';
 const req = n => (typeof require === 'function' ? require(n) : null);
 const AI = () => root.WAI || req('./ai.js');
+const Plans = () => root.WPlans || req('./plans.js');
 const hyp = Math.hypot;
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const DECIDE = 5;            // ticks between a commander's decisions (10 minutes), times his tempo
@@ -31,14 +32,17 @@ function make(opts = {}) {
   const ai = {
     S, generic: true,
     init(E) {
-      E.ai = ai; E.plan = E.plan || { steps: [], done: {} };
+      // embedded: run inside another commander object (ai.js), which owns E.ai, the unit-level behaviour and the plans (3d)
+      if (!opts.embedded) { E.ai = ai; E.plan = E.plan || { steps: [], done: {} }; }
       const sides = opts.sides || E.sideIds;
       for (const sd of E.sides) {
         if (!sides.includes(sd.id)) continue;
         const st = S[sd.id] = { posture: sd.posture || 'defend', reserve: new Set(), fed: {}, reocc: {}, attack: {}, orderObj: {}, prepFrom: null, next: 0, advanced: false, withdrawn: false };
         const mine = E.units.filter(u => u.side === sd.id && u.onMap);
         for (const u of mine) if (!u.task || u.task.kind === 'hold') u.task = { kind: 'hold', since: E.t, lieDown: !!(E.nations[u.nat] || {}).lieDown };
-        if (sd.crest) crestInit(E, sd.id, sd.crest); // a first line behind a crest (battle pack)
+        if (sd.crest) st.crestLine = crestInit(E, sd.id, sd.crest); // a first line behind a crest (battle pack)
+        // (3d) a field commander's strokes are aimed at the enemy's line: the crest of the army named (initiative.charge.lineOf)
+        const ch = sd.initiative && sd.initiative.charge; if (ch && ch.lineOf) { const o = E.sides.find(s => s.id === ch.lineOf); if (o && o.crest) st.chargeLine = crestLine(E, o.crest); }
         // reserves: the corps the battle names, else the third of the foot furthest from the enemy
         const resCorps = sd.reserve || [];
         if (resCorps.length) for (const u of mine) { if (resCorps.includes(u.corps)) st.reserve.add(u.id); }
@@ -51,21 +55,28 @@ function make(opts = {}) {
       return ai;
     },
     tick(E) {
-      AI().unitControl(E);
+      if (!opts.embedded) AI().unitControl(E);
       for (const sd of E.sides) if (S[sd.id] && sd.crest) crestTick(E, sd.id, sd.crest);
+      // (3d) horse behind a crest line watches every tick (Uxbridge's counter-charges); subordinates take their own initiative every tick
+      // (Lobau, Ney), except in a general retreat
+      for (const sd of E.sides) if (S[sd.id] && sd.counter && S[sd.id].crestLine) counterTick(E, sd.id, sd.counter, S[sd.id].crestLine, S[sd.id]);
+      for (const sd of E.sides) if (S[sd.id] && sd.initiative && !E.flags[sd.id.toLowerCase() + 'Withdraw']) {
+        if (sd.initiative.garrison) garrisonTick(E, sd.id, sd.initiative.garrison, S[sd.id]);
+        if (sd.initiative.charge && S[sd.id].chargeLine) chargeTick(E, sd.id, sd.initiative.charge, S[sd.id].chargeLine, S[sd.id]);
+      }
       for (const [side, st] of Object.entries(S)) {
-        const chief = chiefOf(E, side);
+        const chief = chiefOf(E, side), sd = E.sides.find(s => s.id === side);
         if (E.t < st.next) continue;
         st.next = E.t + DECIDE * 2 * (chief ? chief.tempo || 1 : 1);
-        if (!st.withdrawn && E.morale[side] < WITHDRAW_MORALE && !partnerEngaged(E, side)) { withdraw(E, side, st); continue; }
-        upkeep(E, side);
-        if (st.posture === 'attack') attack(E, side, st, chief); else defend(E, side, st, chief);
-        cavalry(E, side, st);
+        if (!sd.withdraw && !st.withdrawn && E.morale[side] < WITHDRAW_MORALE && !partnerEngaged(E, side)) { withdraw(E, side, st); continue; }
+        if (st.posture === 'attack') { upkeep(E, side); attack(E, side, st, chief); } else defend(E, side, st, chief); // (a defender's halted counter-attacks are left to the unit rules, as Wellington's were)
+        if (!sd.counter) cavalry(E, side, st);
       }
-      if (E.plans) E.plans.tick(E);
+      if (E.plans && !opts.embedded) E.plans.tick(E);
     },
     receive(E, o) { AI().apply(E, o); },
     onArrival(E, u) { arrival(E, u, S[u.side]); },
+    onRepulse(E, a, d, tgt) { for (const sd of E.sides) if (S[sd.id] && sd.initiative && sd.initiative.escalate) escalateOnRepulse(E, sd.id, sd.initiative.escalate, a, tgt, S[sd.id]); },
   };
   return ai;
 }
@@ -273,9 +284,19 @@ function guns(E, side, st, main, mine) {
 
 /* ----- defence ----- */
 function defend(E, side, st, chief) {
-  const coal = E.coalition[side], mine = formedOf(E, side);
+  const coal = E.coalition[side], mine = formedOf(E, side), sd = E.sides.find(s => s.id === side);
+  // (3d) a side whose battle pack gives it habits of its own uses them in place of the generic ones (Waterloo's allies: Wellington's)
+  if (sd.feeds) feedTick(E, side, sd.feeds, st);
+  if (sd.sectors && st.crestLine) sectorTick(E, side, sd.sectors, st.crestLine, st);
+  if (sd.reoccupy) reoccupyTick(E, side, sd.reoccupy, st);
+  if (sd.stepBack) stepBackTick(E, side, sd.stepBack, st);
+  if (sd.liaison && st.crestLine) liaisonTick(E, side, sd.liaison, st.crestLine, st);
+  if (sd.shifts) shiftTick(E, side, sd.shifts, st);
+  if (sd.advance) advanceTick(E, side, sd.advance, st);
+  if (sd.withdraw) withdrawTick(E, side, sd.withdraw, st, sd.advance && sd.advance.partner);
+  if (sd.calls) callTick(E, side, sd.calls, st);
   // the garrisons of the places that matter are fed from the nearest foot while they are attacked (decided on the spot)
-  for (const sp of E.sps) {
+  if (!sd.feeds) for (const sp of E.sps) {
     if (!sp.value || sp.holder !== coal) continue;
     const g = E.byId[sp.garrison]; if (!g || !E.formed(g) || g.side !== side) continue;
     const f = st.fed[sp.id] || (st.fed[sp.id] = { n: 0, t: -99 });
@@ -289,7 +310,7 @@ function defend(E, side, st, chief) {
     if (det) { det.detachment = true; E.setTask(det, { kind: 'garrisonGo', sp: sp.id }); det.path = [sp.access[0], sp.access[1]]; f.n++; f.t = E.t; E.logEvent('orders', `${donor.name} sends ${det.str | 0} men into ${sp.name}.`, { side, hidden: true }); }
   }
   // abandoned places in front of the line are taken back if the enemy is not close
-  for (const sp of E.sps) {
+  if (!sd.reoccupy) for (const sp of E.sps) {
     if (!sp.value || sp.holder || sp.secs.every(s => s.burnt)) continue;
     const r = st.reocc[sp.id] || (st.reocc[sp.id] = { n: 0, t: -99 });
     if (r.n >= REOCC_MAX || E.t - r.t < REOCC_EVERY) continue;
@@ -300,7 +321,7 @@ function defend(E, side, st, chief) {
     AI().viaAide(E, chief ? chief.id : null, donor, `the order to re-occupy ${sp.name}`, () => { if (sp.holder) return; const det = E.detach(donor, 300, `re${sp.id}${E.t}${side}`, `${donor.name}'s companies for ${sp.name}`); if (det) { det.detachment = true; E.setTask(det, { kind: 'garrisonGo', sp: sp.id }); det.path = [sp.access[0], sp.access[1]]; } });
   }
   // a sagging part of the line: the nearest reserve comes up behind the weakest unit the enemy is pressing
-  const pressed = mine.filter(u => isFoot(E, u) && !u.detachment && u.task.kind !== 'garrisonGo' && !st.reserve.has(u.id) && (u.coh < 55 || u.str < u.str0 * 0.6) && seen(E, side, 20, c => hyp(c.x - u.x, c.y - u.y) < 500 && c.status !== 'broken').length).sort((a, b) => a.coh - b.coh)[0];
+  const pressed = !sd.sectors && mine.filter(u => isFoot(E, u) && !u.detachment && u.task.kind !== 'garrisonGo' && !st.reserve.has(u.id) && (u.coh < 55 || u.str < u.str0 * 0.6) && seen(E, side, 20, c => hyp(c.x - u.x, c.y - u.y) < 500 && c.status !== 'broken').length).sort((a, b) => a.coh - b.coh)[0];
   if (pressed) {
     const res = [...st.reserve].map(id => E.byId[id]).filter(u => u && E.formed(u) && u.task.kind === 'hold' && u.coh > 50).sort((a, b) => (isHorse(E, a) - isHorse(E, b)) || dist(a, [pressed.x, pressed.y]) - dist(b, [pressed.x, pressed.y]))[0];
     if (res) {
@@ -314,7 +335,7 @@ function defend(E, side, st, chief) {
   // retake a place the enemy took from us (one we held at some time: not one that was his from the start), once his attack there has
   // slackened (none of his foot seen attacking near it); chance by aggression
   st.everHeld = st.everHeld || new Set(); for (const sp of E.sps) if (sp.holder === coal) st.everHeld.add(sp.id);
-  if (chief && E.t - (st.retakeAt ?? -99) > RETAKE_EVERY && E.t < E.light.sunset) {
+  if (!sd.reoccupy && chief && E.t - (st.retakeAt ?? -99) > RETAKE_EVERY && E.t < E.light.sunset) {
     const lost = E.sps.filter(sp => sp.value && sp.holder && sp.holder !== coal && st.everHeld.has(sp.id) && mine.some(u => hyp(u.x - sp.x, u.y - sp.y) < 1500));
     for (const sp of lost) {
       if (seen(E, side, 20, c => hyp(c.x - sp.x, c.y - sp.y) < 700 && c.moving && c.kind === 'inf').length) continue;
@@ -330,7 +351,7 @@ function defend(E, side, st, chief) {
     }
   }
   // the general advance: the enemy is breaking (his army, or six bodies seen running within half an hour)
-  if (!st.advanced) {
+  if (!sd.advance && !st.advanced) {
     const broken = seen(E, side, 30, c => c.status === 'broken').length;
     const foeBreaking = E.sideIds.some(s => E.coalition[s] !== coal && E.flags[s + 'Broken']);
     if (foeBreaking || broken >= ADVANCE_BROKEN) {
@@ -389,6 +410,261 @@ function crestTick(E, side, cfg) {
   }
 }
 
+/* ----- (3d) feeding a garrison from bodies the battle names (battle pack, per side: feeds). Decided on the spot by the generals who can
+   see the place, so it reads the garrison's true state. Each feed: { place, donors: [unit ids, in order of choice], every: minutes
+   between feeds, max: feeds in all, when: { attacked: m (enemy foot this near), below: share of the walls' room, capMax: room counted at
+   most, coh } or { strBelow: men }, donor: { str, coh } (the least a donor keeps), men: { fill, min, max } (to fill this share of the
+   room) or { fixed }, ammo (the newcomers' cartridges), id and name ('{n}' the feed's number, '{donor}' the donor's id or name),
+   says (the log line: '{donor}', '{men}') }. Release 3's Hougoumont and La Haye Sainte feeds are Waterloo's. ----- */
+function feedTick(E, side, feeds, st) {
+  const coal = E.coalition[side], fill = (s, n, d, m) => s.replace('{n}', n).replace('{donor}', d).replace('{men}', m);
+  st.feeds = st.feeds || {};
+  for (const f of feeds) {
+    const sp = E.spById[f.place], g = E.byId[sp.garrison], k = st.feeds[f.place] || (st.feeds[f.place] = { n: 0, t: 0 });
+    if (!g || !E.formed(g) || k.n >= f.max || !(E.t - k.t > f.every)) continue;
+    const w = f.when, cap = sp.secs.filter(s => s.held === coal && !s.burnt).reduce((a, s) => a + s.cap, 0), room = w.capMax ? Math.min(cap, w.capMax) : cap;
+    if (w.strBelow != null) { if (!(g.str < w.strBelow)) continue; }
+    else { const attacked = E.near(g.x, g.y, w.attacked, e => E.isEnemy(g, e) && E.formed(e) && isFoot(E, e)).length > 0; if (!(attacked && (g.str < room * w.below || g.coh < w.coh))) continue; }
+    const d = f.donors.map(id => E.byId[id]).filter(u => u && E.formed(u) && u.str > f.donor.str && (f.donor.coh == null || u.coh > f.donor.coh))[0];
+    if (!d) continue;
+    const men = f.men.fixed != null ? f.men.fixed : clamp(Math.round(room * f.men.fill - g.str), f.men.min, f.men.max);
+    const det = E.detach(d, men, fill(f.id, k.n, d.id, ''), fill(f.name, k.n, d.name, ''));
+    if (!det) continue;
+    if (f.ammo != null) det.ammo = f.ammo;
+    E.setTask(det, { kind: 'garrisonGo', sp: sp.id }); det.path = [sp.access[0], sp.access[1]]; k.n++; k.t = E.t;
+    if (f.says) E.logEvent('orders', fill(f.says, k.n, d.name, det.str | 0), { side, hidden: true });
+  }
+}
+
+/* ----- (3d) the cavalry behind a crest line (battle pack, per side: counter), as Uxbridge handled the allied horse: it falls on enemy foot
+   that has come within near m of the line and is shaken, falling back or halted in a mass (chance per tick: chance x the cavalry chief's
+   aggression, each target once every `every` min), from the horse within reach m that is holding, fresh (wind) and steady (coh); a second
+   heavy brigade goes in beside the first; and on enemy horse blown or shaken on the near side of the line (spent: within near m of it and
+   ahead m beyond its first point, chance per tick), from the first such brigade within reach. Release 3's values are Uxbridge's. ----- */
+function counterTick(E, side, cfg, line, st) {
+  const sd = E.sides.find(s => s.id === side), cc = sd.cavChief && E.leaders[sd.cavChief], agg = cc ? cc.agg : 0.6, poly = AI().polyDist;
+  st.counterCharged = st.counterCharged || {};
+  const mineHorse = c => c.side === side && isHorse(E, c) && E.formed(c) && !c.charge && c.task.kind === 'hold';
+  const targets = E.units.filter(u => E.coalition[u.side] !== E.coalition[side] && isFoot(E, u) && E.formed(u) && poly(u.x, u.y, line) < cfg.near && (u.status !== 'steady' || u.task.kind === 'rally' || u.form === 'mass' && u.halted));
+  for (const tg of targets) {
+    if (st.counterCharged[tg.id] && E.t - st.counterCharged[tg.id] < cfg.every) continue;
+    const cavs = E.units.filter(c => mineHorse(c) && c.wind > cfg.wind && c.coh > cfg.coh && hyp(c.x - tg.x, c.y - tg.y) < cfg.reach).sort((a, b) => hyp(a.x - tg.x, a.y - tg.y) - hyp(b.x - tg.x, b.y - tg.y));
+    if (cavs.length && E.rnd('counter-charge') < cfg.chance * agg) {
+      const c = cavs[0]; E.charge(c, tg, E.cause(`${cc ? cc.name : 'The cavalry'} launched ${c.name} at ${tg.name}`)); st.counterCharged[tg.id] = E.t;
+      E.logEvent('combat', `${c.name} charges ${tg.name}.`, { side, unit: c.id, important: true });
+      if (cfg.second && cavs[1] && cavs[1].cavKind === cfg.second) E.charge(cavs[1], tg); break;
+    }
+  }
+  const sp = cfg.spent; if (!sp) return;
+  const f = E.frontFacing(side) * Math.PI / 180, fw = [Math.round(Math.sin(f) * 1e9) / 1e9, Math.round(-Math.cos(f) * 1e9) / 1e9], o = line[0];
+  for (const fc of E.units.filter(u => E.coalition[u.side] !== E.coalition[side] && isHorse(E, u) && E.formed(u) && poly(u.x, u.y, line) < sp.near && (u.x - o[0]) * fw[0] + (u.y - o[1]) * fw[1] < sp.ahead && (u.wind < sp.wind || u.coh < sp.coh))) {
+    const c = E.units.find(c => mineHorse(c) && c.wind > cfg.wind && c.coh > sp.cohOwn && hyp(c.x - fc.x, c.y - fc.y) < sp.reach);
+    if (c && E.rnd('cavalry counter') < sp.chance) { E.charge(c, fc, E.cause(`${c.name} counter-charged blown enemy horse`)); break; }
+  }
+}
+
+/* ----- (3d) a defender's line in sectors, its reserves brought up behind the sector in most trouble (battle pack, per side: sectors), as
+   Wellington fed his line. Every `every` min the chief scores each sector from what he knows: his first-line bodies' weakness (cohesion
+   under weakAt, by their men; a body gone counts its whole strength) plus the enemy he has seen within foeNear m of the line (men /
+   foeScale); the worst over `threshold` gets the reserve nearest its middle, sent by aide to stand `behind` m behind its weakest body, on
+   the crest with the rest. { bounds: [lat, [lon...]] (the sector edges along a parallel), names, units: [reserve ids], every, threshold,
+   weakAt, foeNear, foeScale, behind, ahead (its place on the crest), midCap (m: where the last sector's middle is taken) } ----- */
+function sectorTick(E, side, cfg, line, st) {
+  if (!(E.t - (st.lastReserve || 0) > cfg.every)) return;
+  const coal = E.coalition[side], ch = chiefOf(E, side), cid = ch ? ch.id : null, A = AI();
+  st.reservesLeft = st.reservesLeft || cfg.units.slice();
+  const xs = cfg.bounds[1].map(lo => E.ll2m(cfg.bounds[0], lo)[0]), edges = [0, ...xs, 99999];
+  const sectors = cfg.names.map((n, i) => ({ n, x0: edges[i], x1: edges[i + 1] }));
+  const foeSeen = (age, pred) => A.known(E, cid, age, c => !!c.side && E.coalition[c.side] !== coal && pred(c));
+  let worst = null, ws = 0;
+  for (const s of sectors) {
+    const mine = E.units.filter(u => u.side === side && isFoot(E, u) && u.onMap && u.task.crest && u.x >= s.x0 && u.x < s.x1);
+    const weak = mine.reduce((a, u) => { const o = A.ownState(E, cid, u); return a + (o.status !== 'broken' && !o.gone ? Math.max(0, cfg.weakAt - o.coh) * o.str / 1000 : u.str0 / 300); }, 0);
+    const foes = foeSeen(30, c => c.x >= s.x0 && c.x < s.x1 && A.polyDist(c.x, c.y, line) < cfg.foeNear).reduce((a, c) => a + c.str, 0);
+    const sc = weak + foes / cfg.foeScale; if (sc > ws) { ws = sc; worst = s; }
+  }
+  if (!worst || !(ws > cfg.threshold)) return;
+  const mid = (worst.x0 + Math.min(worst.x1, cfg.midCap)) / 2;
+  const cand = st.reservesLeft.map(id => E.byId[id]).filter(u => u && E.formed(u) && u.task.kind === 'hold' && !u.task.crest && u.coh > 50).sort((a, b) => Math.abs(a.x - mid) - Math.abs(b.x - mid));
+  const r = cand[0]; if (!r) return;
+  const first = E.units.filter(u => u.side === side && isFoot(E, u) && u.task.crest && u.x >= worst.x0 && u.x < worst.x1).sort((a, b) => (E.formed(a) ? a.coh : 0) - (E.formed(b) ? b.coh : 0))[0];
+  const f = E.frontFacing(side) * Math.PI / 180, fw = [Math.round(Math.sin(f) * 1e9) / 1e9, Math.round(-Math.cos(f) * 1e9) / 1e9];
+  const spot = first ? [first.task.res[0] - fw[0] * cfg.behind, first.task.res[1] - fw[1] * cfg.behind] : [r.x, r.y];
+  const q = A.nearestOnPoly(spot[0], spot[1], line);
+  st.lastReserve = E.t; st.reservesLeft = st.reservesLeft.filter(id => id !== r.id); const wn = worst.n, face = E.frontFacing(side);
+  A.viaAide(E, cid, r, `${ch ? ch.name : 'The chief'}'s order to ${r.name}`, () => {
+    E.setTask(r, { kind: 'move', dest: spot, then: { kind: 'hold', lieDown: true, crest: q ? [q[0] + fw[0] * cfg.ahead, q[1] + fw[1] * cfg.ahead] : null, res: spot, resFacing: face } });
+    E.routeTo(r, spot, true);
+    E.logEvent('orders', `${ch ? ch.name : 'The chief'} brings ${r.name} up behind the ${wn}.`, { side, hidden: true });
+  });
+}
+/* ----- (3d) farms in front of a line taken back when they stand empty (battle pack, per side: reoccupy): { places, every, max, near (m: no
+   enemy seen this near in 20 min; nearTrue without the command layer), donor: { str, coh, within }, men, menAt: { place: men } } ----- */
+function reoccupyTick(E, side, cfg, st) {
+  const coal = E.coalition[side], ch = chiefOf(E, side), cid = ch ? ch.id : null, A = AI();
+  st.reocc = st.reocc || {};
+  for (const id of cfg.places) {
+    const sp = E.spById[id], r = st.reocc[id] || (st.reocc[id] = { t: 0, n: 0 });
+    if (sp.holder || r.t && E.t - r.t < cfg.every || r.n >= cfg.max) continue;
+    if (E.command ? A.known(E, cid, 20, c => !!c.side && E.coalition[c.side] !== coal && hyp(c.x - sp.x, c.y - sp.y) < cfg.near && c.status !== 'broken').length : E.near(sp.x, sp.y, cfg.nearTrue, e => E.coalition[e.side] !== coal && E.formed(e)).length) continue;
+    const donor = E.units.filter(u => u.side === side && isFoot(E, u) && E.formed(u) && u.str > cfg.donor.str && u.coh > cfg.donor.coh && hyp(u.x - sp.x, u.y - sp.y) < cfg.donor.within).sort((a, b) => hyp(a.x - sp.x, a.y - sp.y) - hyp(b.x - sp.x, b.y - sp.y))[0];
+    if (donor && !sp.secs.every(s => s.burnt)) { r.t = E.t; r.n++; const tt = E.t; A.viaAide(E, cid, donor, `${ch ? ch.name : 'The chief'}'s order to re-occupy ${sp.name}`, () => { if (sp.holder) return; const det = E.detach(donor, (cfg.menAt || {})[id] ?? cfg.men, 're' + id + tt, `${donor.name}'s companies for ${sp.name}`); if (det) { det.detachment = true; E.setTask(det, { kind: 'garrisonGo', sp: id }); det.path = [sp.access[0], sp.access[1]]; } }); }
+  }
+}
+/* ----- (3d) the first line stepped back out of a cannonade (battle pack, per side: stepBack): once, after `after`, when `count` bodies on
+   the crest have taken more than `art` casualties from guns, each is moved `back` m further behind it ----- */
+function stepBackTick(E, side, cfg, st) {
+  if (st.stepBack || !(E.t > Plans().tmin(cfg.after))) return;
+  const hurt = E.units.filter(u => u.side === side && isFoot(E, u) && E.formed(u) && u.task.crest && (u.srcArt || 0) > cfg.art); if (hurt.length < cfg.count) return;
+  const ch = chiefOf(E, side), cid = ch ? ch.id : null, f = E.frontFacing(side) * Math.PI / 180, fw = [Math.round(Math.sin(f) * 1e9) / 1e9, Math.round(-Math.cos(f) * 1e9) / 1e9];
+  st.stepBack = E.t;
+  for (const u of hurt) AI().viaAide(E, cid, u, `${ch ? ch.name : 'The chief'}'s order to ${u.name} to step back`, () => { if (!u.task.res) return; const r = [u.task.res[0] - fw[0] * cfg.back, u.task.res[1] - fw[1] * cfg.back]; u.task.res = r; if (u.task.state !== 'up') { u.path = [r]; u.lying = false; } });
+  E.logEvent('orders', `${ch ? ch.name : 'The chief'} pulls the first line back out of the cannonade.`, { side, hidden: true });
+}
+
+/* ----- (3d) a defender's last moves (battle pack, per side): when an allied army is in the fight (partner: { news, flag }: the chief's
+   news of it with the command layer, the engine's flag without), when to go over to the advance, when to give up the field, forces to
+   call up and horse to shift. Release 3's Wellington. ----- */
+const fwOf = (E, side) => { const f = E.frontFacing(side) * Math.PI / 180; return [Math.round(Math.sin(f) * 1e9) / 1e9, Math.round(-Math.cos(f) * 1e9) / 1e9]; };
+function partnerIn(E, side, p) { if (!p) return false; const ch = chiefOf(E, side), N = AI().news(E, ch ? ch.id : null); return E.command ? !!(N && N[p.news]) : !!E.flags[p.flag]; }
+const enemySides = (E, side) => E.sideIds.filter(s => E.coalition[s] !== E.coalition[side]);
+const foeSeenBy = (E, side) => { const ch = chiefOf(E, side), coal = E.coalition[side]; return (age, pred) => AI().known(E, ch ? ch.id : null, age, c => !!c.side && E.coalition[c.side] !== coal && pred(c)); };
+function goForward(E, side, dist, coh) {
+  const fw = fwOf(E, side);
+  for (const u of E.units) if (u.side === side && E.formed(u) && !u.held && !isGuns(E, u) && u.coh > coh) { const dest = [u.x + fw[0] * dist, u.y + fw[1] * dist]; E.setTask(u, { kind: 'attack', point: dest, attempts: 0, maxAttempts: 1, form: 'columns' }); u.path = [dest]; u.lying = false; }
+}
+// the general advance { after, partner, prestige (a broken body of prestige seen), broken (enemy bodies of `kind` seen running in 30 min), morale
+// (without the command layer: an enemy army this low, or broken), dist, coh, says, followUp: minutes after the enemy begins to draw off, followSays }
+function advanceTick(E, side, cfg, st) {
+  const ch = chiefOf(E, side), seen = foeSeenBy(E, side), inP = cfg.partner ? partnerIn(E, side, cfg.partner) : true, foes = enemySides(E, side);
+  const going = E.command ? ((cfg.prestige && seen(30, c => c.guard && c.status === 'broken').length > 0) || seen(30, c => c.status === 'broken' && c.kind === cfg.kind).length >= cfg.broken) : foes.some(s => E.morale[s] < cfg.morale || E.flags[s + 'Broken']);
+  if (!st.advanced && inP && going && E.t > Plans().tmin(cfg.after)) { st.advanced = true; E.logEvent('orders', cfg.says || `${ch ? ch.name : 'The chief'} orders the general advance.`, { side, important: true }); goForward(E, side, cfg.dist, cfg.coh); }
+  const wk = foes.map(s => E.flags[s.toLowerCase() + 'Withdraw']).find(x => x);
+  if (cfg.followUp != null && !st.advanced && wk && E.t - wk >= cfg.followUp) { st.advanced = true; E.logEvent('orders', cfg.followSays || `${ch ? ch.name : 'The chief'} sees the enemy drawing off and sends his line forward.`, { side, important: true }); goForward(E, side, cfg.dist, cfg.coh); }
+}
+// giving up the field { morale, after, unlessPartner, partner, back (m toward the rear edge), edge (m kept from it), says }
+function withdrawTick(E, side, cfg, st, partnerCfg) {
+  if (st.withdraw || !(E.morale[side] < cfg.morale) || !(E.t > Plans().tmin(cfg.after)) || (cfg.unlessPartner && partnerIn(E, side, partnerCfg))) return;
+  const ch = chiefOf(E, side), sd = E.sides.find(s => s.id === side), W = E.W;
+  st.withdraw = true; E.logEvent('orders', cfg.says || `${ch ? ch.name : 'The chief'} orders the army back.`, { side, important: true });
+  for (const u of E.units.filter(x => x.side === side && E.formed(x))) AI().viaAide(E, ch ? ch.id : null, u, `${ch ? ch.name : 'The chief'}'s order to ${u.name} to withdraw`, () => {
+    if (u.spId && u.held) E.leaveSp(u); // a garrison comes out first: it cannot march while it holds the buildings
+    const b = cfg.back, e = cfg.edge, dest = sd.rear === 'N' ? [u.x, Math.max(e, u.y - b)] : sd.rear === 'S' ? [u.x, Math.min(W.HM - e, u.y + b)] : sd.rear === 'E' ? [Math.min(W.WM - e, u.x + b), u.y] : [Math.max(e, u.x - b), u.y];
+    E.setTask(u, { kind: 'move', dest, then: 'hold' }); E.routeTo(u, dest, true); });
+  E.flags[side.toLowerCase() + 'Withdraw'] = E.t;
+}
+// forces off the field called up when the enemy is seen on a flank { force, when: { west|east: [lat, lon], over: men, age: min }, delay: [min, max], says }
+function callTick(E, side, calls, st) {
+  st.called = st.called || {}; const seen = foeSeenBy(E, side);
+  for (const c of calls) {
+    if (st.called[c.force]) continue;
+    const w = c.when, xw = w.west && E.ll2m(...w.west)[0], xe = w.east && E.ll2m(...w.east)[0];
+    if (!seen(w.age, k => (xw == null || k.x < xw) && (xe == null || k.x > xe) && k.str > w.over).length) continue;
+    st.called[c.force] = true; const base = E.t + E.rnd.range(c.delay[0], c.delay[1], 'force called up');
+    for (const u of E.offmap.filter(o => o.group === c.force)) { u.arriveAt = base + (u.baseArrive || 0); u.marchThen = { kind: 'hold' }; }
+    if (c.says) E.logEvent('orders', c.says, { side, hidden: true });
+  }
+}
+// horse moved when an allied force is known to have come up { when: { friendNear: place, within, age, news, metric }, units, to: [lat, lon], spread, says }
+function shiftTick(E, side, shifts, st) {
+  st.shifted = st.shifted || {}; const ch = chiefOf(E, side), cid = ch ? ch.id : null, N = AI().news(E, cid);
+  shifts.forEach((s, i) => {
+    const w = s.when, sp = E.spById[w.friendNear];
+    const known = E.command ? Object.values(E.command.B[cid].friends).some(f => E.t - f.t < w.age && hyp(f.x - sp.x, f.y - sp.y) < w.within) || (N && N[w.news]) : E.metrics[w.metric];
+    if (!known || st.shifted[i]) return;
+    st.shifted[i] = true;
+    s.units.forEach((id, k) => { const c = E.byId[id]; if (c && E.formed(c) && !c.charge) AI().viaAide(E, cid, c, `${ch ? ch.name : 'The chief'}'s order to ${c.name}`, () => { if (c.charge) return; const dest = E.ll2m(s.to[0], s.to[1]); E.setTask(c, { kind: 'move', dest: [dest[0] + k * s.spread, dest[1]], then: 'hold' }); E.routeTo(c, c.task.dest, true); }); });
+    if (s.says) E.logEvent('orders', s.says, { side, hidden: true });
+  });
+}
+
+/* ----- (3d) a liaison officer with an allied army's chief (battle pack, per side: liaison), as Müffling kept Blücher told: a message when
+   the enemy's main attack is seen coming in (attack: { men moving within `within` m of the line, seen in `age` min }), when the army's
+   morale falls under `danger`, when `place` is lost, and every `every` min; it tells the ally's chief the army's morale (news alMorale),
+   that it is engaged (wellEngaged, once the attack has come) and that the place is lost (lhsLost). Only with the command layer. ----- */
+function liaisonTick(E, side, cfg, line, st) {
+  if (!E.command) return;
+  const ch = chiefOf(E, side), cid = ch ? ch.id : null, seen = foeSeenBy(E, side), A = AI(), t = E.t;
+  const attackSeen = seen(cfg.attack.age, c => cfg.attack.kinds.includes(c.kind) && A.polyDist(c.x, c.y, line) < cfg.attack.within && c.moving).reduce((a, c) => a + c.str, 0) > cfg.attack.men;
+  const lost = A.placeHolder(E, cid, cfg.place) && A.placeHolder(E, cid, cfg.place) !== E.coalition[side];
+  const why = attackSeen && !st.toldAttack ? 'attack' : E.morale[side] < cfg.danger && !st.toldDanger ? 'danger' : lost && !st.toldLost ? 'lost' : t - (st.lastMsg || 0) >= cfg.every ? 'hourly' : null;
+  if (!why) return;
+  if (why === 'attack') st.toldAttack = t; if (why === 'danger') st.toldDanger = t; if (why === 'lost') st.toldLost = t; st.lastMsg = t;
+  const m = E.morale[side], engaged = !!st.toldAttack;
+  E.command.message(cid, cfg.to, `${cfg.label} (${why === 'lost' ? cfg.place : why})`, (B, w) => { B.news.alMorale = { v: m, t: w }; if (engaged && !B.news.wellEngaged) B.news.wellEngaged = w; if (lost) B.news.lhsLost = w; });
+}
+
+/* ----- (3d) subordinates' initiative (battle pack, per side: initiative), as Lobau and Jérôme took it:
+   garrison: a general throws one of his bodies into a place when the enemy he knows of comes within `within` m of it (enemies of `sides`, or
+     unidentified troops more than `unknownEastOf` m east of it) and it has no garrison: { leader, place, within, age, sides, unknownEastOf,
+     units (in order of choice), chance (each tick), says ('{unit}') }
+   escalate: when an attack on a place is thrown back, its general sends the next of his bodies in (chance x his aggression): { place,
+     leader, to (the corps general the order goes through), units, chance, maxAttempts, rideMin, says ('{unit}') } ----- */
+function garrisonTick(E, side, list, st) {
+  st.garrisoned = st.garrisoned || {};
+  list.forEach((g, i) => {
+    const sp = E.spById[g.place], A = AI();
+    const near = E.command ? A.known(E, g.leader, g.age, c => (g.sides.includes(c.side) || (!c.side && c.x > sp.x + g.unknownEastOf)) && c.status !== 'broken' && hyp(c.x - sp.x, c.y - sp.y) < g.within).length > 0
+      : E.units.some(u => g.sides.includes(u.side) && E.formed(u) && hyp(u.x - sp.x, u.y - sp.y) < g.within);
+    if (!near || sp.garrison || st.garrisoned[i]) return;
+    const cand = g.units.map(id => E.byId[id]).find(u => u && E.formed(u) && u.task.kind !== 'garrison');
+    if (cand && E.rnd('initiative') < g.chance) { st.garrisoned[i] = E.t; E.setTask(cand, { kind: 'garrisonGo', sp: sp.id }); E.routeTo(cand, [sp.secs[0].x, sp.secs[0].y], true); if (g.says) E.logEvent('orders', g.says.replace('{unit}', cand.name), { side, hidden: true }); }
+  });
+}
+function escalateOnRepulse(E, side, list, a, tgt, st) {
+  for (const g of list) {
+    if (a.side !== side || !tgt.sp || tgt.sp.id !== g.place) continue;
+    const L = E.leaders[g.leader]; st.repulses = st.repulses || {}; st.repulses[g.place] = (st.repulses[g.place] || 0) + 1;
+    if (E.rnd('escalate') < (L ? L.agg : 0.5) * g.chance) {
+      const next = g.units.map(id => E.byId[id]).find(u => u && E.formed(u) && u.task.kind !== 'attack' && u.task.sp !== g.place);
+      if (next) { E.sendOrder({ id: g.place.slice(0, 4) + '_' + next.id, from: g.leader, to: g.to, kind: 'attack', obj: g.place, units: [next.id], form: 'attack', maxAttempts: g.maxAttempts, direct: true, rideMin: g.rideMin, cause: E.cause(`${L ? L.name : 'Its general'} threw ${next.name} into ${E.spById[g.place].name} after ${a.name} was repulsed`) }); if (g.says) E.logEvent('orders', g.says.replace('{unit}', next.name), { side, hidden: true }); }
+    }
+  }
+}
+
+/* ----- (3d) a field commander's own strokes (battle pack, per side: initiative.charge), as Ney's: while he commands a front (the command
+   layer's fieldFront, when it has one), every `every` ticks after `after` once `flag` is set, he may take enemy bodies seen moving back
+   near the line for a retreat (chance: his initiative x `chance.times`) or lose patience after `patience.after` (his aggression x
+   `patience.times`) and launch his first wave of horse; `after2` min later (unless `block` is set false) a second wave (his aggression x
+   `times`); and once `exploit.place` is his, run guns up beside it and send what foot he can find at the enemy centre. Units held back
+   by the commander-in-chief's own order are left out (the command layer's reserved). ----- */
+function chargeTick(E, side, cfg, line, st) {
+  const A = AI(), g = cfg, L = E.leaders[g.leader], t = E.t, tm = Plans().tmin;
+  const front = !E.command || !E.command.fieldFront || E.command.fieldFront(g.leader, g.front);
+  if (!st.charge1 && front && E.flags[g.flag] && t > tm(g.after) && E.tick % g.every === 0) {
+    const np = E.leaderPos(L), s = g.sees;
+    const seen = A.known(E, g.leader, s.age, c => s.sides.includes(c.side) && (!s.moving || c.moving) && A.polyDist(c.x, c.y, line) < s.nearLine && np && hyp(c.x - np[0], c.y - np[1]) < s.within);
+    if (seen.length && E.rnd('a retreat is misread') < L[g.chance.trait] * g.chance.times) launchWave(E, side, g, g.waves[0], st, 'charge1');
+    else if (t > tm(g.patience.after) && E.rnd('patience') < L[g.patience.trait] * g.patience.times) launchWave(E, side, g, g.waves[0], st, 'charge1');
+  }
+  const x = g.exploit;
+  if (x && !st.exploit && front && A.placeHolder(E, g.leader, x.place) === E.coalition[side] && t < tm(x.before) && E.tick % g.every === 0) {
+    st.exploit = t;
+    const guns = x.guns.filter(id => E.byId[id] && E.formed(E.byId[id]) && !A.reserved(E, E.byId[id])).slice(0, x.gunCount);
+    E.sendOrder({ id: x.gunId, from: g.leader, to: x.to, kind: 'bombard', units: guns, site: x.gunSite, area: x.area, direct: true, rideMin: x.gunRideMin, text: x.gunText });
+    const inf = A.fittest(E, x.foot, x.footCount);
+    if (inf.length) E.sendOrder({ id: x.footId, from: g.leader, to: x.to, kind: 'attack', obj: x.area, units: inf, form: 'attack', maxAttempts: x.maxAttempts, direct: true, rideMin: x.footRideMin, text: x.footText });
+    E.logEvent('orders', x.says, { side, important: true });
+    if (E.command && E.command.neyInitiative) E.command.neyInitiative(x.note, inf.concat(guns));
+  }
+  const w2 = g.waves[1];
+  if (w2 && st.charge1 && !st.charge2 && front && t - st.charge1 > w2.after && E.flags[w2.block] !== false) {
+    if (E.rnd('more cavalry') < L[w2.trait] * w2.times) launchWave(E, side, g, w2, st, 'charge2');
+  }
+}
+function launchWave(E, side, g, w, st, key) {
+  const A = AI(), free = id => !E.byId[id] || !A.reserved(E, E.byId[id]);
+  st[key] = E.t; const ids = w.units.filter(free);
+  if (!ids.length) return; // every one of them held back by the commander-in-chief's order
+  if (w.metric) E.metrics[w.metric] = E.t;
+  const hg = w.guns.filter(free);
+  if (hg.length) E.sendOrder({ from: g.leader, to: w.to, kind: 'bombard', units: hg, site: w.gunSite, area: w.area, direct: true, rideMin: w.gunRideMin });
+  if (E.command && E.command.neyInitiative) E.command.neyInitiative(w.note, ids.filter(id => E.byId[id] && E.formed(E.byId[id])));
+  E.logEvent('orders', w.says, { side, important: true });
+  E.sendOrder({ from: g.leader, to: w.to, kind: 'cavRaid', units: ids, area: w.area, home: E.ll2m(w.home[0], w.home[1]), maxCharges: w.maxCharges, direct: true, rideMin: w.rideMin, cause: E.cause(w.cause) });
+  if (w.rides) E.leaders[g.leader].unit = w.rides;
+}
+
 /* ----- horse: fall on shaken or blown enemies near the line (the cavalry chief's aggression) ----- */
 function cavalry(E, side, st) {
   const sd = E.sides.find(s => s.id === side), cc = sd.cavChief && E.leaders[sd.cavChief] ? E.leaders[sd.cavChief] : chiefOf(E, side), agg = cc ? cc.agg : 0.6;
@@ -425,7 +701,7 @@ function arrival(E, u, st) {
 }
 function groupBy(a, f) { const o = {}; for (const x of a) (o[f(x)] = o[f(x)] || []).push(x); return o; }
 
-const api = { make, crestInit, crestTick, crestLine };
+const api = { make, crestInit, crestTick, crestLine, feedTick, counterTick, sectorTick, reoccupyTick, stepBackTick, advanceTick, withdrawTick, callTick, shiftTick, partnerIn, liaisonTick, garrisonTick, escalateOnRepulse, chargeTick };
 root.WDoctrine = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

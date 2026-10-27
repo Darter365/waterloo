@@ -220,6 +220,21 @@ function validate(id) {
     if (!(s.crest.from || []).length) E(`side ${s.id}: a crest needs from: [roads or a line objective]`);
     for (const id of s.crest.first || []) if (!allUnits.has(id)) E(`side ${s.id}: crest unit "${id}" is not in the order of battle`);
   }
+  // (3d) a side's habits name places, units, forces and leaders that must exist (doctrine.js)
+  const placeIds = new Set((W.STRONGPOINTS || []).map(p => p.id)), forceIds = new Set((W.FORCES || []).map(f => f.group));
+  const needUnits = (s, what, ids) => { for (const id of ids || []) if (!allUnits.has(id)) E(`side ${s.id}: ${what} unit "${id}" is not in the order of battle`); };
+  const needPlace = (s, what, id) => { if (!placeIds.has(id)) E(`side ${s.id}: ${what} place "${id}" is not a strongpoint`); };
+  for (const s of sides) {
+    for (const f of s.feeds || []) { needPlace(s, 'feeds', f.place); needUnits(s, 'feeds', f.donors); }
+    if (s.sectors) { needUnits(s, 'sectors', s.sectors.units); if ((s.sectors.names || []).length !== (s.sectors.bounds || [0, []])[1].length + 1) E(`side ${s.id}: sectors need one more name than bounds`); }
+    for (const id of (s.reoccupy || {}).places || []) needPlace(s, 'reoccupy', id);
+    for (const sh of s.shifts || []) { needUnits(s, 'shifts', sh.units); needPlace(s, 'shifts', sh.when.friendNear); }
+    for (const c of s.calls || []) if (!forceIds.has(c.force)) E(`side ${s.id}: calls force "${c.force}" is not one of the battle's forces`);
+    for (const g of (s.initiative || {}).garrison || []) { needPlace(s, 'initiative', g.place); needUnits(s, 'initiative', g.units); if (!(B.leaders || []).some(l => l.id === g.leader)) E(`side ${s.id}: initiative leader "${g.leader}" is not placed in the battle`); }
+    for (const g of (s.initiative || {}).escalate || []) { needPlace(s, 'initiative', g.place); needUnits(s, 'initiative', g.units); for (const l of [g.leader, g.to]) if (!(B.leaders || []).some(x => x.id === l)) E(`side ${s.id}: initiative leader "${l}" is not placed in the battle`); }
+    if (s.liaison) { if (!(B.leaders || []).some(l => l.id === s.liaison.to)) E(`side ${s.id}: liaison to "${s.liaison.to}", who is not placed in the battle`); needPlace(s, 'liaison', s.liaison.place); }
+    if ((s.feeds || s.sectors || s.counter || s.reoccupy || s.stepBack || s.liaison) && !s.crest && (s.sectors || s.counter || s.stepBack || s.liaison)) E(`side ${s.id}: sectors, counter, stepBack and liaison work from its crest line: give the side a crest`);
+  }
   const wx = B.weather || {};
   if (wx.cohesion0 != null && !num(wx.cohesion0)) E('weather: cohesion0 must be a number');
   if (wx.humidFrom != null && !num(wx.humidFrom)) E('weather: humidFrom must be minutes after midnight');

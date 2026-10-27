@@ -13,7 +13,7 @@ code = ''.join(f'<script id="{sid(f)}">\n' + R(f) + '\n</script>\n' for f in src
 assert '</script' not in ''.join(R(f) for f in srcs) + R('lab/lab.js')
 body = R('lab/body.html').replace('__ENGINE__', eng)
 style = '<style>\n' + R('lab/lab.css') + '</style>\n'
-page = ('<title>Battle lab</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n' + style + body + '\n' + code + '<script>\n' + R('lab/lab.js') + '\n</script>\n')
+page = ('<title>Battle lab</title>\n' + style + body + '\n' + code + '<script>\n' + R('lab/lab.js') + '\n</script>\n')
 out = os.path.join(D, 'lab.html'); open(out, 'w', encoding='utf-8').write(page)
 print('wrote', out, len(page) // 1024, 'KB')
 doc = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'

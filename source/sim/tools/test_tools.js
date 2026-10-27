@@ -44,6 +44,9 @@ broken('t-plan-unit', planEdit(rs => { rs.find(r => r.id === 'hougoumont').spec.
 broken('t-plan-place', planEdit(rs => { rs.find(r => r.id === 'lhs2').when = { place: 'atlantis', holder: 'ours' }; }), /place "atlantis" is not on the map/);
 broken('t-plan-done', planEdit(rs => { rs.find(r => r.id === 'og').when = [{ done: 'ghost', since: 40 }]; }), /no rule "ghost"/);
 broken('t-plan-cond', planEdit(rs => { rs.find(r => r.id === 'lhs2').when = { sunny: true }; }), /unknown condition/);
+broken('t-feed', B => { B.sides = B.sides.map(s => s.id === 'AL' ? { ...s, feeds: [{ ...s.feeds[0], donors: ['nobody'] }] } : s); }, /feeds unit "nobody"/);
+broken('t-call', B => { B.sides = B.sides.map(s => s.id === 'AL' ? { ...s, calls: [{ ...s.calls[0], force: 'atlantis' }] } : s); }, /calls force "atlantis"/);
+broken('t-init', B => { B.sides = B.sides.map(s => s.id === 'FR' ? { ...s, initiative: { garrison: [{ ...s.initiative.garrison[0], leader: 'nobody' }], escalate: [] } } : s); }, /initiative leader "nobody"/);
 broken('t-side-obj', B => { B.sides = B.sides.map(s => s.id === 'FR' ? { ...s, objectives: { atlantis: 2 } } : s); }, /objective "atlantis" is not on the map/);
 // plan conditions read the clock, places and flags (the truth, with no command layer)
 { const En = require('../engine.js'), Pl = require('../plans.js'); require('../ai.js');

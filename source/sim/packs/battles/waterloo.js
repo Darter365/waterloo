@@ -442,12 +442,67 @@ P.register('battle', 'waterloo', { version: '1.0', // (4e) versions start at pha
   // runaway pursuit rallies, toward the coalition's lead army's rear (release 3: French 600, allies 900)
   sides: [
     { id: 'FR', name: 'French', colour: '#2f4f8f', morale0: 80, coalition: 'FR', fatigue0: 25, rallyBack: 600, chief: 'napoleon', rear: 'S', retreat: 'frRetreat', exit: [50.6380, 4.4270], rearguard: [50.65675, 4.41333], posture: 'attack',
+      // (3d) the French generals' own initiative (doctrine.js): Lobau throws a brigade into Plancenoit when the Prussians (or troops he cannot
+      // name east of it) come within 1,600 m and it has no garrison (chance 0.7 a tick, est.); Jérôme sends the next of his brigades into
+      // Hougoumont each time an attack there is thrown back (chance 0.5 x his aggression; release 3)
+      initiative: {
+        garrison: [{ leader: 'lobau', place: 'plancenoit', within: 1600, age: 20, sides: ['PR'], unknownEastOf: -500, units: ['tromelin', 'bony', 'thevenet'], chance: 0.7, says: 'Lobau throws {unit} into Plancenoit.' }],
+        // Ney's strokes (doctrine.js: chargeTick; release 3's values, est.): from 15:20, once d'Erlon's attack has engaged the allies, he takes
+        // allied bodies seen moving back near the crest for a retreat (his initiative x 0.3 every 10 min) or loses patience after 15:45 (his
+        // aggression x 0.08) and leads Milhaud's cuirassiers and the Guard light horse onto the plateau; 40 min later Kellermann and the
+        // Guard heavy horse may follow (aggression x 0.25); once La Haye Sainte is his (before 19:40), horse guns beside it and two brigades
+        // against the centre
+        charge: { leader: 'ney', lineOf: 'AL', front: ['whole', 'centre', 'left'], flag: 'alliedEngaged', after: '15:20', every: 5,
+          sees: { sides: ['AL'], moving: true, nearLine: 450, within: 2500, age: 10 }, chance: { trait: 'ini', times: 0.3 }, patience: { after: '15:45', trait: 'agg', times: 0.08 },
+          waves: [
+            { units: ['dubois', 'travers', 'farine', 'vial', 'gchev', 'glanc'], guns: ['aHMil', 'aHGC'], to: 'milhaud', gunSite: 'cavGunSite', area: 'ridgeWest', home: [50.6745, 4.4040], maxCharges: 7, rideMin: 3, gunRideMin: 3,
+              metric: 'neyCav', rides: 'farine', note: 'cavalry', says: 'Ney thinks he sees the Allies falling back over the crest and leads the cuirassiers forward.', cause: 'Ney misread a retreat on the ridge' },
+            { after: 40, block: 'allowKellermann', trait: 'agg', times: 0.25, units: ['picquet', 'guiton', 'blanchard', 'donop', 'guyot'], guns: ['aHKel'], to: 'kellermann', gunSite: 'cavGunSite', area: 'ridgeWest', home: [50.6735, 4.4000],
+              maxCharges: 6, rideMin: 5, gunRideMin: 5, note: 'cavalry2', says: "Kellermann's cuirassiers and the Guard heavy cavalry follow Ney onto the plateau.", cause: 'Ney asked for more cavalry' },
+          ],
+          exploit: { place: 'lhs', before: '19:40', to: 'derlon', guns: ['aHMil', 'aHKel', 'aHGC', 'aQuiot', 'aDonz'], gunCount: 3, gunSite: 'lhsGunSite', area: 'ridgeCentre', gunRideMin: 4, gunId: 'neyGuns',
+            gunText: 'Ney runs horse guns up beside La Haye Sainte to batter the allied centre.', foot: ['husson', 'campi', 'nogues', 'grenier', 'schmitz', 'aulard', 'bourgeois', 'charlet', 'gauthier', 'jamin'], footCount: 2,
+            footId: 'neyCentre', footRideMin: 5, maxAttempts: 3, footText: 'Ney sends what infantry he can find against the allied centre.', says: 'With La Haye Sainte taken, Ney presses the allied centre.', note: 'exploit' } },
+        escalate: [{ place: 'hougoumont', leader: 'jerome', to: 'reille', units: ['soye', 'jamin', 'gauthier'], chance: 0.5, maxAttempts: 4, rideMin: 4, says: 'Jérôme commits {unit} to Hougoumont.' }],
+      },
       retreatSays: 'The French army begins to retreat on Charleroi.' },
     { id: 'AL', name: 'Anglo-allied', colour: '#a8322b', morale0: 70, coalition: 'AL', fatigue0: 15, rallyBack: 900,
       // (3d) Wellington's first line behind the crest of Mont-Saint-Jean: the crest is the lane along it (the Chemin d'Ohain east of the
       // crossroads, the Braine-l'Alleud road west of it); these twelve brigades stand on it when French foot come near (doctrine.js: crest)
       crest: { from: [{ road: "Chemin de Braine-l'Alleud", reverse: true }, { road: "Chemin d'Ohain", slice: [1, 5] }], first: ['byng', 'maitland', 'chalkett', 'kielm', 'ompteda', 'kempt', 'bylandt', 'pack', 'best', 'vincke', 'bernhard', 'mitchell'],
-        ahead: 15, up: 380, horse: 500, quiet: 4, standForm: { GB: 'line', KGL: 'line' }, restForm: { GB: 'twoLines', KGL: 'twoLines' } }, chief: 'wellington', cavChief: 'uxbridge', corps0: 'wellington', rear: 'N', retreat: 'alRetreat', posture: 'defend',
+        ahead: 15, up: 380, horse: 500, quiet: 4, standForm: { GB: 'line', KGL: 'line' }, restForm: { GB: 'twoLines', KGL: 'twoLines' } },
+      // (3d) Uxbridge's horse behind the crest (doctrine.js: counterTick; release 3's values)
+      counter: { near: 380, every: 40, reach: 1300, wind: 60, coh: 50, chance: 0.25, second: 'heavy', spent: { near: 450, ahead: 500, wind: 50, coh: 50, cohOwn: 45, reach: 900, chance: 0.12 } },
+      // (3d) Wellington's line in three sectors split at the Braine-l'Alleud road's bend and the Chemin d'Ohain east of the crossroads; his
+      // reserves go to the one in most trouble every 20 min (doctrine.js: sectorTick; release 3's values, est.)
+      sectors: { bounds: [50.68, [4.403, 4.4215]], names: ['right', 'centre', 'left'], units: ['lambert', 'kruse', 'bruAv', 'bruButlar', 'bruSpecht', 'detmers', 'aubreme', 'adam', 'duplat', 'hhalkett'],
+        every: 20, threshold: 3, weakAt: 55, foeNear: 700, foeScale: 1500, behind: 140, ahead: 15, midCap: 9000 },
+      // the farms in front of the line taken back when they stand empty (doctrine.js: reoccupyTick); the first line pulled 90 m further back
+      // after 15:00 once three of its brigades have suffered from the guns (doctrine.js: stepBackTick)
+      reoccupy: { places: ['lhs', 'sandpit', 'papelotte', 'lahaye', 'smohain', 'hougoumont'], every: 40, max: 2, near: 450, nearTrue: 400, donor: { str: 900, coh: 55, within: 1200 }, men: 300, menAt: { hougoumont: 700 } },
+      stepBack: { after: '15:00', art: 150, count: 3, back: 90 },
+      // (3d) Vivian and Vandeleur ride from the left to the centre once Zieten's men are known to be near Papelotte (doctrine.js: shiftTick)
+      shifts: [{ when: { friendNear: 'papelotte', within: 1500, age: 30, news: 'zieten', metric: 'zietenPapelotte' }, units: ['vivian', 'vandeleur'], to: [50.6850, 4.4040], spread: 250,
+        says: 'With Zieten on the left, Vivian and Vandeleur ride to the centre.' }],
+      // the general advance once the Prussians are known to be in and the French foot are seen going (the Guard thrown back, or six bodies
+      // running in half an hour), not before 17:00; or half an hour after the French begin to draw off (doctrine.js: advanceTick)
+      advance: { after: '17:00', partner: { news: 'prEngaged', flag: 'prEngaged' }, prestige: true, broken: 6, kind: 'inf', morale: 30, dist: 1400, coh: 40, says: 'Wellington raises his hat: the general advance.',
+        followUp: 30, followSays: 'Wellington sees the French drawing off and sends his line forward.' },
+      // back on the Forest of Soignes if the army's morale is under 25 after 19:00 with no Prussians in (doctrine.js: withdrawTick)
+      withdraw: { morale: 25, after: '19:00', unlessPartner: true, back: 2500, edge: 80, says: 'Wellington orders the army back on the Forest of Soignes.' },
+      // Prince Frederik's corps from Hal, 4-6 hours after French troops (over 1,500) are seen west of Braine-l'Alleud (doctrine.js: callTick)
+      calls: [{ force: 'hal', when: { west: [50.68, 4.383], over: 1500, age: 30 }, delay: [240, 360], says: 'Wellington sends for Prince Frederik at Hal.' }],
+      // (3d) Müffling with Blücher: a message when 3,000 French foot are seen moving within 1,100 m of the crest in a quarter hour, when
+      // morale falls under 55, when La Haye Sainte is lost, and hourly (doctrine.js: liaisonTick; release 3, est.)
+      liaison: { to: 'blucher', label: "Müffling's message to Blücher", attack: { kinds: ['inf', 'troops'], within: 1100, men: 3000, age: 15 }, danger: 55, place: 'lhs', every: 60 },
+      // (3d) the farms in front of the line fed from named brigades (doctrine.js: feedTick): Hougoumont down the hollow way from the
+      // Guards and the reserve while it is attacked and short of men (release 3: every 25 min, 7 times at most); La Haye Sainte from
+      // Ompteda's, Kielmansegge's or Kruse's men when its garrison is under 300 (twice at most, with fresh cartridges)
+      feeds: [
+        { place: 'hougoumont', donors: ['byng', 'maitland', 'duplat', 'hhalkett', 'bruAv', 'bruButlar'], every: 25, max: 7, when: { attacked: 600, below: 0.6, capMax: 2200, coh: 45 },
+          donor: { str: 900, coh: 45 }, men: { fill: 0.8, min: 300, max: 700 }, id: 'feed{n}{donor}', name: "{donor}'s battalion for Hougoumont", says: '{donor} sends {men} men down the hollow way into Hougoumont.' },
+        { place: 'lhs', donors: ['ompteda', 'kielm', 'kruse'], every: 30, max: 2, when: { strBelow: 300 }, donor: { str: 700 }, men: { fixed: 220 }, ammo: 50, id: 'lhsfeed{n}', name: 'Companies of {donor} for La Haye Sainte' },
+      ], chief: 'wellington', cavChief: 'uxbridge', corps0: 'wellington', rear: 'N', retreat: 'alRetreat', posture: 'defend',
       // the rifle cartridges for La Haye Sainte's garrison (Baker rifles take their own): where the wagon is is a hidden roll (est.; 5e:
       // near 0.4, far 0.3 from 16:00); the garrison ran out in 1815
       wagons: { rifle: { roll: 'rifle wagon', near: 0.25, far: 0.35, farFrom: 1050,

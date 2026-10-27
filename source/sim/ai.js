@@ -216,147 +216,10 @@ function unitControl(E) {
   }
 }
 
-/* ===================== Wellington ===================== */
-function allies(E) { return E.units.filter(u => u.side === 'AL' && E.formed(u)); }
-function wellingtonInit(E, S) {
-  // first-line infantry hold behind the crest, lying down when bombarded; reserves hold. (3d) The crest and the first line are the battle
-  // pack's (side AL: crest), and the habit is the generic doctrine's (doctrine.js: crestInit, crestTick)
-  const cfg = E.sides.find(s => s.id === 'AL').crest;
-  for (const u of E.units) {
-    if (u.side !== 'AL' || !u.onMap) continue;
-    if (u.type === 'inf') u.task = { kind: 'hold', lieDown: true, crest: null, res: [u.x, u.y], resFacing: u.facing, resForm: u.form, since: E.t };
-    else if (u.type === 'art') u.task = { kind: 'hold', since: E.t };
-    else if (u.type === 'cav') u.task = { kind: 'hold', since: E.t, home: [u.x, u.y] };
-  }
-  S.crestLine = Doc().crestInit(E, 'AL', cfg); S.crestCfg = cfg;
-  S.reserves = ['lambert', 'kruse', 'bruAv', 'bruButlar', 'bruSpecht', 'detmers', 'aubreme', 'adam', 'duplat', 'hhalkett'];
-  S.hougFeeds = 0; S.lhsFeeds = 0; S.lastFeed = 0; S.lastReserve = 0; S.counterCharged = {};
-}
-function wellingtonUnits(E, S) {
-  // crest behaviour every tick: stand up and come forward when enemy foot approach the crest (the generic doctrine's crest habit)
-  Doc().crestTick(E, 'AL', S.crestCfg);
-}
-function wellington(E, S) {
-  const t = E.t, W = E.leaders.wellington, crest = S.crestLine, N = news(E, 'wellington');
-  const frSeen = (maxAge, pred) => known(E, 'wellington', maxAge, c => c.side === 'FR' && (!pred || pred(c)));
-  // feed Hougoumont through the hollow way. This was decided on the spot by Byng and Cooke, who could see the farm,
-  // not by Wellington from the elm, so it reads the garrison's true state, as a local reaction (rules doc: subordinates react locally).
-  const hg = E.byId[E.spById.hougoumont.garrison];
-  if (hg && E.formed(hg) && t - S.lastFeed > 25 && S.hougFeeds < 7) {
-    const cap = E.spById.hougoumont.secs.filter(s => s.held === 'AL' && !s.burnt).reduce((a, s) => a + s.cap, 0);
-    const attacked = E.near(hg.x, hg.y, 600, e => e.side === 'FR' && E.formed(e) && e.type === 'inf').length > 0;
-    if (attacked && (hg.str < Math.min(cap, 2200) * 0.6 || hg.coh < 45)) {
-      const donors = ['byng', 'maitland', 'duplat', 'hhalkett', 'bruAv', 'bruButlar'].map(id => E.byId[id]).filter(u => u && E.formed(u) && u.str > 900 && u.coh > 45);
-      const d = donors[0];
-      if (d) {
-        const men = clamp(Math.round(Math.min(cap, 2200) * 0.8 - hg.str), 300, 700);
-        const det = E.detach(d, men, 'feed' + S.hougFeeds + d.id, `${d.name}'s battalion for Hougoumont`);
-        if (det) { const sp = E.spById.hougoumont; E.setTask(det, { kind: 'garrisonGo', sp: sp.id }); det.path = [sp.access[0], sp.access[1]]; S.hougFeeds++; S.lastFeed = t; E.logEvent('orders', `${d.name} sends ${det.str | 0} men down the hollow way into Hougoumont.`, { side: 'AL', hidden: true }); }
-      }
-    }
-  }
-  // La Haye Sainte reinforcement
-  const lg = E.byId[E.spById.lhs.garrison];
-  if (lg && E.formed(lg) && lg.str < 300 && S.lhsFeeds < 2 && t - (S.lastLhs || 0) > 30) { // decided by Alten and Ompteda on the spot
-    const d = [E.byId.ompteda, E.byId.kielm, E.byId.kruse].find(u => u && E.formed(u) && u.str > 700);
-    if (d) { const det = E.detach(d, 220, 'lhsfeed' + S.lhsFeeds, `Companies of ${d.name} for La Haye Sainte`); if (det) { det.ammo = 50; E.setTask(det, { kind: 'garrisonGo', sp: 'lhs' }); det.path = [E.spById.lhs.access[0], E.spById.lhs.access[1]]; S.lhsFeeds++; S.lastLhs = t; } }
-  }
-  uxbridge(E, S);
-  // reserves to the threatened sector
-  if (t - S.lastReserve > 20) {
-    const sectors = [{ n: 'right', x0: 0, x1: E.ll2m(50.68, 4.403)[0] }, { n: 'centre', x0: E.ll2m(50.68, 4.403)[0], x1: E.ll2m(50.68, 4.4215)[0] }, { n: 'left', x0: E.ll2m(50.68, 4.4215)[0], x1: 99999 }];
-    let worst = null, ws = 0;
-    for (const s of sectors) {
-      const mine = E.units.filter(u => u.side === 'AL' && u.type === 'inf' && u.onMap && u.task.crest && u.x >= s.x0 && u.x < s.x1);
-      const weak = mine.reduce((a, u) => { const o = ownState(E, 'wellington', u); return a + (o.status !== 'broken' && !o.gone ? Math.max(0, 55 - o.coh) * o.str / 1000 : u.str0 / 300); }, 0);
-      const foes = frSeen(30, c => c.x >= s.x0 && c.x < s.x1 && polyDist(c.x, c.y, crest) < 700).reduce((a, c) => a + c.str, 0);
-      const sc = weak + foes / 1500;
-      if (sc > ws) { ws = sc; worst = s; }
-    }
-    if (worst && ws > 3) {
-      const cand = S.reserves.map(id => E.byId[id]).filter(u => u && E.formed(u) && u.task.kind === 'hold' && !u.task.crest && u.coh > 50);
-      cand.sort((a, b) => Math.abs(a.x - (worst.x0 + Math.min(worst.x1, 9000)) / 2) - Math.abs(b.x - (worst.x0 + Math.min(worst.x1, 9000)) / 2));
-      const r = cand[0];
-      if (r) {
-        // take the place of the weakest first-line brigade in that sector, or stand behind it
-        const first = E.units.filter(u => u.side === 'AL' && u.type === 'inf' && u.task.crest && u.x >= worst.x0 && u.x < worst.x1).sort((a, b) => (E.formed(a) ? a.coh : 0) - (E.formed(b) ? b.coh : 0))[0];
-        const spot = first ? [first.task.res[0], first.task.res[1] - 140] : [r.x, r.y];
-        const q = nearestOnPoly(spot[0], spot[1], crest);
-        S.lastReserve = t; S.reserves = S.reserves.filter(id => id !== r.id); const wn = worst.n;
-        viaAide(E, 'wellington', r, `Wellington's order to ${r.name}`, () => {
-          E.setTask(r, { kind: 'move', dest: spot, then: { kind: 'hold', lieDown: true, crest: q ? [q[0], q[1] + 15] : null, res: spot, resFacing: 180 } });
-          E.routeTo(r, spot, true);
-          E.logEvent('orders', `Wellington brings ${r.name} up behind the ${wn}.`, { side: 'AL', hidden: true });
-        });
-      }
-    }
-  }
-  // re-occupy abandoned farms in front of the line if no French are close
-  for (const id of ['lhs', 'sandpit', 'papelotte', 'lahaye', 'smohain', 'hougoumont']) {
-    const sp = E.spById[id]; if (sp.holder || S['reocc_' + id] && t - S['reocc_' + id] < 40 || (S['reoccN_' + id] || 0) >= 2) continue;
-    if (E.command ? frSeen(20, c => hyp(c.x - sp.x, c.y - sp.y) < 450 && c.status !== 'broken').length : E.near(sp.x, sp.y, 400, e => e.side === 'FR' && E.formed(e)).length) continue;
-    const donor = E.units.filter(u => u.side === 'AL' && u.type === 'inf' && E.formed(u) && u.str > 900 && u.coh > 55 && hyp(u.x - sp.x, u.y - sp.y) < 1200).sort((a, b) => hyp(a.x - sp.x, a.y - sp.y) - hyp(b.x - sp.x, b.y - sp.y))[0];
-    if (donor && !sp.secs.every(s => s.burnt)) { S['reocc_' + id] = t; S['reoccN_' + id] = (S['reoccN_' + id] || 0) + 1; const tt = t; viaAide(E, 'wellington', donor, `Wellington's order to re-occupy ${sp.name}`, () => { if (sp.holder) return; const det = E.detach(donor, id === 'hougoumont' ? 700 : 300, 're' + id + tt, `${donor.name}'s companies for ${sp.name}`); if (det) { det.detachment = true; E.setTask(det, { kind: 'garrisonGo', sp: id }); det.path = [sp.access[0], sp.access[1]]; } }); }
-  }
-  if (!S.stepBack && t > 15 * 60) { const hurt = E.units.filter(u => u.side === 'AL' && u.type === 'inf' && E.formed(u) && u.task.crest && (u.srcArt || 0) > 150); if (hurt.length >= 3) { S.stepBack = t; for (const u of hurt) viaAide(E, 'wellington', u, `Wellington's order to ${u.name} to step back`, () => { if (!u.task.res) return; const r = [u.task.res[0], u.task.res[1] - 90]; u.task.res = r; if (u.task.state !== 'up') { u.path = [r]; u.lying = false; } }); E.logEvent('orders', 'Wellington pulls the first line back a hundred paces out of the cannonade.', { side: 'AL', hidden: true }); } }
-  // Müffling's messages to Blücher: when the French main attack comes in, when things go badly, and every hour (est.)
-  if (E.command) {
-    const attackSeen = frSeen(15, c => (c.kind === 'inf' || c.kind === 'troops') && polyDist(c.x, c.y, crest) < 1100 && c.moving).reduce((a, c) => a + c.str, 0) > 3000;
-    const lhsLost = placeHolder(E, 'wellington', 'lhs') === 'FR';
-    const why = attackSeen && !S.toldAttack ? 'attack' : E.morale.AL < 55 && !S.toldDanger ? 'danger' : lhsLost && !S.toldLhs ? 'lhs' : t - (S.lastMsg || 0) >= 60 ? 'hourly' : null;
-    if (why) {
-      if (why === 'attack') S.toldAttack = t; if (why === 'danger') S.toldDanger = t; if (why === 'lhs') S.toldLhs = t; S.lastMsg = t;
-      const m = E.morale.AL, engaged = !!S.toldAttack;
-      E.command.message('wellington', 'blucher', `Müffling's message to Blücher (${why})`, (B, w) => { B.news.alMorale = { v: m, t: w }; if (engaged && !B.news.wellEngaged) B.news.wellEngaged = w; if (lhsLost) B.news.lhsLost = w; });
-    }
-  }
-  // left-wing cavalry moves to the centre once Zieten arrives
-  const zietenKnown = E.command ? Object.values(E.command.B.wellington.friends).some(f => E.t - f.t < 30 && hyp(f.x - E.spById.papelotte.x, f.y - E.spById.papelotte.y) < 1500) || (N && N.zieten) : E.metrics.zietenPapelotte;
-  if (zietenKnown && !S.cavShift) { S.cavShift = true; for (const id of ['vivian', 'vandeleur']) { const c = E.byId[id]; if (c && E.formed(c) && !c.charge) viaAide(E, 'wellington', c, `Wellington's order to ${c.name}`, () => { if (c.charge) return; const dest = E.ll2m(50.6850, 4.4040); E.setTask(c, { kind: 'move', dest: [dest[0] + (id === 'vivian' ? 0 : 250), dest[1]], then: 'hold' }); E.routeTo(c, c.task.dest, true); }); } E.logEvent('orders', 'With Zieten on the left, Vivian and Vandeleur ride to the centre.', { side: 'AL', hidden: true }); }
-  // general advance
-  // the general advance: when he knows the Prussians are in, and sees the French infantry going: the Guard thrown back,
-  // or six bodies of French foot seen running within half an hour (est.). Broken cavalry doesn't count; it rallies.
-  const prIn = E.command ? !!(N && N.prEngaged) : !!E.flags.prEngaged;
-  const frGoing = E.command ? (frSeen(30, c => c.guard && c.status === 'broken').length > 0 || frSeen(30, c => c.status === 'broken' && c.kind === 'inf').length >= 6) : (E.morale.FR < 30 || E.flags.FRBroken);
-  if (!S.advanced && prIn && frGoing && E.t > 17 * 60) {
-    S.advanced = true; E.logEvent('orders', 'Wellington raises his hat: the general advance.', { side: 'AL', important: true });
-    for (const u of allies(E)) if (u.type !== 'gar' && u.type !== 'art' && u.coh > 40) { const dest = [u.x, u.y + 1400]; E.setTask(u, { kind: 'attack', point: dest, attempts: 0, maxAttempts: 1, form: 'columns' }); u.path = [dest]; u.lying = false; }
-  }
-  // (6) the French drawing off in order: about half an hour after the retreat begins he sees their positions emptying (est.) and
-  // sends the line forward to follow up, as he did at 19:30 on the day
-  if (!S.advanced && E.flags.frWithdraw && E.t - E.flags.frWithdraw >= 30) {
-    S.advanced = true; E.logEvent('orders', 'Wellington sees the French drawing off and sends his line forward.', { side: 'AL', important: true });
-    for (const u of allies(E)) if (u.type !== 'gar' && u.type !== 'art' && u.coh > 40) { const dest = [u.x, u.y + 1400]; E.setTask(u, { kind: 'attack', point: dest, attempts: 0, maxAttempts: 1, form: 'columns' }); u.path = [dest]; u.lying = false; }
-  }
-  // withdrawal if the line has gone and no Prussians by 19:00
-  if (!S.withdraw && E.morale.AL < 25 && E.t > 19 * 60 && !prIn) {
-    S.withdraw = true; E.logEvent('orders', 'Wellington orders the army back on the Forest of Soignes.', { side: 'AL', important: true });
-    for (const u of allies(E)) viaAide(E, 'wellington', u, `Wellington's order to ${u.name} to withdraw`, () => { if (u.spId && u.type === 'gar') E.leaveSp(u); /* (8) a garrison comes out first: it cannot march while it holds the buildings, and stood there for good */ const dest = [u.x, Math.max(80, u.y - 2500)]; E.setTask(u, { kind: 'move', dest, then: 'hold' }); E.routeTo(u, dest, true); });
-    E.flags.alWithdraw = E.t;
-  }
-  // call up the Hal force if the French threaten the west flank
-  if (!S.halCalled) { const thr = frSeen(30, c => c.x < E.ll2m(50.68, 4.383)[0] && c.str > 1500).length > 0; if (thr) { S.halCalled = true; const base = E.t + E.rnd.range(240, 360, 'Hal force delay'); for (const u of E.offmap.filter(o => o.group === 'hal')) { u.arriveAt = base + (u.baseArrive || 0); u.marchThen = { kind: 'hold' }; } E.logEvent('orders', 'Wellington sends for Prince Frederik at Hal.', { side: 'AL', hidden: true }); } }
-}
-
-function uxbridge(E, S) {
-  const t = E.t, crest = S.crestLine;
-  // Uxbridge: counter-charge French infantry that has come close and is shaken or tumbling back
-  const targets = E.units.filter(u => u.side === 'FR' && u.type === 'inf' && E.formed(u) && polyDist(u.x, u.y, crest) < 380 && u.y > 0 && (u.status !== 'steady' || u.task.kind === 'rally' || u.form === 'mass' && u.halted));
-  for (const tg of targets) {
-    if (S.counterCharged[tg.id] && t - S.counterCharged[tg.id] < 40) continue;
-    const cavs = E.units.filter(c => c.side === 'AL' && c.type === 'cav' && E.formed(c) && !c.charge && c.wind > 60 && c.coh > 50 && c.task.kind === 'hold' && hyp(c.x - tg.x, c.y - tg.y) < 1300).sort((a, b) => hyp(a.x - tg.x, a.y - tg.y) - hyp(b.x - tg.x, b.y - tg.y));
-    if (cavs.length && E.rnd('Uxbridge counter-charge') < 0.25 * E.leaders.uxbridge.agg) {
-      const c = cavs[0]; E.charge(c, tg, E.cause(`Uxbridge launched ${c.name} at ${tg.name}`)); S.counterCharged[tg.id] = t;
-      E.logEvent('combat', `${c.name} charges ${tg.name}.`, { side: 'AL', unit: c.id, important: true });
-      if (cavs[1] && cavs[1].cavKind === 'heavy') E.charge(cavs[1], tg); break;
-    }
-  }
-  // allied cavalry counter-charge spent French horsemen on the plateau
-  for (const fc of E.units.filter(u => u.side === 'FR' && u.type === 'cav' && E.formed(u) && polyDist(u.x, u.y, crest) < 450 && u.y < crest[0][1] + 500 && (u.wind < 50 || u.coh < 50))) {
-    const c = E.units.find(c => c.side === 'AL' && c.type === 'cav' && E.formed(c) && !c.charge && c.wind > 60 && c.coh > 45 && hyp(c.x - fc.x, c.y - fc.y) < 900 && c.task.kind === 'hold');
-    if (c && E.rnd('allied cavalry counter') < 0.12) { E.charge(c, fc, E.cause(`${c.name} counter-charged blown French cavalry`)); break; }
-  }
-}
+/* ===================== Wellington =====================
+   (3d) Wellington is the generic doctrine (doctrine.js, defend) with his habits and numbers in the Waterloo pack (side AL: crest, feeds,
+   counter, sectors, reoccupy, stepBack, liaison, shifts, advance, withdraw, calls). The reference battles replay exactly with it, as they
+   did with the code it replaced (release 3's wellingtonInit, wellingtonUnits, wellington and uxbridge). */
 
 /* ===================== the Prussians ===================== */
 function prussianInit(E, S) {
@@ -499,80 +362,15 @@ function prussians(E, S) {
 function frenchReactions(E, S) {
   const t = E.t;
   if (E.flags.frWithdraw) return; // (6) in a general retreat nobody starts anything new: no garrisons, no charges, no exploitation
-  // Lobau garrisons Plancenoit when the Prussians close in (initiative)
-  const pl = E.spById.plancenoit;
-  const prNear = E.command ? known(E, 'lobau', 20, c => (c.side === 'PR' || (!c.side && c.x > pl.x - 500)) && c.status !== 'broken' && hyp(c.x - pl.x, c.y - pl.y) < 1600).length > 0 : E.units.some(u => u.side === 'PR' && E.formed(u) && hyp(u.x - pl.x, u.y - pl.y) < 1600);
-  if (prNear && !pl.garrison && !S.lobauGarrison) {
-    const cand = ['tromelin', 'bony', 'thevenet'].map(id => E.byId[id]).find(u => u && E.formed(u) && u.task.kind !== 'garrison');
-    if (cand && E.rnd('Lobau initiative') < 0.7) { S.lobauGarrison = t; E.setTask(cand, { kind: 'garrisonGo', sp: 'plancenoit' }); E.routeTo(cand, [pl.secs[0].x, pl.secs[0].y], true); E.logEvent('orders', `Lobau throws ${cand.name} into Plancenoit.`, { side: 'FR', hidden: true }); }
-  }
+  // Lobau garrisons Plancenoit when the Prussians close in ((3d) the battle pack's initiative, by the generic doctrine's garrisonTick)
+  Doc().garrisonTick(E, 'FR', E.sides.find(s => s.id === 'FR').initiative.garrison, S);
   // Jérôme escalates at Hougoumont when his men are thrown back
   // (handled in onRepulse)
-  // Ney: the misread retreat. He sees allied units moving back over the crest and sends the cavalry.
-  // Ney's own initiatives need him in command of a sector with the cavalry and the centre in it
-  const neyFront = !E.command || (E.command.ney.active && ['whole', 'centre', 'left'].includes(E.command.ney.sector));
-  if (!S.neyCav && neyFront && E.flags.alliedEngaged && t > 15 * 60 + 20 && E.tick % 5 === 0) {
-    const ney = E.leaders.ney, np = E.leaderPos(ney);
-    const crest = S.crestLine;
-    const seen = known(E, 'ney', 10, c => c.side === 'AL' && c.moving && polyDist(c.x, c.y, crest) < 450 && np && hyp(c.x - np[0], c.y - np[1]) < 2500);
-    if (seen.length && E.rnd('a retreat is misread') < ney.ini * 0.3) launchNeyCavalry(E, S, 'misread');
-    else if (t > 15 * 60 + 45 && E.rnd('Ney loses patience') < ney.agg * 0.08) launchNeyCavalry(E, S, 'misread');
-  }
-  if (!S.neyExploit && neyFront && placeHolder(E, 'ney', 'lhs') === 'FR' && t < 19 * 60 + 40 && E.tick % 5 === 0) {
-    S.neyExploit = t; const lhs = E.spById.lhs;
-    const guns = ['aHMil', 'aHKel', 'aHGC', 'aQuiot', 'aDonz'].filter(id => E.byId[id] && E.formed(E.byId[id]) && !reserved(E, E.byId[id])).slice(0, 3);
-    E.sendOrder({ id: 'neyGuns', from: 'ney', to: 'derlon', kind: 'bombard', units: guns, site: 'lhsGunSite', area: 'ridgeCentre', direct: true, rideMin: 4, text: 'Ney runs horse guns up beside La Haye Sainte to batter the allied centre.' });
-    const inf = fittest(E, ['husson', 'campi', 'nogues', 'grenier', 'schmitz', 'aulard', 'bourgeois', 'charlet', 'gauthier', 'jamin'], 2);
-    if (inf.length) E.sendOrder({ id: 'neyCentre', from: 'ney', to: 'derlon', kind: 'attack', obj: 'ridgeCentre', units: inf, form: 'attack', maxAttempts: 3, direct: true, rideMin: 5, text: 'Ney sends what infantry he can find against the allied centre.' });
-    E.logEvent('orders', 'With La Haye Sainte taken, Ney presses the allied centre.', { side: 'FR', important: true });
-    if (E.command && E.command.neyInitiative) E.command.neyInitiative('exploit', inf.concat(guns));
-  }
-  if (S.neyCav && !S.neyCav2 && neyFront && t - S.neyCav > 40 && E.flags.allowKellermann !== false) {
-    // Ney asks for more; Kellermann and the Guard heavy cavalry follow
-    const ney = E.leaders.ney;
-    if (E.rnd('Ney commits more cavalry') < ney.agg * 0.25) launchNeyCavalry(E, S, 'second');
-  }
-}
-function launchNeyCavalry(E, S, phase) {
-  const area = 'ridgeWest', home = E.ll2m(50.6745, 4.4040);
-  if (phase === 'misread') {
-    S.neyCav = E.t; const ids = ['dubois', 'travers', 'farine', 'vial', 'gchev', 'glanc'].filter(id => !E.byId[id] || !reserved(E, E.byId[id]));
-    if (!ids.length) return; // every one of them held back by the Emperor's order
-    E.metrics.neyCav = E.t; const hg = ['aHMil', 'aHGC'].filter(id => !E.byId[id] || !reserved(E, E.byId[id]));
-    if (hg.length) E.sendOrder({ from: 'ney', to: 'milhaud', kind: 'bombard', units: hg, site: 'cavGunSite', area: 'ridgeWest', direct: true, rideMin: 3 });
-    if (E.command && E.command.neyInitiative) E.command.neyInitiative('cavalry', ids.filter(id => E.byId[id] && E.formed(E.byId[id])));
-    E.logEvent('orders', 'Ney thinks he sees the Allies falling back over the crest and leads the cuirassiers forward.', { side: 'FR', important: true, hidden: false });
-    E.sendOrder({ from: 'ney', to: 'milhaud', kind: 'cavRaid', units: ids, area, home, maxCharges: 7, direct: true, rideMin: 3, cause: E.cause('Ney misread a retreat on the ridge') });
-    E.leaders.ney.unit = 'farine';
-  } else {
-    S.neyCav2 = E.t; const ids = ['picquet', 'guiton', 'blanchard', 'donop', 'guyot'].filter(id => !E.byId[id] || !reserved(E, E.byId[id]));
-    if (!ids.length) return;
-    if (!E.byId.aHKel || !reserved(E, E.byId.aHKel)) E.sendOrder({ from: 'ney', to: 'kellermann', kind: 'bombard', units: ['aHKel'], site: 'cavGunSite', area: 'ridgeWest', direct: true, rideMin: 5 });
-    if (E.command && E.command.neyInitiative) E.command.neyInitiative('cavalry2', ids.filter(id => E.byId[id] && E.formed(E.byId[id])));
-    E.logEvent('orders', 'Kellermann\'s cuirassiers and the Guard heavy cavalry follow Ney onto the plateau.', { side: 'FR', important: true });
-    E.sendOrder({ from: 'ney', to: 'kellermann', kind: 'cavRaid', units: ids, area, home: E.ll2m(50.6735, 4.4000), maxCharges: 6, direct: true, rideMin: 5, cause: E.cause('Ney asked for more cavalry') });
-  }
+  // Ney: the misread retreat (he sees allied units moving back over the crest and sends the cavalry), the second wave, and pressing the
+  // centre once La Haye Sainte is taken ((3d) the battle pack's initiative.charge, by the generic doctrine's chargeTick)
+  Doc().chargeTick(E, 'FR', E.sides.find(s => s.id === 'FR').initiative.charge, S.crestLine, S);
 }
 
-/* ===================== French historical orders (Napoleon as played on the day) ===================== */
-function historicalPlan(E, S) {
-  const I_BATT = ['aQuiot', 'aIres', 'aDonz', 'aMarc', 'aDur'];
-  return [
-    { id: 'hougoumont', at: 11 * 60 + 5, order: { from: 'napoleon', to: 'reille', kind: 'attack', obj: 'hougoumont', units: ['bauduin'], form: 'attack', maxAttempts: 4, text: 'Reille: Prince Jérôme to clear the wood of Hougoumont.', clarity: 0.8 } },
-    { id: 'reilleGuns', at: 11 * 60 + 10, order: { from: 'napoleon', to: 'reille', kind: 'bombard', units: ['aBach', 'aFoy', 'aJer', 'aIIres'], site: null, area: 'ridgeWest', opens: true } },
-    { id: 'grandBattery', at: 11 * 60 + 15, order: { from: 'napoleon', to: 'derlon', kind: 'bombard', units: [...I_BATT, 'aGuard12'], site: 'batterySiteA', area: 'ridgeEast', facing: 344, text: 'The grand battery forms in front of I Corps.' } },
-    { id: 'east', when: E => (E.t >= 13 * 60 + 15) || (E.t >= 12 * 60 + 45 && Object.values(E.contacts.FR).some(c => c.side === 'PR')), order: { from: 'napoleon', to: 'lobau', kind: 'advance', obj: 'eastFlank', units: ['bellair', 'thevenet', 'bony', 'tromelin', 'dommanget', 'vinot', 'colbert', 'merlin', 'aVI'], facing: 70, form: 'columns', text: 'Lobau, Domon and Subervie to face east toward Saint-Lambert.' } },
-    { id: 'derlon', at: 13 * 60 + 30, order: { from: 'napoleon', to: 'derlon', kind: 'attack', obj: 'ridgeEast', units: ['charlet', 'schmitz', 'nogues'], supports: ['aulard', 'grenier'], form: 'mass', supportForm: 'mass', maxAttempts: 2, clarity: 0.85, text: "d'Erlon's corps goes forward against the ridge east of the road." },
-      also: [{ from: 'napoleon', to: 'derlon', kind: 'attack', obj: 'lhs', units: ['bourgeois'], form: 'attack', maxAttempts: 3 }, { from: 'napoleon', to: 'derlon', kind: 'attack', obj: 'papelotte', units: ['pegot'], supports: ['brue'], form: 'attack', maxAttempts: 3 }],
-      onAct: E => { E.flags.alliedEngaged = E.t; } },
-    { id: 'lhs2', at: 15 * 60, when: E => E.spById.lhs.holder !== 'FR', pick: E => fittest(E, ['bourgeois', 'charlet', 'schmitz', 'aulard', 'nogues', 'grenier'], 1), order: { from: 'napoleon', to: 'ney', kind: 'attack', obj: 'lhs', units: [], form: 'attack', maxAttempts: 3, text: 'Ney is to take La Haye Sainte.' } },
-    { id: 'lhs3', at: 17 * 60 + 30, when: E => E.spById.lhs.holder !== 'FR', pick: E => fittest(E, ['schmitz', 'aulard', 'bourgeois', 'charlet', 'nogues', 'grenier', 'husson', 'campi', 'gauthier', 'jamin'], 3), order: { from: 'napoleon', to: 'ney', kind: 'attack', obj: 'lhs', units: [], form: 'attack', engineers: true, maxAttempts: 4, text: 'Ney: La Haye Sainte at all costs, with Donzelot and the engineers.' } },
-    { id: 'yg', when: E => E.spById.plancenoit.holder === 'AL' || (E.spById.plancenoit.garrison && E.byId[E.spById.plancenoit.garrison] && E.byId[E.spById.plancenoit.garrison].coh < 35), order: { from: 'napoleon', to: 'drouot', kind: 'attack', obj: 'plancenoit', units: ['yg1', 'yg2'], form: 'attack', maxAttempts: 4, text: 'The Young Guard to retake Plancenoit.' } },
-    { id: 'og', when: E => E.plan.done.yg && E.t - E.plan.done.yg > 40 && (E.spById.plancenoit.holder === 'AL' || ['yg1', 'yg2'].every(id => !E.formed(E.byId[id]) || E.byId[id].coh < 40)), order: { from: 'napoleon', to: 'drouot', kind: 'attack', obj: 'plancenoit', units: ['g2gren', 'g2chas'], form: 'attack', maxAttempts: 3, text: 'Two battalions of the Old Guard to Plancenoit.' } },
-    { id: 'guard', at: 19 * 60, order: { from: 'napoleon', to: 'drouot', kind: 'attack', obj: 'ridgeWest', units: ['g3gren', 'g4gren', 'g3chas', 'g4chas'], form: 'attack', guard: true, maxAttempts: 1, points: [E.ll2m(50.6808, 4.4005), E.ll2m(50.6808, 4.4035), E.ll2m(50.6808, 4.3975), E.ll2m(50.6808, 4.4060)], text: 'The Middle Guard to attack the allied right-centre, Ney at its head.' },
-      onAct: E => { E.flags.guardAttacking = E.t; E.metrics.guardAttack = E.t; E.leaders.ney.unit = 'g3gren'; } },
-  ];
-}
 const reserved = (E, u) => !!(E.command && E.command.reserved && E.command.reserved[u.id]); // held back by the Emperor's own order: Ney cannot take them (5e)
 function fittest(E, ids, n) { return ids.map(id => E.byId[id]).filter(u => u && E.formed(u) && !reserved(E, u) && u.status !== 'disordered' && u.task.kind !== 'attack' && u.task.kind !== 'garrison').sort((a, b) => b.coh * b.str - a.coh * a.str).slice(0, n).map(u => u.id); }
 function runPlan(E, S) {
@@ -597,7 +395,11 @@ function make(opts = {}) {
     S,
     init(E) {
       E.ai = ai; E.plan = { steps: [], done: {} };
-      wellingtonInit(E, S); prussianInit(E, S);
+      // (3d) the allied army is commanded by the generic doctrine, its habits from the battle pack (opts.generic may name more armies)
+      S.generic = [...new Set(['AL', ...(opts.generic || [])])];
+      S.crestLine = Doc().crestLine(E, E.sides.find(s => s.id === 'AL').crest); // the line Ney watches
+      S.gen = Doc().make({ sides: S.generic, embedded: true }).init(E);
+      prussianInit(E, S);
       // French starting posture: hold; guns hold fire until ordered
       for (const u of E.units) if (u.side === 'FR' && u.onMap) u.task = { kind: 'hold', since: E.t };
       // the 11:00 deployment: Marbot's 7th Hussars (Bruno's brigade, Jacquinot) watch the far right toward Lasne and the Dyle
@@ -605,15 +407,13 @@ function make(opts = {}) {
       // detach the Guard's 24 twelve-pounders as their own battery for the grand battery
       const g = E.byId.aGuard;
       if (g && !E.byId.aGuard12) { g.str -= 24; g.str0 -= 24; g.guns0 = g.str; const u = addUnit(E, { id: 'aGuard12', side: 'FR', name: "The Guard's 12-pounders", parent: 'Guard artillery', nat: 'FR', type: 'art', str: 24, x: g.x - 150, y: g.y, facing: 0, form: 'park', q: 1.15, corps: 'guard', cal: 12 }); u.coh = 82; u.shells = 0; }
-      if (opts.plan === 'historical') E.plan.steps = historicalPlan(E, S);
       // 'script' plans are given by a script through the order builder (see script.js)
       E.ruleHooks.push(E2 => { if (E2.metrics.lhsFall == null && E2.spById.lhs.holder === 'FR') E2.metrics.lhsFall = E2.t; });
       return ai;
     },
     tick(E) {
       unitControl(E);
-      wellingtonUnits(E, S);
-      if (E.tick % 5 === 0) { wellington(E, S); } else uxbridge(E, S);
+      S.gen.tick(E);
       prussians(E, S);
       frenchReactions(E, S);
       if (E.plan.steps.length) runPlan(E, S);
@@ -622,14 +422,8 @@ function make(opts = {}) {
     receive(E, o) { apply(E, o); },
     onArrival(E, u) { onPrussianArrival(E, u, S); },
     onRepulse(E, a, d, tgt) {
-      // Jérôme's escalation at Hougoumont
-      if (a.side === 'FR' && tgt.sp && tgt.sp.id === 'hougoumont') {
-        const J = E.leaders.jerome; S.hougRepulses = (S.hougRepulses || 0) + 1;
-        if (E.rnd('Hougoumont escalates') < J.agg * 0.5) {
-          const next = ['soye', 'jamin', 'gauthier'].map(id => E.byId[id]).find(u => u && E.formed(u) && u.task.kind !== 'attack' && u.task.sp !== 'hougoumont');
-          if (next) { E.sendOrder({ id: 'houg_' + next.id, from: 'jerome', to: 'reille', kind: 'attack', obj: 'hougoumont', units: [next.id], form: 'attack', maxAttempts: 4, direct: true, rideMin: 4, cause: E.cause(`Jérôme threw ${next.name} into Hougoumont after ${a.name} was repulsed`) }); E.logEvent('orders', `Jérôme commits ${next.name} to Hougoumont.`, { side: 'FR', hidden: true }); }
-        }
-      }
+      // Jérôme's escalation at Hougoumont ((3d) the battle pack's initiative, by the generic doctrine's escalateOnRepulse)
+      Doc().escalateOnRepulse(E, 'FR', E.sides.find(s => s.id === 'FR').initiative.escalate, a, tgt, S);
     },
   };
   return ai;
@@ -640,7 +434,7 @@ function addUnit(E, spec) {
   u.str0 = u.str; u.guns0 = u.str; const fp = E.footprint(u); u.F = fp.F; u.D = fp.D; E.units.push(u); E.byId[u.id] = u; return u;
 }
 
-const api = { make, apply, unitControl, known, ownState, viaAide, placeHolder, news, nearestOnPoly, polyDist, addUnit }; // (phase 3) the helpers the generic commanders share
+const api = { make, apply, unitControl, known, ownState, viaAide, placeHolder, news, nearestOnPoly, polyDist, addUnit, fittest, reserved }; // (phase 3) the helpers the generic commanders share
 root.WAI = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

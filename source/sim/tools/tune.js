@@ -19,11 +19,11 @@ const hm = t => t == null ? '–' : `${Math.floor(t / 60)}:${String(Math.round(t
 const tmin = s => typeof s === 'string' ? +s.split(':')[0] * 60 + +s.split(':')[1] : s;
 const kfmt = n => n == null ? '–' : (n / 1000).toFixed(1) + 'k';
 
-function fightAll(battle, runner, K, n, seed0, procs) {
+function fightAll(battle, runner, K, n, seed0, procs, aiOpts) {
   return new Promise((res, rej) => {
     const seeds = Array.from({ length: n }, (_, i) => seed0 + i), chunks = Array.from({ length: procs }, (_, p) => seeds.filter((_, i) => i % procs === p)).filter(c => c.length);
     let got = [], done = 0;
-    for (const c of chunks) { const w = fork(path.join(__dirname, 'tune_worker.js')); w.on('message', m => { got = got.concat(m); if (++done === chunks.length) res(got.sort((a, b) => a.seed - b.seed)); }); w.on('error', rej); w.send({ battle, seeds: c, K, runner }); }
+    for (const c of chunks) { const w = fork(path.join(__dirname, 'tune_worker.js')); w.on('message', m => { got = got.concat(m); if (++done === chunks.length) res(got.sort((a, b) => a.seed - b.seed)); }); w.on('error', rej); w.send({ battle, seeds: c, K, runner, aiOpts }); }
   });
 }
 // a battle's results against its targets: [{ what, value, ok }]
@@ -45,7 +45,7 @@ module.exports = { judge, fightAll };
 
 if (require.main === module) {
   const a = process.argv.slice(2), opt = (k, d) => { const i = a.indexOf('--' + k); return i >= 0 ? a[i + 1] : d; }, all = k => a.flatMap((x, i) => x === '--' + k ? [a[i + 1]] : []);
-  const n = +opt('n', 60), seed0 = +opt('seed', 1000), procs = +opt('procs', 2);
+  const n = +opt('n', 60), seed0 = +opt('seed', 1000), procs = +opt('procs', 2), aiOpts = opt('generic') ? { generic: opt('generic').split(',') } : undefined; // --generic AL: those armies by the generic doctrine (3d)
   const battles = (opt('battles', '') || Object.keys(P.battles).filter(id => P.battles[id].targets).join(',')).split(',').filter(Boolean);
   const base = {}; for (const s of all('set')) { const [k, v] = s.split('='); base[k.replace(/^K\./, '')] = +v; }
   let grid = [{}]; for (const s of all('sweep')) { const [k, vs] = s.split('='); grid = grid.flatMap(g => vs.split(',').map(v => Object.assign({}, g, { [k.replace(/^K\./, '')]: +v }))); }
@@ -57,7 +57,7 @@ if (require.main === module) {
       console.log(`\n== ${label}`);
       let inBand = 0;
       for (const id of battles) {
-        const T = P.battles[id].targets, t0 = Date.now(), res = await fightAll(id, T.runner || 'doctrine', K, n, seed0, procs), J = judge(T, res);
+        const T = P.battles[id].targets, t0 = Date.now(), res = await fightAll(id, T.runner || 'doctrine', K, n, seed0, procs, aiOpts), J = judge(T, res);
         const g2 = {}; for (const r of res) g2[r.grade] = (g2[r.grade] || 0) + 1;
         console.log(`${P.battles[id].name}: ${n} battles in ${((Date.now() - t0) / 1000).toFixed(0)} s; ${Object.entries(g2).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${k} ${Math.round(100 * v / n)}%`).join(', ')}`);
         for (const j of J) console.log(`  ${j.ok ? 'IN ' : 'OUT'} ${j.what.padEnd(34)} ${String(j.value).padStart(7)}   (band ${j.band})`);
