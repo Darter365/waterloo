@@ -258,6 +258,24 @@ const QUALITY = {
 };
 // Artillery calibre: 12 = 12-pounder, 9 = British 9-pounder, 6 = 6-pounder (lighter guns x0.7 per rules; 9-pdr x0.8 est.)
 const CALIBRE = { aIres: 12, aIIres: 12, aVI: 8, aGuard: 10, aBull: 6, aRes: 8 };
+QUALITY.aHGC = 1.15; // the Guard horse artillery
+/* (phase 2) what a unit is, beyond its arm: read by the engine instead of guessing from names and ids (release 3 matched names and ids in
+   the engine; these are exactly the units it matched).
+   horse: horse artillery (moves at the horse gunners' pace). kind: cavalry weight (heavy: cuirassiers, carabiniers, dragoons and the British
+   heavy brigades; lancer; otherwise light). guard: the Imperial Guard. weapon 'rifle': brigades counted as firing rifles (release 3 counts the
+   whole brigade where it holds rifle companies: est.). ammo: the cartridge it needs (rifle cartridges do not come from the musket wagons).
+   ammo0: cartridges a man at the start, where not the usual 50 (La Haye Sainte's garrison had filled its pouches). */
+const TRAITS = {
+  aBull: { horse: true }, aRoss: { horse: true }, aRes: { horse: true },
+  somerset: { kind: 'heavy' }, ponsonby: { kind: 'heavy' }, trip: { kind: 'heavy' }, dubois: { kind: 'heavy' }, travers: { kind: 'heavy' }, farine: { kind: 'heavy' },
+  vial: { kind: 'heavy' }, picquet: { kind: 'heavy' }, guiton: { kind: 'heavy' }, blanchard: { kind: 'heavy' }, donop: { kind: 'heavy' },
+  guyot: { kind: 'heavy', guard: true }, glanc: { kind: 'lancer', guard: true }, gchev: { guard: true },
+  gobrecht: { kind: 'lancer' }, wathiez: { kind: 'lancer' }, colbert: { kind: 'lancer' },
+  g1gren: { guard: true }, g2gren: { guard: true }, g3gren: { guard: true }, g4gren: { guard: true }, g1chas: { guard: true }, g2chas: { guard: true },
+  g3chas: { guard: true }, g4chas: { guard: true }, yg1: { guard: true }, yg2: { guard: true }, aGuard: { guard: true },
+  kempt: { weapon: 'rifle' }, adam: { weapon: 'rifle' }, brue: { weapon: 'rifle' },
+  gLHS: { weapon: 'rifle', ammo: 'rifle', ammo0: 60 }, gSand: { weapon: 'rifle', ammo: 'rifle' },
+};
 const CORPS = { // unit id -> corps/command key
   charlet: 'derlon', bourgeois: 'derlon', schmitz: 'derlon', aulard: 'derlon', nogues: 'derlon', grenier: 'derlon', pegot: 'derlon', brue: 'derlon',
   bruno: 'derlon', gobrecht: 'derlon', aQuiot: 'derlon', aDonz: 'derlon', aMarc: 'derlon', aDur: 'derlon', aIres: 'derlon',
@@ -279,20 +297,20 @@ const DIVISION = {
 };
 // Strongpoints: sections ordered outer -> inner. cover multiplies hits on the defender. cap = men who can fight from it.
 const STRONGPOINTS = [
-  { id: 'hougoumont', name: 'Hougoumont', key: true, sections: [
+  { id: 'hougoumont', garrison: 'gHoug', name: 'Hougoumont', key: true, sections: [
       { name: 'wood', at: [50.6683, 4.3951], r: 170, cover: 0.5, cap: 1500 },
       { name: 'orchard and garden', at: [50.67060, 4.39760], r: 120, cover: 0.4, cap: 900 },
       { name: 'buildings', at: [50.67063, 4.3947], r: 45, cover: 0.3, cap: 700, burnable: true }],
     access: [[50.6790, 4.3965], [50.6712, 4.3945]] },
-  { id: 'lhs', name: 'La Haye Sainte', key: true, sections: [
+  { id: 'lhs', garrison: 'gLHS', name: 'La Haye Sainte', key: true, sections: [
       { name: 'orchard', at: [50.67735, 4.4115], r: 60, cover: 0.7, cap: 300 },
       { name: 'buildings', at: [50.67806, 4.41175], r: 35, cover: 0.3, cap: 500, burnable: true }],
     access: [[50.6802, 4.4119], [50.6786, 4.4121]] },
-  { id: 'sandpit', name: 'the sandpit', sections: [{ name: 'sandpit', at: [50.6786, 4.4134], r: 25, cover: 0.5, cap: 250 }], access: [[50.6805, 4.4140], [50.6788, 4.4134]] },
-  { id: 'papelotte', name: 'Papelotte', sections: [{ name: 'farm', at: [50.68028, 4.43389], r: 35, cover: 0.3, cap: 500, burnable: true }], access: [[50.6826, 4.4310], [50.6805, 4.4337]] },
-  { id: 'lahaye', name: 'La Haye', sections: [{ name: 'farm', at: [50.68043, 4.43622], r: 30, cover: 0.3, cap: 400 }], access: [[50.6840, 4.4370], [50.6806, 4.4362]] },
-  { id: 'smohain', name: 'Smohain', sections: [{ name: 'hamlet', at: [50.68073, 4.44252], r: 90, cover: 0.4, cap: 700 }], access: [[50.6860, 4.4420], [50.6810, 4.4425]] },
-  { id: 'frischermont', name: 'Frischermont', sections: [{ name: 'château', at: [50.67763, 4.4449], r: 40, cover: 0.3, cap: 500 }], access: [[50.6820, 4.4440], [50.6778, 4.4449]] },
+  { id: 'sandpit', garrison: 'gSand', name: 'the sandpit', sections: [{ name: 'sandpit', at: [50.6786, 4.4134], r: 25, cover: 0.5, cap: 250 }], access: [[50.6805, 4.4140], [50.6788, 4.4134]] },
+  { id: 'papelotte', garrison: 'gPap', name: 'Papelotte', sections: [{ name: 'farm', at: [50.68028, 4.43389], r: 35, cover: 0.3, cap: 500, burnable: true }], access: [[50.6826, 4.4310], [50.6805, 4.4337]] },
+  { id: 'lahaye', garrison: 'gLaHaye', name: 'La Haye', sections: [{ name: 'farm', at: [50.68043, 4.43622], r: 30, cover: 0.3, cap: 400 }], access: [[50.6840, 4.4370], [50.6806, 4.4362]] },
+  { id: 'smohain', garrison: 'gSmo', name: 'Smohain', sections: [{ name: 'hamlet', at: [50.68073, 4.44252], r: 90, cover: 0.4, cap: 700 }], access: [[50.6860, 4.4420], [50.6810, 4.4425]] },
+  { id: 'frischermont', garrison: 'gFri', name: 'Frischermont', sections: [{ name: 'château', at: [50.67763, 4.4449], r: 40, cover: 0.3, cap: 500 }], access: [[50.6820, 4.4440], [50.6778, 4.4449]] },
   { id: 'plancenoit', name: 'Plancenoit', key: true, sections: [
       { name: 'village', at: [50.6607, 4.4295], r: 280, cover: 0.4, cap: 3500 },
       { name: 'churchyard', at: [50.66066, 4.42951], r: 40, cover: 0.3, cap: 1200 }],
@@ -398,16 +416,54 @@ const HORSE_BATTERIES = [
   ['aHDS', 'FR', 'Domon and Subervie horse batteries', 'Light cavalry', 'FR', 'art', 12, 50.6640, 4.4255, 0],
 ];
 
+/* (phase 2) forces off the map at the start, in the order they are listed: marches: they come on their own (and count in their army's
+   strength at the start); otherwise only if sent for. fatigue0: their tiredness (the Prussians had marched from Wavre since dawn; the others
+   20: est.); ammo0 by corps: cartridges a man where not 50 (Pirch's and Zieten's corps had fought at Ligny two days before: est.). */
+const FORCES = [
+  { group: 'prussians', marches: true, units: PRUSSIANS, fatigue0: 30, ammo0: { pirch: 40, zieten: 40 } },
+  { group: 'hal', marches: false, units: HAL_FORCE, fatigue0: 20 },
+  { group: 'grouchy', marches: false, units: GROUCHY_FORCE, fatigue0: 20 },
+];
 const P = root.WPacks || (typeof require === 'function' ? require('../registry.js') : null);
 P.register('battle', 'waterloo', {
   name: 'Waterloo', date: '1815-06-18', era: 'napoleonic',
   nations: ['FR', 'GB', 'KGL', 'HAN', 'NL', 'NAS', 'BRU', 'MIX', 'PR'],
   // the armies on the field: morale at the start (est., rules doc) and the coalition each fights in (it shares places and does not fire on its own)
+  // fatigue0: tiredness at the start (the French marched through the night: est.); chief: the commander whose presence speeds a unit's rally
+  // (release 3 rule: the Prussians too rally on Wellington's presence); cavChief: who leads a horse brigade that has no leader of its own;
+  // corps0: the command a unit with no corps belongs to; rear: the map edge the army falls back to (N, S, E, W), by the route named;
+  // exit: where its line of retreat leaves the map; rearguard: where a rearguard would stand to cover it
   sides: [
-    { id: 'FR', name: 'French', morale0: 80, coalition: 'FR' },
-    { id: 'AL', name: 'Anglo-allied', morale0: 70, coalition: 'AL' },
-    { id: 'PR', name: 'Prussian', morale0: 75, coalition: 'AL' },
+    { id: 'FR', name: 'French', morale0: 80, coalition: 'FR', fatigue0: 25, chief: 'napoleon', rear: 'S', retreat: 'frRetreat', exit: [50.6380, 4.4270], rearguard: [50.65675, 4.41333] },
+    { id: 'AL', name: 'Anglo-allied', morale0: 70, coalition: 'AL', fatigue0: 15, chief: 'wellington', cavChief: 'uxbridge', corps0: 'wellington', rear: 'N', retreat: 'alRetreat',
+      // the rifle cartridges for La Haye Sainte's garrison (Baker rifles take their own): where the wagon is is a hidden roll (est.; 5e:
+      // near 0.4, far 0.3 from 16:00); the garrison ran out in 1815
+      wagons: { rifle: { roll: 'rifle wagon', near: 0.25, far: 0.35, farFrom: 1050,
+        says: { near: 'The rifle-ammunition wagon for La Haye Sainte is close behind the ridge.', far: 'The rifle-ammunition wagon for La Haye Sainte is stuck far back on the Brussels road.', lost: 'The rifle-ammunition wagon for La Haye Sainte is lost on the road from Brussels.' },
+        short: 'No rifle cartridges can be found for {place}; musket rounds do not fit the Baker rifle.' } } },
+    { id: 'PR', name: 'Prussian', morale0: 75, coalition: 'AL', fatigue0: 15, chief: 'wellington', rear: 'E', retreat: 'prRetreat' },
   ],
+  /* the starts (scenarios): the clock, the ground (wet 0-1; it dries 0.13 an hour from dryFrom, never below 0.2: rules doc), and for 05:00
+     where the French lie and come up. Est. throughout: the sources agree that the rain stopped about 06:00, that Napoleon at 05:00 set the
+     attack for 09:00, that many French units had bivouacked well south of La Belle Alliance and that some were still not in place at 09:00;
+     they do not give each corps' bivouac. So: d'Erlon's corps and Milhaud's cuirassiers lie a few hundred metres behind their 11:00 ground
+     (the vanguard halted there the evening before); the Guard lies round Le Caillou; Reille, Kellermann and Lobau come up the high road
+     from the direction of Genappe through the morning, one brigade every 10 minutes or so. The allied army is in its 11:00 places. */
+  starts: {
+    '1100': { t: 660, wet0: 0.6 },
+    dry: { t: 660, wet0: 0.3 },
+    '0500': { t: 300, wet0: 1.0, dryFrom: 480, side: 'FR',
+      // bodies lying behind their 11:00 ground: dy metres to the rear (south); then infantry in columns and guns parked, where said
+      back: [{ corps: ['milhaud'], units: ['aHMil'], dy: 300, inf: 'columns', art: 'park' }, { corps: ['derlon'], units: ['aHJac'], dy: 350, inf: 'columns', art: 'park' },
+        { corps: ['guard', 'guardcav'], units: ['aHGC'], dy: 1300, art: 'park' }],
+      // brigades still on the road: they enter at the south edge on the line of the high road, follow the retreat road's points 2 and 1 in
+      // reverse, and halt 700 m behind their place in the line; [first arrival, unit ids in order of march, 10 minutes apart]
+      come: { side: 'FR', route: 'frArrive', x: [50.6380, 4.4270], via: ['frRetreat', 2, 1], every: 10, haltBehind: 700, columns: [
+        [375, ['huber', 'wathiez', 'aHPire']], [405, ['husson', 'campi', 'aBach']], [435, ['gauthier', 'jamin', 'aFoy']], [465, ['bauduin', 'soye', 'aJer', 'aIIres']],
+        [495, ['picquet', 'guiton', 'blanchard', 'donop', 'aHKel']], [525, ['bellair', 'thevenet', 'bony', 'tromelin', 'aVI']], [570, ['dommanget', 'vinot', 'colbert', 'merlin', 'aHDS']]] } },
+  },
+  // the weather beyond the ground: the soaked night took 5 off every unit's starting cohesion; the evening air was damp from 15:00 (smoke lingers)
+  weather: { cohesion0: -5, humidFrom: 900 },
   // light on the day: sunset 20:20, dark 21:10, the battle's end 21:30; how far a man can see by the clock (m), from the rules doc
   light: { sunset: 1220, dark: 1270, end: 1290, vis: [[300, 3000], [540, 6000], [720, 8000], [960, 6000], [1220, 5000], [1270, 1000], [1290, 600]], visAfter: 600 },
   // a corps that marches by another's road: Pirch's II Corps followed Bülow's IV Corps through Lasne
@@ -436,7 +492,7 @@ P.register('battle', 'waterloo', {
     { id: 'zieten', side: 'PR', corps: 'zieten' },
   ],
   map: { LAT0, LON0, MLAT, MLON, NX, NY, CELL, WM, HM, ll2m, m2ll, H, STREAMS, LM, ROADS, SUNKEN, HEDGES, WOODS, BUILDINGS, ENCLOSURES, SANDPIT, VILLAGES, HOUSES, LABELS, EDGE_LABELS,
-  NAT, RAW, OFFMAP, DEBATED, LION, rng, hashStr, QUALITY, CALIBRE, CORPS, DIVISION, STRONGPOINTS, OBJECTIVES, ROUTES, CHOKES, PRUSSIANS, HAL_FORCE, GROUCHY_FORCE, HORSE_BATTERIES },
+  NAT, RAW, OFFMAP, DEBATED, LION, rng, hashStr, QUALITY, CALIBRE, CORPS, DIVISION, TRAITS, STRONGPOINTS, OBJECTIVES, ROUTES, CHOKES, PRUSSIANS, HAL_FORCE, GROUCHY_FORCE, HORSE_BATTERIES, FORCES },
 });
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 

@@ -23,7 +23,6 @@ P.register('era', 'napoleonic', {
   NOAMMO_MELEE: 1,      // wall bonus in the melee test when the defenders have no cartridges (2 = no change; release 1: 1, they can no longer hold the loopholes)
   // (6) skirmishing round a held farm (est.; 0 = off): enemy foot within SKIRM_R of a garrisoned farm keep skirmishers at it, and the garrison
   // answers from the loopholes even when no assault is going in. SKIRM_FULL men within range is full pressure.
-  RIFLE_NEAR: 0.25, RIFLE_FAR: 0.35, RIFLE_FAR_T: 1050, // the hidden roll for La Haye Sainte's rifle-ammunition wagon: near, far (reachable from this minute), else lost (est.; 5e: 0.4, 0.3, 16:00)
   SKIRM_AMMO: 1.7,      // the garrison's cartridges spent per man per 2-minute tick at full pressure (release 1; 0 = off)
   SKIRM_R: 450, SKIRM_FULL: 3000,
   SKIRM_HOLD: 150, SKIRM_LINGER: 0.4, // minutes the skirmishers stay round the farm after the last column has gone back, and their pressure then
@@ -47,7 +46,15 @@ P.register('era', 'napoleonic', {
   KW_RATIO: 0.25,       // share of hits that are deaths (1 in 4)
   UNDER_FIRE_RECOVER: 0.5,
   BLIND: 0.4,           // area fire at ground the gunners cannot see behind a crest (overshoot and ricochet) (calibration addition; release 1: 0.4, was 0.2, bringing Wellington's losses to the 1815 range)
+  // (phase 2, moved from the engine unchanged) starting cohesion by quality: COH0 + (q - COH0_Q0) x COH0_Q, kept within COH0_MIN-COH0_MAX (est.)
+  COH0: 75, COH0_Q0: 0.75, COH0_Q: 30, COH0_MIN: 72, COH0_MAX: 90,
+  DRY_RATE: 0.13, WET_FLOOR: 0.2, // the ground dries this much an hour once the rain stops, never below the floor (rules doc)
 },
+  gunCalibre: 6, // pounds: a battery's guns when neither the battle nor its nation says
+  // orders by rider (phase 2, moved from the engine unchanged): minutes to write when the sender's leader file does not say, minutes for
+  // the receiver to read and act (direct: an order for one unit, or from close by), a rider's speed across country (km/h) and how much wet
+  // ground slows him (all est.)
+  orders: { write: [3, 8], interp: [10, 20], interpDirect: [2, 5], rider: 8, riderWet: 0.4 },
   // musketry: chance a musket aimed at a formed body hits, by range in metres (rules doc table; nothing past 300 m)
   hit: [[0, 0.15], [30, 0.15], [50, 0.08], [100, 0.05], [150, 0.03], [200, 0.015], [300, 0.005], [301, 0]],
   // roundshot: hits per gun per shot by range band (below each limit), scaled by calibre in pounds (12+ x1, 9+ x0.8, lighter x0.7)
@@ -56,9 +63,65 @@ P.register('era', 'napoleonic', {
   // later ones; never below the floor; lighter guns x0.6
   canister: { reach: [[12, 580]], reachElse: 420, curve: [[200, 4], [300, 2.5], [500, 1.0]], floor: 0.6, calibre: [[12, 1]], calibreElse: 0.6 },
   crew: 12, // gunners per gun, est.
-  // formations: the share of the men who can fire, how dense a target the body makes, and its weight in a push
-  fireShare: { line: 1, twoLines: 0.5, columns: 0.18, attack: 0.15, mass: 0.12, square: 0.25, road: 0.03, garrison: 1 },
-  density: { line: 1, twoLines: 0.8, columns: 2.5, attack: 2.5, mass: 3.5, square: 3, road: 3, garrison: 1, battery: 0.6, park: 1, limbered: 1.5 },
-  mass: { line: 1.0, twoLines: 0.95, columns: 1.1, attack: 1.2, mass: 1.4, square: 0.5, road: 0.4, garrison: 1 },
+  /* (phase 2) the arms: what each kind of unit is made of and can do. The sim asks these questions of a unit ("does it ride", "is it a
+     crew serving guns", "can it face all round", "can it hold a farm"), never its arm's name, so an era can add archers, pikes or elephants
+     as rows here. Numbers moved from the engine unchanged (release 3, est. unless the rules doc gives them).
+     move: how it moves (a row of the movement table); speed: metres a minute at each pace; height: how tall a target it makes, m;
+     holds: can garrison a farm or village; allRound: can form the era's all-round formation; assaults: goes in with the bayonet on an
+     attack order; charges: charges on horseback (and rests its horses' wind); crew: gunners a gun (it is a gun crew); column: the
+     formation it marches in; shells: the share of its pieces that fire shells (howitzers); shock: the weight of a charge by the unit's kind (battle traits: heavy, lancer, else light);
+     density: how dense a target to roundshot, by formation (where not the formation table's); flee: how much faster it runs when broken; deploys: the formation guns unlimber into. */
+  arms: {
+    inf: { move: 'foot', speed: { walk: 49, quick: 70 }, height: 1.8, holds: true, allRound: true, assaults: true, column: 'road', weapon: 'musket', flee: 1.4,
+      shapes: { // frontage F and depth D (m): a number, or { of: men | files (men a rank) | bns (battalions) | pairs (of battalions), mul, add, min, max }
+        line: { F: { of: 'files', mul: [0.6, 1.15], min: 40 }, D: 25 }, twoLines: { F: { of: 'files', mul: [0.6, 1.15, 0.5], min: 40 }, D: 110 },
+        attack: { F: { of: 'bns', mul: [45] }, D: 80 }, mass: { F: 160, D: { of: 'bns', mul: [13], add: 12 } },
+        square: { F: { of: 'pairs', mul: [70] }, D: { of: 'bns', steps: [[2, 110]], else: 35 } }, road: { F: 12, D: { of: 'men', mul: [0.5], min: 40 } },
+        _: { F: { of: 'bns', mul: [70] }, D: 60 } } }, // battalion columns at deploying interval
+    cav: { move: 'horse', speed: { walk: 100, trot: 220, charge: 400 }, height: 2.6, charges: true, column: 'road', shock: { heavy: 1.25, lancer: 1.1, light: 1.0 }, flee: 1.5,
+      density: { line: 1.2, _: 1.5 },
+      shapes: { line: { F: { of: 'men', mul: [0.5, 1.1], min: 60 }, D: 20 }, road: { F: 10, D: { of: 'men', mul: [0.8], min: 40 } }, _: { F: { of: 'men', mul: [0.22], min: 110 }, D: 60 } } },
+    art: { move: 'guns', speed: { walk: 60, horse: 110 }, height: 1.8, crew: 12, column: 'limbered', deploys: 'battery', shells: 0.25, weapon: 'guns', flee: 1.4,
+      meleeD: 0.5, roadMen: 30, seenAs: 15, // stands an assault half as well as foot; a gun and team take the road of 30 men; seen like 15 men a gun
+      shapes: { limbered: { F: 14, D: { of: 'men', mul: [22], min: 30 } }, road: { F: 14, D: { of: 'men', mul: [22], min: 30 } },
+        park: { F: { of: 'men', mul: [2.2], add: 40, max: 260 }, D: 80 }, _: { F: { of: 'men', mul: [15], min: 30 }, D: 30 } } },
+  },
+  // a body holding a farm or village: it stands as big as the section it holds (1.4 x its radius, or 60 m), 4 m tall to an observer
+  // (walls and roofs), and makes a thin target to roundshot
+  place: { size: 1.4, sizeElse: 60, height: 4, density: 0.5, leaveForm: 'columns' }, // leaveForm: the formation a body leaving it takes
+  lyingHeight: 0.5, // a man lying down, m
+  /* movement: how ground slows a body, by how it moves (rules doc table for foot; horse and guns cannot move formed through woods or
+     buildings). A number is the share of open-ground pace; [k, 'wet'] is k times the open-ground pace on wet ground, which is
+     1 - wet x the ground's wetness; lane: [a, b, c] is a - b x wetness + c. Riders carry messages. */
+  movement: {
+    foot: { wet: 0.35, ROAD: 1.2, LANE: [1, 0.5, 0.1], WOOD: [0.5, 'wet'], ORCH: [0.6, 'wet'], BUILD: 0.4, VILL: 0.6, STREAM: [0.35, 'wet'], SUNKEN: [0.5, 'wet'] },
+    horse: { wet: 0.5, ROAD: 1.2, LANE: [1, 0.5, 0.1], WOOD: 0.12, ORCH: [0.35, 'wet'], BUILD: 0.1, VILL: 0.6, STREAM: [0.35, 'wet'], SUNKEN: [0.35, 'wet'] },
+    guns: { wet: 0.6, ROAD: 1.2, LANE: [1, 0.5, 0.1], WOOD: 0.12, ORCH: [0.35, 'wet'], BUILD: 0.1, VILL: 0.6, STREAM: [0.2, 'wet'], SUNKEN: [0.35, 'wet'] },
+    rider: { wet: 0.4, ROAD: 1.5, LANE: [1.15, 'wet'], WOOD: [0.35, 'wet'], BUILD: 0.3, VILL: 0.9, STREAM: [0.5, 'wet'], SUNKEN: [0.6, 'wet'], ORCH: [0.7, 'wet'] },
+  },
+  /* formations: fire, the share of the men who can fire (ranksFire: only the front ranks the weapon allows, so 2 of 3 in a French line);
+     density, how dense a target the body makes; mass, its weight in a push; speed, a multiplier on its pace (pace: a fixed share instead);
+     ticks, 2-minute ticks to form it (or leave it); allRound, it faces every way (no flank, fires all round, stands off horse);
+     breaksTo, the formation a body that breaks falls into; column, it uses roads at road pace (lane: and lanes, plus this); meleeD, how well
+     it stands an assault; vsHorse, how well it stands a charge caught out of the all-round formation */
+  formations: {
+    line: { fire: 1, ranksFire: true, density: 1, mass: 1.0, speed: 0.8, breaksTo: 'columns', vsHorse: 1 },
+    twoLines: { fire: 0.5, ranksFire: true, density: 0.8, mass: 0.95, vsHorse: 1.05 },
+    columns: { fire: 0.18, density: 2.5, mass: 1.1 },
+    attack: { fire: 0.15, density: 2.5, mass: 1.2 },
+    mass: { fire: 0.12, density: 3.5, mass: 1.4, speed: 0.9, ticks: 3, breaksTo: 'columns', vsHorse: 0.6 },
+    square: { fire: 0.25, density: 3, mass: 0.5, pace: 0.2, allRound: true, toTicks: [[50, 1]], toTicksElse: 2, fromTicks: 1, breaksTo: 'columns', meleeD: 0.75 },
+    road: { fire: 0.03, density: 3, mass: 0.4, column: true, lane: 0.15, meleeD: 0.4, vsHorse: 0.3 },
+    garrison: { fire: 0.6, density: 1, mass: 1 },
+    battery: { density: 0.6, speed: 0.25, deployed: true }, park: { density: 1, speed: 0.25, deployed: true }, limbered: { density: 1.5, column: true },
+  },
+  formationElse: { fire: 0.2, mass: 1, vsHorse: 0.8, meleeD: 1 },
+  /* weapons: musket, the smoothbore (hit table above; front ranks firing: 2); rifle, slower to load and more accurate past 100 m (Baker);
+     guns, roundshot and canister above, shots a minute by calibre, howitzer shells that can fire buildings, caissons that can blow up */
+  weapons: {
+    musket: { reach: 300, arc: 75, firingRanks: 2, rate: 1, ammo: 'musket' },
+    rifle: { reach: 300, arc: 75, firingRanks: 2, rate: 0.6, longHit: { beyond: 100, mul: 1.6 }, ammo: 'rifle' },
+    guns: { reach: 1600, rateByCal: [[12, 1]], rateElse: 2, fireBuildings: 0.005, caisson: 0.002 },
+  },
 });
 })(typeof globalThis !== 'undefined' ? globalThis : this);

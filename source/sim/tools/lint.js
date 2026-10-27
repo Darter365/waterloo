@@ -14,7 +14,7 @@ const P = require(path.join(SIM, 'packs', 'all.js'));
 const FILES = ['engine.js', 'ai.js', 'command.js', 'orders.js', 'replay.js']; // the sim; script.js is Napoleon's script for Waterloo (battle content, moves to the pack in phase 3)
 const SCHEMA = ['LAT0', 'LON0', 'MLAT', 'MLON', 'NX', 'NY', 'CELL', 'WM', 'HM', 'll2m', 'm2ll', 'H', 'RAW', 'STRONGPOINTS', 'OBJECTIVES', 'ROUTES', 'LEADERS',
   'LM', 'ROADS', 'SUNKEN', 'HEDGES', 'WOODS', 'BUILDINGS', 'ENCLOSURES', 'STREAMS', 'VILLAGES', 'HOUSES', 'LABELS', 'EDGE_LABELS', 'NAT', 'OFFMAP',
-  'QUALITY', 'CALIBRE', 'CORPS', 'DIVISION', 'CHOKES', 'rng', 'hashStr'];
+  'QUALITY', 'CALIBRE', 'CORPS', 'DIVISION', 'CHOKES', 'rng', 'hashStr', 'TRAITS', 'FORCES'];
 
 /* ----- the names each battle defines, by kind ----- */
 function battleNames() {
@@ -27,6 +27,8 @@ function battleNames() {
     for (const l of B.leaders || []) { add('leader', l.id); const p = P.leader(l.id); if (p) add('leader', p.name); }
     for (const list of ['RAW', 'PRUSSIANS', 'HAL_FORCE', 'GROUCHY_FORCE', 'HORSE_BATTERIES']) for (const r of W[list] || []) add('unit', r[0]);
     for (const list of ['PRUSSIANS', 'HAL_FORCE', 'GROUCHY_FORCE']) for (const r of W[list] || []) add('corps', r[7]);
+    for (const F of W.FORCES || []) { add('force', F.group); for (const r of F.units || []) { add('unit', r[0]); add('corps', r[7]); } }
+    for (const st of Object.values(B.starts || {})) if (st.come) add('route', st.come.route);
     for (const v of Object.values(W.CORPS || {})) add('corps', v);
     for (const v of Object.values(W.DIVISION || {})) add('division', v);
     for (const sp of W.STRONGPOINTS || []) { add('place', sp.id); add('place', sp.name); } // (section names are plain words: wood, farm, buildings)

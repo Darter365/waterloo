@@ -620,7 +620,7 @@ function make(opts = {}) {
       if (E.byId.bruno) E.byId.bruno.task = { kind: 'screen', area: E.ll2m(50.6830, 4.4830), since: E.t };
       // detach the Guard's 24 twelve-pounders as their own battery for the grand battery
       const g = E.byId.aGuard;
-      if (g && !E.byId.aGuard12) { g.str -= 24; g.str0 -= 24; g.guns0 = g.str; const u = addUnit(E, { id: 'aGuard12', side: 'FR', name: "The Guard's 12-pounders", parent: 'Guard artillery', nat: 'FR', type: 'art', str: 24, x: g.x - 150, y: g.y, facing: 0, form: 'park', q: 1.15, corps: 'guard', cal: 12 }); u.coh = 82; u.howitzers = 0; }
+      if (g && !E.byId.aGuard12) { g.str -= 24; g.str0 -= 24; g.guns0 = g.str; const u = addUnit(E, { id: 'aGuard12', side: 'FR', name: "The Guard's 12-pounders", parent: 'Guard artillery', nat: 'FR', type: 'art', str: 24, x: g.x - 150, y: g.y, facing: 0, form: 'park', q: 1.15, corps: 'guard', cal: 12 }); u.coh = 82; u.shells = 0; }
       if (opts.plan === 'historical') E.plan.steps = historicalPlan(E, S);
       // 'script' plans are given by a script through the order builder (see script.js)
       E.ruleHooks.push(E2 => { if (E2.metrics.lhsFall == null && E2.spById.lhs.holder === 'FR') E2.metrics.lhsFall = E2.t; });
@@ -652,7 +652,7 @@ function make(opts = {}) {
 }
 function addUnit(E, spec) {
   // create a unit after start (uses the engine's internal factory via detach-like path)
-  const u = Object.assign({ q: 1, coh: 80, cohMax: 100, fatigue: 25, ammo: 50, rounds: 120, wind: 100, status: 'steady', lying: false, onMap: true, gone: false, formTo: null, formTimer: 0, task: { kind: 'hold' }, path: null, killed: 0, wounded: 0, captured: 0, stragglers: 0, hitTick: { mus: 0, art: 0, flank: 0, cav: 0 }, firedTick: false, lastHit: -99, lastFired: -99, howitzers: 0, silencedUntil: 0, isGuard: true, minCoh: 80 }, spec);
+  const u = Object.assign({ q: 1, coh: 80, cohMax: 100, fatigue: 25, ammo: 50, rounds: 120, wind: 100, status: 'steady', lying: false, onMap: true, gone: false, formTo: null, formTimer: 0, task: { kind: 'hold' }, path: null, killed: 0, wounded: 0, captured: 0, stragglers: 0, hitTick: { mus: 0, art: 0, flank: 0, cav: 0 }, firedTick: false, lastHit: -99, lastFired: -99, shells: 0, silencedUntil: 0, isGuard: true, minCoh: 80 }, spec);
   u.str0 = u.str; u.guns0 = u.str; const fp = E.footprint(u); u.F = fp.F; u.D = fp.D; E.units.push(u); E.byId[u.id] = u; return u;
 }
 
