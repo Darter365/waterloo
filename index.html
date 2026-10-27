@@ -33,7 +33,7 @@ body{margin:0}img{max-width:100%}[hidden]{display:none!important}
 :root{
   --bg:#e7ddc6; --fg:#2e251c; --fg-2:#65543f; --fg-3:#6f604b; --line:#cbbc9a; --panel:#f2ead7; --chip:#e8ddc4; --accent:#8a4a17; --focus:#2d4c86;
   --m-paper:#f3ead2; --m-ink:#392c20; --m-hach:#56412d; --m-contour:#9b7a52; --m-water:#3b6a8e; --m-wood:#98a468; --m-woodink:#4b5829;
-  --m-build:#983828; --m-road:#e3c98f; --m-fr:#2c4b85; --m-al:#aa2f25; --m-pr:#24262a; --m-flag:#b0601c; --m-debate:#6c4a8a;
+  --m-build:#983828; --m-road:#e3c98f; --m-fr:#2c4b85; --m-al:#aa2f25; --m-pr:#24262a; --m-flag:#b0601c; --alarm:#a3290f; --m-alarm:#8c2410; --m-debate:#6c4a8a;
   --m-dead:74,50,28; --m-ok:#2e6a3a; --m-no:#b0302a;
   --serif:"EB Garamond", Garamond, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
   --fell:"IM Fell English", "EB Garamond", Garamond, Georgia, serif;
@@ -43,7 +43,7 @@ body{margin:0}img{max-width:100%}[hidden]{display:none!important}
   :root:not([data-theme="light"]){
     --bg:#15110d; --fg:#ebe0c8; --fg-2:#b9a98c; --fg-3:#9a8a72; --line:#3a3127; --panel:#1d1813; --chip:#2a231b; --accent:#dba45f; --focus:#9db4e0;
     --m-paper:#d5c7a4; --m-ink:#2f241a; --m-hach:#4a3725; --m-contour:#86683f; --m-water:#30597a; --m-wood:#7f8b50; --m-woodink:#3f4a20;
-    --m-build:#86301f; --m-road:#cdb179; --m-fr:#24427a; --m-al:#9c281f; --m-pr:#1e2023; --m-flag:#9a5214; --m-debate:#5d3e7a;
+    --m-build:#86301f; --m-road:#cdb179; --m-fr:#24427a; --m-al:#9c281f; --m-pr:#1e2023; --m-flag:#9a5214; --alarm:#f08457; --m-alarm:#8c2410; --m-debate:#5d3e7a;
     --m-dead:58,38,20; --m-ok:#22582c; --m-no:#9c281f;
     color-scheme:dark;
   }
@@ -51,7 +51,7 @@ body{margin:0}img{max-width:100%}[hidden]{display:none!important}
 :root[data-theme="dark"]{
   --bg:#15110d; --fg:#ebe0c8; --fg-2:#b9a98c; --fg-3:#9a8a72; --line:#3a3127; --panel:#1d1813; --chip:#2a231b; --accent:#dba45f; --focus:#9db4e0;
   --m-paper:#d5c7a4; --m-ink:#2f241a; --m-hach:#4a3725; --m-contour:#86683f; --m-water:#30597a; --m-wood:#7f8b50; --m-woodink:#3f4a20;
-  --m-build:#86301f; --m-road:#cdb179; --m-fr:#24427a; --m-al:#9c281f; --m-pr:#1e2023; --m-flag:#9a5214; --m-debate:#5d3e7a;
+  --m-build:#86301f; --m-road:#cdb179; --m-fr:#24427a; --m-al:#9c281f; --m-pr:#1e2023; --m-flag:#9a5214; --alarm:#f08457; --m-alarm:#8c2410; --m-debate:#5d3e7a;
   --m-dead:58,38,20; --m-ok:#22582c; --m-no:#9c281f;
   color-scheme:dark;
 }
@@ -130,6 +130,9 @@ table.forces thead th{font-weight:600;color:var(--fg-2);font-size:.82rem}
 .notes p{margin:.45em 0}
 .notes b{color:var(--fg);font-weight:600}
 .dot{display:inline-block;width:.7em;height:.7em;border-radius:50%;vertical-align:baseline;margin-right:4px}
+.alarm{color:var(--alarm);font-weight:700;letter-spacing:.02em}
+.disp .alarm{color:var(--m-alarm)}
+.disp.alarmed{border-left:3px solid var(--m-alarm)}
 
 :root{--p-fr:#2c4b85;--p-al:#aa2f25;--p-pr:#2a2c30;--ok:#2e6a3a;--bad:#a8322a}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--p-fr:#86a3dc;--p-al:#e07a6e;--p-pr:#cfc8bb;--ok:#86c48d;--bad:#e8857a}}
@@ -498,7 +501,7 @@ table.moments td:nth-child(2){font-weight:600}
     <h1>Waterloo <span>· Napoleon’s command</span></h1>
     <p>You are the Emperor on the morning of 18 June 1815. You see the field from your post and learn the rest from riders. Every order you give is written, carried across the field and passed down before a single brigade moves.</p>
   </div>
-  <span class="stamp">Release 2</span>
+  <span class="stamp">Release 3</span>
 </header>
 
 <main class="layout">
@@ -546,7 +549,7 @@ table.moments td:nth-child(2){font-weight:600}
     </div>
     <div class="runbar" id="runbar">
       <span class="runtxt" id="runtxt" aria-live="polite"></span>
-      <span class="rideon" id="rideon" hidden><label class="vh" for="r-stop">When to stop the clock</label><select id="r-stop"><option value="all">Stop for news</option><option value="decide">Stop for ★ only</option></select><label class="vh" for="r-to">Ride on to</label><select id="r-to"></select><button id="r-go" type="button">Ride on</button></span>
+      <span class="rideon" id="rideon" hidden><label class="vh" for="r-stop">When to stop the clock</label><select id="r-stop"><option value="all">Stop for news</option><option value="alarm">Stop for !! and ★</option><option value="decide">Stop for ★ only</option></select><label class="vh" for="r-to">Ride on to</label><select id="r-to"></select><button id="r-go" type="button">Ride on</button></span>
       <button id="readbtn" class="ghost">Read</button>
       <button id="go" class="primary">Continue</button>
     </div>
@@ -643,6 +646,8 @@ table.moments td:nth-child(2){font-weight:600}
         <p><b>The glass.</b> Tap the telescope beside the map, then a place. The map closes in on it inside the eyepiece: ground you cannot see from your post (behind a crest, in a hollow, under smoke, beyond the day’s light) is shaded, and only what you yourself saw there in the last twenty minutes is ringed. It is worked out from your record and the lie of the land; it never shows you more than your own eyes did, and looking changes nothing.</p>
         <p><b>Your pencil.</b> ✎ draws on the map with a finger or the mouse (two fingers still pan and zoom), <i>Aa</i> writes a short note where you tap, and ⌫ rubs out the mark you tap. Nothing in the battle reads your marks; your notes go into the after-action report.</p>
         <p><b>Letters and the staff.</b> Orders go out as the letters Soult’s office wrote, in the Emperor’s name over the major-général’s signature, and reports come in as their writers signed them; switch to plain text under Headquarters. At the stops Soult, Drouot or an aide may speak up. They speak only from what headquarters knows, so, like the real staff, they are sometimes wrong. Nothing they say changes the battle.</p>
+        <p><b>!! on the map.</b> Quick events you see from headquarters (a new or renewed attack, a cavalry charge, a line breaking or running, the enemy close to headquarters) are marked !! in the notices and on the map, where the mark fades over twenty minutes. Click or tap a mark to open its notice. “Stop for !! and ★” beside Continue stops the clock within four minutes of one.</p>
+        <p><b>The map.</b> In the headquarters panel you can change the Emperor’s paper map for a colour map with relief. It shows the same knowledge; only the look changes.</p>
         <p><b>Fighting it out, and retreating.</b> “To the end…” beside Ride on runs the clock to nightfall with no more stops: the front left to Ney, Napoleon’s own orders from that hour, or no more orders at all. To break off, write to <i>The whole army (general retreat)</i>: each corps commander gets a letter, makes for the high road and marches off toward Charleroi as it arrives, with the Guard or Lobau as rearguard at Rossomme. The enemy sees it within half an hour and follows; Blücher drives for the road. The battle is then judged on what you bring away.</p>
         <p><b>An army’s nerve.</b> Each army’s will to fight wears down with the men it loses, with brigades seen breaking, and with the day’s great events: a farm lost, the crest taken, the Prussians coming in, the Guard thrown back. An army whose nerve goes breaks, brigade after brigade. You are never shown a number; your staff will tell you when the returns are heavy.</p>
         <p><b>The end.</b> The battle ends at dark (about 21:30), forty minutes after an army breaks, or once a French retreat has left the field. Then the umpire’s map is opened and you see what really happened, what you were never told, and how your orders fared. Below the map, the after-action report sets the day out hour by hour against what you knew and when, fights your battle again in the background without each of your orders, with the orders that mattered most sent sooner, and with Napoleon’s own orders, and can fight your orders on other days to show how much was the dice. You can go back to any stop and fight on from there.</p>
@@ -3201,16 +3206,16 @@ function install(E, opts = {}) {
   function watchOwn(u) {
     const prev = C.seen[u.id], now = { task: u.task.kind, status: u.status, sp: u.spId, charge: !!u.charge };
     C.seen[u.id] = now; if (!prev) return;
-    const where = whereIs(u.x, u.y).replace(/^at /, 'at '), R = { own: [u.id], at: [u.x, u.y] };
+    const where = whereIs(u.x, u.y).replace(/^at /, 'at '), R = { own: [u.id], at: [u.x, u.y] }, A = k => Object.assign({ alarm: k }, R); // (9) !! alarms: quick events seen
     // how a staff officer would name it: 'Charlet's brigade', 'Dubois's cuirassiers', 'the 2e Grenadiers', 'Foy's battery'
     const nm = u.name.replace(/^The /, 'the ');
     const regiment = /^\d|Grenadiers|Chasseurs|Lancers|Dragoons|Horse|Gendarmes|^the /i.test(nm);
     const what = u.type === 'art' ? nm : regiment ? (/^the /.test(nm) ? nm : 'the ' + nm) : u.type === 'cav' ? `${nm}'s horsemen` : `${nm}'s brigade`;
     const is = (u.type === 'cav' && !regiment) || regiment ? 'are' : 'is', has = is === 'are' ? 'have' : 'has';
-    if (now.status === 'broken' && prev.status !== 'broken') { C.sawBreak[u.id] = E.t; if (once(u.id + 'b', 10)) seen(`${cap(what)} ${is} breaking and running, ${where}.`, R); return; }
+    if (now.status === 'broken' && prev.status !== 'broken') { C.sawBreak[u.id] = E.t; if (once(u.id + 'b', 10)) seen(`${cap(what)} ${is} breaking and running, ${where}.`, A('break')); return; }
     if (prev.status === 'broken' && now.status !== 'broken') { if (once(u.id + 'r', 15)) seen(`${cap(what)} ${has} rallied.`, R); return; }
-    if ((now.task === 'attack' || now.task === 'cavRaid') && prev.task !== now.task) { if (once(u.id + 'a', 15)) seen(u.type === 'cav' ? `${cap(what)} ${is} riding up the slope, ${where}.` : `${cap(what)} ${is} going forward${u.task.sp ? ' against ' + E.spById[u.task.sp].name : ''}.`, R); return; }
-    if (now.charge && !prev.charge && u.type === 'cav') { if (once(u.id + 'c', 10)) seen(`${cap(what)} ${is} charging, ${where}.`, R); return; }
+    if ((now.task === 'attack' || now.task === 'cavRaid') && prev.task !== now.task) { const again = C.atkAt[u.id] != null && E.t - C.atkAt[u.id] <= 120; C.atkAt[u.id] = E.t; if (once(u.id + 'a', 15)) seen(u.type === 'cav' ? `${cap(what)} ${is} riding up the slope${again ? ' again' : ''}, ${where}.` : `${cap(what)} ${is} going forward${again ? ' again' : ''}${u.task.sp ? ' against ' + E.spById[u.task.sp].name : ''}.`, A(again ? 'renewed' : 'attack')); return; }
+    if (now.charge && !prev.charge && u.type === 'cav') { if (once(u.id + 'c', 10)) seen(`${cap(what)} ${is} charging, ${where}.`, A('charge')); return; }
     if (now.task === 'rally' && prev.task !== 'rally') { if (once(u.id + 't', 15)) seen(`${cap(what)} ${has} been thrown back, ${where}.`, R); return; }
     if (now.sp && now.sp !== prev.sp) { if (once(u.id + 's', 15)) seen(`${cap(what)} ${is} in ${E.spById[now.sp].name}.`, R); return; }
     if (now.task === 'bombard' && prev.task !== 'bombard') { if (once(u.id + 'g', 15)) C.gunsNow.push({ nm, id: u.id }); }
@@ -3221,16 +3226,16 @@ function install(E, opts = {}) {
     const now = { status: rec.status, charge: !!e.charge, toward };
     C.seenE[e.id] = now; if (!prev) return;
     const who = rec.side ? (NATWORD[rec.nat] || (rec.side === 'PR' ? 'Prussian' : 'enemy')) : 'enemy', kind = rec.kind === 'cav' ? 'cavalry' : rec.kind === 'art' ? 'guns' : rec.kind === 'inf' ? 'infantry' : 'troops';
-    const area = Math.round(e.x / 1200) + ',' + Math.round(e.y / 1200), where = whereIs(e.x, e.y), R = { tids: [e.id], at: [e.x, e.y] };
-    if (now.status === 'broken' && prev.status !== 'broken') { C.runSeen.push(E.t); if (once('eb' + area, 15)) seen(`${cap(who)} ${kind} are running, ${where}.`, R); return; }
-    if (now.charge && !prev.charge) { if (once('ec' + area, 10)) seen(`${cap(who)} cavalry are charging, ${where}.`, R); return; }
-    if (now.toward && !prev.toward && rec.str > 1000) { if (once('ea' + area, 20)) seen(`${cap(who)} ${kind} are coming forward, ${where}.`, R); }
+    const area = Math.round(e.x / 1200) + ',' + Math.round(e.y / 1200), where = whereIs(e.x, e.y), R = { tids: [e.id], at: [e.x, e.y] }, A = k => Object.assign({ alarm: k }, R);
+    if (now.status === 'broken' && prev.status !== 'broken') { C.runSeen.push(E.t); if (once('eb' + area, 15)) seen(`${cap(who)} ${kind} are running, ${where}.`, A('break')); return; }
+    if (now.charge && !prev.charge) { if (once('ec' + area, 10)) seen(`${cap(who)} cavalry are charging, ${where}.`, A('charge')); return; }
+    if (now.toward && !prev.toward && rec.str > 1000) { const again = C.advAt[area] != null && E.t - C.advAt[area] <= 90; C.advAt[area] = E.t; if (once('ea' + area, 20)) seen(`${cap(who)} ${kind} are coming forward${again ? ' again' : ''}, ${where}.`, A(again ? 'renewed' : 'attack')); }
   }
   C.notice = []; C.ney = { active: true, sector: 'whole', goal: null, since: E.t };
   /* ---------- (5e) things too big to miss from the post: no dice, so they never change the battle ---------- */
   // A cavalry charge, our infantry on the enemy's crest, Ney taking the reserve cavalry forward, the enemy wavering,
   // the enemy close to headquarters. Each is seen if headquarters has a line of sight to it (or, for the crest, is within 4 km).
-  C.runSeen = []; C.chargeSeen = {}; C.neyNotes = []; C.sawBreak = {}; C.lastRequest = {};
+  C.runSeen = []; C.chargeSeen = {}; C.neyNotes = []; C.sawBreak = {}; C.lastRequest = {}; C.atkAt = {}; C.advAt = {};
   const ownWhat = u => { const nm = u.name.replace(/^The /, 'the '), regiment = /^\d|Grenadiers|Chasseurs|Lancers|Dragoons|Horse|Gendarmes|^the /i.test(nm); return u.type === 'art' ? nm : regiment ? (/^the /.test(nm) ? nm : 'the ' + nm) : u.type === 'cav' ? `${nm}'s horsemen` : `${nm}'s brigade`; };
   C.ownWhat = ownWhat;
   function conspicuous() {
@@ -3243,7 +3248,7 @@ function install(E, opts = {}) {
       C.chargeSeen[e.id] = e.charge;
       const tgt = E.byId[e.charge.target], who = r < CK.ID_GLASS * 1.6 ? (NATWORD[e.nat] || 'enemy') : 'enemy', area = Math.round(e.x / 1200) + ',' + Math.round(e.y / 1200);
       if (!once('ec' + area, 10)) continue;
-      seen(`${cap(who)} cavalry are charging${tgt && tgt.side === 'FR' ? ' ' + ownWhat(tgt) : ''}, ${whereIs(e.x, e.y)}.`, { tids: [e.id], own: tgt && tgt.side === 'FR' ? [tgt.id] : [], at: [e.x, e.y] });
+      seen(`${cap(who)} cavalry are charging${tgt && tgt.side === 'FR' ? ' ' + ownWhat(tgt) : ''}, ${whereIs(e.x, e.y)}.`, { tids: [e.id], own: tgt && tgt.side === 'FR' ? [tgt.id] : [], at: [e.x, e.y], alarm: 'charge' });
     }
     // our infantry on the crest of the ridge, or thrown off it
     const crest = E.objectives.ridgeCentre && E.objectives.ridgeCentre.line;
@@ -3254,12 +3259,12 @@ function install(E, opts = {}) {
       } }
     // the enemy wavering: three or more bodies seen running in half an hour
     C.runSeen = C.runSeen.filter(t => E.t - t <= 30);
-    if (C.runSeen.length >= 3 && once('waver', 30)) seen(`Across the valley the enemy's line is wavering: ${C.runSeen.length} of his bodies have been seen running in the last half hour.`);
+    if (C.runSeen.length >= 3 && once('waver', 30)) seen(`Across the valley the enemy's line is wavering: ${C.runSeen.length} of his bodies have been seen running in the last half hour.`, { alarm: 'break' });
     // headquarters in danger
     if (!C.hq.moving) {
       const close = E.near(p[0], p[1], 800, u => u.side !== 'FR' && E.formed(u) && u.type !== 'art'), back = E.near(p[0], p[1], 500, u => u.side === 'FR' && u.status === 'broken' && u.onMap && !u.gone);
       if (close.length && once('hqdanger', 20)) { const c = close.sort((a, b) => hyp(a.x - p[0], a.y - p[1]) - hyp(b.x - p[0], b.y - p[1]))[0], d = Math.round(hyp(c.x - p[0], c.y - p[1]) / 100) * 100;
-        inbox({ kind: 'sight', title: 'Headquarters in danger', text: `${cap(NATWORD[c.nat] || 'enemy')} ${c.type === 'cav' ? 'cavalry' : 'infantry'} are within ${d} m of headquarters. The staff urge Your Majesty to move back.`, decision: true, refs: { tids: close.map(u => u.id), at: [c.x, c.y] } }); }
+        inbox({ kind: 'sight', title: 'Headquarters in danger', text: `${cap(NATWORD[c.nat] || 'enemy')} ${c.type === 'cav' ? 'cavalry' : 'infantry'} are within ${d} m of headquarters. The staff urge Your Majesty to move back.`, decision: true, refs: { tids: close.map(u => u.id), at: [c.x, c.y] }, alarm: [{ kind: 'hq', at: [c.x, c.y], line: null }] }); }
       else if (back.length >= 2 && once('hqrout', 20)) inbox({ kind: 'sight', title: 'Headquarters', text: `Our broken troops are streaming back past headquarters: ${back.slice(0, 3).map(ownWhat).join(', ')}.`, decision: true, refs: { own: back.map(u => u.id), at: [p[0], p[1]] } });
     }
   }
@@ -3271,9 +3276,9 @@ function install(E, opts = {}) {
     const names = [...new Set(us.filter(u => u.type !== 'art').map(u => CAVGROUP[u.id] || ownWhat(u)))];
     const list = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0] || 'the cavalry';
     const at = fmtT(E.t);
-    if (kind === 'cavalry') { seen(`Marshal Ney is leading ${list} forward onto the plateau, without Your Majesty's order.`, { own: us.map(u => u.id) }); C.neyNotes.push(`At ${at} I took the cuirassiers forward: I saw the enemy falling back over the crest.`); }
-    else if (kind === 'cavalry2') { seen(`${cap(list)} are following Ney onto the plateau, without Your Majesty's order.`, { own: us.map(u => u.id) }); C.neyNotes.push(`At ${at} I called up more cavalry to finish the work on the plateau.`); }
-    else if (kind === 'exploit') { seen(`With La Haye Sainte taken, Ney is running guns up beside it and sending ${list} against the enemy's centre.`, { own: us.map(u => u.id) }); C.neyNotes.push(`At ${at}, with La Haye Sainte ours, I sent what infantry I could find against the enemy's centre and ran guns up beside the farm. Give me fresh infantry and the centre is ours.`); }
+    if (kind === 'cavalry') { seen(`Marshal Ney is leading ${list} forward onto the plateau, without Your Majesty's order.`, { own: us.map(u => u.id), alarm: 'charge' }); C.neyNotes.push(`At ${at} I took the cuirassiers forward: I saw the enemy falling back over the crest.`); }
+    else if (kind === 'cavalry2') { seen(`${cap(list)} are following Ney onto the plateau, without Your Majesty's order.`, { own: us.map(u => u.id), alarm: 'charge' }); C.neyNotes.push(`At ${at} I called up more cavalry to finish the work on the plateau.`); }
+    else if (kind === 'exploit') { seen(`With La Haye Sainte taken, Ney is running guns up beside it and sending ${list} against the enemy's centre.`, { own: us.map(u => u.id), alarm: 'attack' }); C.neyNotes.push(`At ${at}, with La Haye Sainte ours, I sent what infantry I could find against the enemy's centre and ran guns up beside the farm. Give me fresh infantry and the centre is ours.`); }
   };
   /* ---------- places: whoever has troops there knows at once; neighbours soon after ---------- */
   function placeWatch() {
@@ -3340,7 +3345,7 @@ function install(E, opts = {}) {
   };
 
   /* ---------- inbox (Napoleon) ---------- */
-  function mergeRefs(a, b) { if (!a) return b ? JSON.parse(JSON.stringify(b)) : null; if (!b) return a; for (const k of ['tids', 'own', 'sp', 'moves', 'dirs']) if (b[k]) a[k] = (a[k] || []).concat(b[k].filter(x => !(a[k] || []).includes(x))); if (!a.at && b.at) a.at = b.at; return a; }
+  function mergeRefs(a, b) { if (!a) return b ? JSON.parse(JSON.stringify(b)) : null; if (!b) return a; for (const k of ['tids', 'own', 'sp', 'moves', 'dirs']) if (b[k]) a[k] = (a[k] || []).concat(b[k].filter(x => !(a[k] || []).includes(x))); if (!a.at && b.at) a.at = b.at; if (!a.alarm && b.alarm) a.alarm = b.alarm; return a; }
   C.mergeRefs = mergeRefs;
   // every item records where headquarters was, so the game can draw what was heard or seen from it
   function inbox(m) { m.t = E.t; m.id = C.nextId++; if (m.pause == null) m.pause = true; const p = posOf('napoleon'); if (p) m.hq = [p[0], p[1]]; C.inbox.push(m); if (m.kind === 'report' || m.kind === 'summary') C.lastNews = E.t; return m; }
@@ -3658,7 +3663,9 @@ function install(E, opts = {}) {
     const lines = [], lineRefs = [];
     C.seenNow.forEach((l, i) => { const j = lines.indexOf(l), r = C.seenRefs[i]; if (j < 0) { lines.push(l); lineRefs.push(r); } else if (r) lineRefs[j] = mergeRefs(lineRefs[j], r); });
     C.seenNow = []; C.seenRefs = [];
-    inbox({ kind: 'sight', title: `Seen from ${C.hq.moving ? 'the saddle' : POSTS[C.hq.post] ? POSTS[C.hq.post].name : 'headquarters'}`, text: lines.join(' '), lines, lineRefs, refs: lineRefs.reduce(mergeRefs, null), decision: lines.some(l => /in the enemy's hands|breaking|Prussian|whose, we cannot tell|charging|Ney is|following Ney|stand on the crest|cleared his crest|wavering/.test(l)) });
+    // (9) the !! alarms in this notice, each placed where it was seen (or where the brigades it names stand)
+    const alarm = []; lineRefs.forEach((r, i) => { if (!r || !r.alarm) return; let at = r.at; if (!at) { const us = [...(r.own || []), ...(r.tids || [])].map(id => E.byId[id]).filter(Boolean); if (us.length) at = [us.reduce((a, u) => a + u.x, 0) / us.length, us.reduce((a, u) => a + u.y, 0) / us.length]; } alarm.push({ kind: r.alarm, at: at || null, line: i }); });
+    inbox({ kind: 'sight', alarm: alarm.length ? alarm : undefined, title: `Seen from ${C.hq.moving ? 'the saddle' : POSTS[C.hq.post] ? POSTS[C.hq.post].name : 'headquarters'}`, text: lines.join(' '), lines, lineRefs, refs: lineRefs.reduce(mergeRefs, null), decision: lines.some(l => /in the enemy's hands|breaking|Prussian|whose, we cannot tell|charging|Ney is|following Ney|stand on the crest|cleared his crest|wavering/.test(l)) });
   }
 
   /* ---------- patrols and prisoners ---------- */
@@ -4914,6 +4921,7 @@ function drawNorth(g) {
 /* ================= shared drawing: the engine state and a commander's belief on the map ================= */
 const FORM = { line: 'in line', twoLines: 'in two lines', columns: 'battalion columns', attack: 'columns of attack', mass: "d'Erlon's massed division column", square: 'in square', road: 'road column', garrison: 'holding the buildings', battery: 'in battery', park: 'artillery park', limbered: 'limbered up' };
 const TASKS = { hold: 'holding', attack: 'attacking', support: 'supporting', rally: 'rallying', move: 'moving', march: 'marching', bombard: 'bombarding', cavRaid: 'charging on the plateau', charge: 'charging', garrison: 'garrisoning', garrisonGo: 'going into a strongpoint', pursue: 'pursuing out of control' };
+let mapColour = false; // (9) the colour map style: units get a light edge and stay solid against the green
 let SIM = null, prevPos = new Map(), frac = 1, flashes = [], viewMode = 'truth', truthAlpha = 1, extraDraw = null, beliefFocus = null, beliefFocusCol = null; // beliefFocus: own brigades to pick out (others are dimmed)
 const lerpPos = u => { const p = prevPos.get(u.id); if (!p || frac >= 1 || Math.hypot(p[0] - u.x, p[1] - u.y) > 1500) return [u.x, u.y]; return [p[0] + (u.x - p[0]) * frac, p[1] + (u.y - p[1]) * frac]; };
 const alive = u => u.onMap && !u.gone && u.str > 0;
@@ -5125,11 +5133,11 @@ function drawBelief(g) {
   for (const o of B.own.values()) {
     const u = SIM.byId[o.uid]; if (!u || o.gone || u.type === 'gar' && u.spId) continue;
     const foc = beliefFocus ? beliefFocus.has(o.uid) : null;
-    const ageP = now - o.t, a = Math.max(0.5, Math.exp(-ageP / 60)) * 0.92 * (foc === false ? 0.3 : 1);
+    const ageP = now - o.t, a = Math.max(mapColour ? 0.8 : 0.5, Math.exp(-ageP / 60)) * 0.92 * (foc === false ? 0.3 : 1);
     const fp = WEngine.footprint(Object.assign({}, u, { form: o.form || u.form, str: o.str || u.str }));
     const pts = quadAt(o.x, o.y, u.facing, Math.max(fp.F, 6 / s), Math.max(fp.D, 3.2 / s));
     if (foc) { g.save(); polyFill(g, pts); g.lineJoin = 'round'; g.strokeStyle = beliefFocusCol || PAL.order || PAL.flag; g.lineWidth = 7; g.globalAlpha = 0.5; g.stroke(); g.restore(); }
-    g.save(); polyFill(g, pts);
+    g.save(); polyFill(g, pts); if (mapColour) { g.lineJoin = 'round'; g.strokeStyle = 'rgba(246,240,222,0.9)'; g.lineWidth = 3; g.globalAlpha = a; g.stroke(); }
     if (u.type === 'inf') { g.fillStyle = PAL.FR; g.globalAlpha = a * (o.status === 'broken' ? 0.4 : 1); g.fill(); }
     else { g.fillStyle = PAL.paper; g.globalAlpha = a; g.fill(); g.strokeStyle = PAL.FR; g.lineWidth = 1.1; g.stroke(); if (u.type === 'cav') { g.save(); g.clip(); g.beginPath(); const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys); for (let d = x0 - (y1 - y0); d < x1; d += 3.1) { g.moveTo(d, y1); g.lineTo(d + (y1 - y0), y0); } g.stroke(); g.restore(); } }
     if (o.status === 'broken') { g.setLineDash([2, 2]); g.strokeStyle = PAL.ink; g.lineWidth = 0.6; g.stroke(); g.setLineDash([]); }
@@ -5148,7 +5156,7 @@ function drawBelief(g) {
     if (c.moving || age > 20) { const r = (25 + (c.moving ? 5 : 2) * age) * s; if (r > 6) { const [x, y] = P(c.x, c.y); g.save(); g.globalAlpha = 0.35 * a + 0.1; g.strokeStyle = col; g.setLineDash([2, 3]); g.lineWidth = 1; g.beginPath(); g.arc(x, y, r + Math.max(W, D) * s / 2, 0, 7); g.stroke(); g.restore(); } }
     if (c.ghost && now - c.ghost.t < 60) { const gp = quadAt(c.ghost.x, c.ghost.y, c.dir, W, D); g.save(); polyFill(g, gp); g.globalAlpha = 0.5 * a; g.strokeStyle = col; g.setLineDash([3, 3]); g.lineWidth = 1; g.stroke(); g.restore(); }
     const pts = quadAt(c.x, c.y, c.dir ?? 0, Math.max(W, 6 / s), Math.max(D, 3.2 / s));
-    g.save(); polyFill(g, pts);
+    g.save(); polyFill(g, pts); if (mapColour) { g.lineJoin = 'round'; g.strokeStyle = 'rgba(246,240,222,0.85)'; g.lineWidth = 3; g.globalAlpha = Math.max(0.5, a); g.stroke(); }
     if (c.kind === 'inf') { g.fillStyle = col; g.globalAlpha = 0.85 * a; g.fill(); }
     else if (c.kind === 'troops') { g.fillStyle = col; g.globalAlpha = 0.35 * a; g.fill(); g.globalAlpha = a; g.strokeStyle = col; g.setLineDash([3, 2]); g.lineWidth = 1.2; g.stroke(); g.setLineDash([]); }
     else { g.fillStyle = PAL.paper; g.globalAlpha = 0.9 * a; g.fill(); g.globalAlpha = a; g.strokeStyle = col; g.lineWidth = 1.1; g.stroke(); if (c.kind === 'cav') { g.save(); g.clip(); g.beginPath(); const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys); for (let d = x0 - (y1 - y0); d < x1; d += 3.1) { g.moveTo(d, y1); g.lineTo(d + (y1 - y0), y0); } g.stroke(); g.restore(); } else { g.fillStyle = col; const n = Math.min(12, c.guns || 4); for (let k = 0; k < n; k++) { const t = (k + 0.5) / n, x = pts[0][0] + (pts[1][0] - pts[0][0]) * t, y = pts[0][1] + (pts[1][1] - pts[0][1]) * t; g.beginPath(); g.arc(x + (pts[3][0] - pts[0][0]) * 0.3, y + (pts[3][1] - pts[0][1]) * 0.3, 1.2, 0, 7); g.fill(); } } }
@@ -5245,8 +5253,8 @@ canvas.addEventListener('pointermove', e => {
   }
   if (e.pointerType === 'mouse') {
     hoverAt = [x, y]; readGround(x, y);
-    const u = hitUnit(x, y), o = u ? null : hitOff(x, y);
-    if (u) showTip(hoverHTML(u, false), x, y); else if (o) showTip(`<b>${o.title}</b><div>${o.text}</div>`, x, y); else tip.hidden = true;
+    const u = hitUnit(x, y), ah = u || typeof hitAlarm !== 'function' ? null : hitAlarm(x, y), o = u || ah ? null : hitOff(x, y);
+    if (u) showTip(hoverHTML(u, false), x, y); else if (ah) { const t = alarmTip(ah); showTip(`<b>${t.title}</b><div>${t.text}</div>`, x, y); } else if (o) showTip(`<b>${o.title}</b><div>${o.text}</div>`, x, y); else tip.hidden = true;
   }
 });
 function endPointer(e) {
@@ -5331,10 +5339,10 @@ function stepGame() {
   // (5e) news is gathered: the clock stops 15 minutes after the first item that counts, or 8 after a ★ one, whichever comes first,
   // so several riders arriving close together make one stop (est.; the stops in a battle fell from about 110 to about 38)
   const C = SIM.command, mode = G.runTo != null ? 'decide' : G.stopMode;
-  for (; G.scan < C.inbox.length; G.scan++) { const m = C.inbox[G.scan]; if (m.pause === false || (mode !== 'all' && !m.decision)) continue; G.gatherUntil = Math.min(G.gatherUntil ?? Infinity, m.t + (m.decision ? GATHER_STAR : GATHER)); }
+  for (; G.scan < C.inbox.length; G.scan++) { const m = C.inbox[G.scan]; if (m.pause === false || (mode === 'decide' && !m.decision) || (mode === 'alarm' && !m.decision && !m.alarm)) continue; G.gatherUntil = Math.min(G.gatherUntil ?? Infinity, m.t + (m.alarm ? GATHER_ALARM : m.decision ? GATHER_STAR : GATHER)); }
   if ((G.gatherUntil != null && SIM.t >= G.gatherUntil) || (G.runTo != null && SIM.t >= G.runTo)) halt();
 }
-const GATHER = 15, GATHER_STAR = 8;
+const GATHER = 15, GATHER_STAR = 8, GATHER_ALARM = 4; // (9) a !! event stops the clock within 4 minutes, so there is time to answer it
 function halt() {
   const C = SIM.command, B = C.B.napoleon;
   G.current = C.inbox.slice(G.shown); G.curFrom = G.shown; G.shown = C.inbox.length;
@@ -5414,13 +5422,14 @@ function dispHTML(m) {
   const when = m.writtenAt != null && lag >= 2 ? `written ${hm(m.writtenAt)} · arrived ${hm(m.t)}` : hm(m.t);
   const body = m.lines && m.lines.length > 1 ? `<ul>${m.lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : `<p>${esc(m.text)}</p>`;
   const sel = G.dispSel && G.dispSel.id === m.id, hasMap = refsWorthShowing(m.refs);
-  const body2 = m.lines && m.lines.length > 1 ? `<ul>${m.lines.map((l, i) => `<li data-li="${i}" class="${sel && G.dispSel.line === i ? 'on' : ''}">${esc(l)}</li>`).join('')}</ul>` : body;
+  const alarmLine = i => m.alarm && m.alarm.some(a => a.line === i) ? '<span class="alarm" title="Seen from headquarters: a quick event">!!</span> ' : '';
+  const body2 = m.lines && m.lines.length > 1 ? `<ul>${m.lines.map((l, i) => `<li data-li="${i}" class="${sel && G.dispSel.line === i ? 'on' : ''}">${alarmLine(i)}${esc(l)}</li>`).join('')}</ul>` : body;
   let acts = hasMap ? `<button class="mapbtn" data-show="${m.id}" aria-pressed="${sel ? 'true' : 'false'}">${sel ? 'Shown on the map' : 'See it on the map'}</button>` : '';
   if (CORPS.includes(m.from) || m.from === 'ney') acts += `<button data-write="${m.from}">Write to ${m.from === 'ney' ? 'Ney' : SIM.leaders[m.from].name}</button>`;
   else if (m.from === 'grouchy') acts += `<button data-write="grouchy">Write to Grouchy</button>`;
   const actsH = acts ? `<div class="dact">${acts}</div>` : '';
   if (isLetter(m)) return `<article class="disp lt k-${m.kind}${m.decision ? ' decide' : ''}${sel ? ' sel' : ''}${hasMap ? ' clickable' : ''}" data-mid="${m.id}">${letterHTML(m, body2, actsH)}</article>`;
-  return `<article class="disp k-${m.kind}${m.decision ? ' decide' : ''}${sel ? ' sel' : ''}${hasMap ? ' clickable' : ''}" data-mid="${m.id}"><header><b>${esc(m.title)}</b><time>${when}</time></header>${body2}${actsH}</article>`;
+  return `<article class="disp k-${m.kind}${m.decision ? ' decide' : ''}${m.alarm ? ' alarmed' : ''}${sel ? ' sel' : ''}${hasMap ? ' clickable' : ''}" data-mid="${m.id}"><header><b>${m.alarm ? '<span class="alarm" title="Seen from headquarters: a quick event">!!</span> ' : ''}${esc(m.title)}</b><time>${when}</time></header>${body2}${actsH}</article>`;
 }
 function renderStop() {
   const box = $('stopcards');
@@ -5435,7 +5444,7 @@ function renderStop() {
 }
 function renderEarlier() {
   const C = SIM.command, list = $('inbox'), items = C.inbox.slice(0, G.curFrom).slice(-200).reverse();
-  list.innerHTML = items.map(m => `<li class="k-${m.kind}${m.decision ? ' decide' : ''}${refsWorthShowing(m.refs) ? ' clickable' : ''}${G.dispSel && G.dispSel.id === m.id ? ' sel' : ''}" data-mid="${m.id}"><time>${hm(m.t)}</time><div><b>${esc(m.title)}</b>${m.writtenAt != null && m.t - m.writtenAt >= 8 ? `<span class="lag"> · ${Math.round(m.t - m.writtenAt)} min on the road</span>` : ''}<p>${esc(m.text)}</p></div></li>`).join('') || '<li class="none">Nothing yet.</li>';
+  list.innerHTML = items.map(m => `<li class="k-${m.kind}${m.decision ? ' decide' : ''}${refsWorthShowing(m.refs) ? ' clickable' : ''}${G.dispSel && G.dispSel.id === m.id ? ' sel' : ''}" data-mid="${m.id}"><time>${hm(m.t)}</time><div><b>${m.alarm ? '<span class="alarm">!!</span> ' : ''}${esc(m.title)}</b>${m.writtenAt != null && m.t - m.writtenAt >= 8 ? `<span class="lag"> · ${Math.round(m.t - m.writtenAt)} min on the road</span>` : ''}<p>${esc(m.text)}</p></div></li>`).join('') || '<li class="none">Nothing yet.</li>';
   $('earlierBox').hidden = !items.length;
 }
 function onDispClick(e) {
@@ -5505,9 +5514,11 @@ function renderHQ() {
     box.dataset.built = '1';
     box.innerHTML = `<div id="hqinfo"></div>
     <div class="row"><label for="h-letters">Letters</label><select id="h-letters"><option value="letters">as written: “Monsieur le Comte…”, “Sire,…”</option><option value="plain">plain text</option></select></div>
+    <div class="row"><label for="h-map">Map</label><select id="h-map"><option value="paper">the Emperor’s paper map</option><option value="colour">colour, with relief</option></select></div>
     <div class="row"><label for="h-speed">Speed</label><select id="h-speed"><option value="2">4 minutes a second</option><option value="4" selected>8 minutes a second</option><option value="8">16 minutes a second</option><option value="15">30 minutes a second</option></select></div>
     <p class="small">When to stop the clock, and riding on to a set time, are beside Continue under the map.</p>`;
     $('h-speed').addEventListener('change', e => { tps = +e.target.value; });
+    $('h-map').value = MAPSTYLE; $('h-map').addEventListener('change', e => setMapStyle(e.target.value));
     $('h-letters').value = LETTERS ? 'letters' : 'plain'; $('h-letters').addEventListener('change', e => setLetters(e.target.value === 'letters'));
   }
   $('hqinfo').innerHTML = hqInfo();
@@ -5726,6 +5737,7 @@ function click(x, y, ptype) {
     if (narrow()) $('obBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
   }
+  const ah = hitAlarm(x, y); if (ah) { showDispatch(ah.m.id, ah.a.line != null && ah.m.lines && ah.m.lines.length > 1 ? ah.a.line : null); return; } // (9) a !! mark opens its notice
   const u = hitUnit(x, y); readGround(x, y);
   if (!u) { clearHighlights(); tip.hidden = true; return; } // a click on open ground turns every highlight off
   clearHighlights(true);
@@ -6424,6 +6436,139 @@ function drawMarks(g) {
 }
 { const ed = extraDraw; extraDraw = g => { if (ed) ed(g); drawMarks(g); }; }
 
+/* ================= (9) !! alarms: quick events seen from headquarters ================= */
+// A new or renewed attack, a cavalry charge, a line breaking or running, the enemy close to headquarters: marked !! in the dispatches
+// and on the map, where the mark stays twenty minutes and fades as it ages. Click or tap a mark to open its notice. The alarms are
+// only what headquarters saw (the command layer's own sightings), and nothing here draws dice or changes the battle.
+const ALARM_MIN = 20;
+const ALARM_WORD = { attack: 'An attack', renewed: 'A renewed attack', charge: 'A cavalry charge', break: 'Troops breaking', hq: 'The enemy near headquarters' };
+let alarmHits = [];
+function liveAlarms() {
+  if (!SIM || !G || G.phase === 'setup' || !SIM.command) return [];
+  const inbox = SIM.command.inbox, out = [];
+  for (let i = inbox.length - 1; i >= 0; i--) {
+    const m = inbox[i]; if (SIM.t - m.t > ALARM_MIN) break;
+    if (m.alarm) for (const a of m.alarm) if (a.at) out.push({ m, a, age: Math.max(0, SIM.t - m.t) });
+  }
+  return out;
+}
+function drawAlarms(g) {
+  alarmHits = [];
+  if (viewMode !== 'napoleon') return;
+  const list = liveAlarms(); if (!list.length) return;
+  const placed = [];
+  g.save(); g.font = `bold 16px 'EB Garamond', Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (const it of list.reverse()) { // oldest first, so the newest is drawn on top
+    let [x, y] = P(it.a.at[0], it.a.at[1]); const px = x, py = y;
+    y -= 22; for (const q of placed) if (Math.abs(q[0] - x) < 26 && Math.abs(q[1] - y) < 20) y = q[1] - 21; placed.push([x, y]);
+    const alpha = 1 - 0.55 * it.age / ALARM_MIN, w = 28, h = 21, red = '#a3290f', light = '#f6efdc'; // the map is paper (or colour) in both themes, so fixed colours read in both
+    g.globalAlpha = alpha;
+    g.strokeStyle = red; g.lineWidth = 1.6; g.beginPath(); g.moveTo(px, py); g.lineTo(x, y + h / 2); g.stroke();
+    g.beginPath(); g.arc(px, py, 3.2, 0, 7); g.fillStyle = red; g.fill();
+    g.beginPath(); g.roundRect ? g.roundRect(x - w / 2, y - h / 2, w, h, 5) : g.rect(x - w / 2, y - h / 2, w, h); g.fillStyle = red; g.fill(); g.strokeStyle = light; g.lineWidth = 1.2; g.stroke();
+    g.fillStyle = light; g.fillText('!!', x, y + 1);
+    alarmHits.push({ x0: x - w / 2 - 3, y0: y - h / 2 - 3, x1: x + w / 2 + 3, y1: y + h / 2 + 3, m: it.m, a: it.a });
+  }
+  g.restore();
+}
+function hitAlarm(x, y) {
+  for (let i = alarmHits.length - 1; i >= 0; i--) { const h = alarmHits[i]; if (x >= h.x0 && x <= h.x1 && y >= h.y0 && y <= h.y1) return h; }
+  return null;
+}
+function alarmTip(h) {
+  const m = h.m, line = h.a.line != null && m.lines ? m.lines[h.a.line] : m.text;
+  return { title: `!! ${ALARM_WORD[h.a.kind] || 'Seen'} · ${hm(m.t)}`, text: esc(line || '') + '<div class="small">Click to open the notice.</div>' };
+}
+{ const ed = extraDraw; extraDraw = g => { if (ed) ed(g); drawAlarms(g); }; }
+// for the browser tests: the marks drawn now, in screen pixels
+globalThis.WGame && Object.assign(globalThis.WGame, { alarmMarks: () => alarmHits.map(h => ({ x: (h.x0 + h.x1) / 2, y: (h.y0 + h.y1) / 2, kind: h.a.kind, mid: h.m.id, line: h.a.line })) });
+
+/* ================= (9) map style: the Emperor's paper map, or a colour map with relief ================= */
+// A prototype for choosing the look until a 3D client exists. The colour map paints the ground from the same height grid the sim
+// uses: fields and meadows in greens and ripening-crop ochres, shaded relief lit from the north-west, dark woods, and plumes over
+// burning buildings. It is drawing only: nothing here reads the dice or changes the battle. The choice is kept in this browser.
+let MAPSTYLE = 'paper';
+try { MAPSTYLE = localStorage.getItem('waterloo.mapstyle') === 'colour' ? 'colour' : 'paper'; } catch (e) { /* storage blocked: paper */ }
+function setMapStyle(v) { MAPSTYLE = v === 'colour' ? 'colour' : 'paper'; mapColour = MAPSTYLE === 'colour'; try { localStorage.setItem('waterloo.mapstyle', MAPSTYLE); } catch (e) { /* not kept */ } document.body.classList.toggle('mapcolour', MAPSTYLE === 'colour'); scheduleTerrain(true); requestDraw(); }
+document.body.classList.toggle('mapcolour', MAPSTYLE === 'colour'); mapColour = MAPSTYLE === 'colour';
+let COLOUR = null;
+function colourRelief() {
+  if (COLOUR) return COLOUR;
+  const K = 4, Wd = (NX - 1) * K + 1, Hd = (NY - 1) * K + 1, c = document.createElement('canvas'); c.width = Wd; c.height = Hd;
+  const x = c.getContext('2d'), im = x.createImageData(Wd, Hd), d = im.data;
+  // field patches: smooth value noise at two scales, fixed by a seed so the fields never move
+  const noise = (cell, seed) => { const R = rng(seed), nx = Math.ceil(WM / cell) + 2, ny = Math.ceil(HM / cell) + 2, v = new Float32Array(nx * ny); for (let i = 0; i < v.length; i++) v[i] = R();
+    return (px, py) => { const fx = px / cell, fy = py / cell, ix = Math.floor(fx), iy = Math.floor(fy), tx = fx - ix, ty = fy - iy, sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty), a = v[iy * nx + ix], b = v[iy * nx + ix + 1], cc = v[(iy + 1) * nx + ix], dd = v[(iy + 1) * nx + ix + 1]; return (a + (b - a) * sx) * (1 - sy) + (cc + (dd - cc) * sx) * sy; }; };
+  const big = noise(700, 18150618), small = noise(220, 1815), fine = noise(70, 618);
+  // the lie of the land: height against its surroundings (about 400 m), so valleys sit in shadow and crests catch the light
+  const HB = (() => { const R = 8, tmp = new Float32Array(NX * NY), out = new Float32Array(NX * NY);
+    for (let r = 0; r < NY; r++) for (let c = 0; c < NX; c++) { let a = 0, n = 0; for (let i = -R; i <= R; i++) { const cc = c + i; if (cc < 0 || cc >= NX) continue; a += HD[r * NX + cc]; n++; } tmp[r * NX + c] = a / n; }
+    for (let r = 0; r < NY; r++) for (let c = 0; c < NX; c++) { let a = 0, n = 0; for (let i = -R; i <= R; i++) { const rr = r + i; if (rr < 0 || rr >= NY) continue; a += tmp[rr * NX + c]; n++; } out[r * NX + c] = a / n; }
+    return out; })();
+  const meadow = [112, 138, 70], crop = [190, 176, 106], low = [86, 112, 60], Z = 14, Lx = -0.55, Ly = -0.55, Lz = 0.63; // light from the north-west, relief exaggerated fourteenfold
+  for (let py = 0; py < Hd; py++) for (let px = 0; px < Wd; px++) {
+    const wx = px / K * CELL, wy = py / K * CELL, h = hdAt(wx, wy), gx = samp(GXD, wx, wy) * Z, gy = samp(GYD, wx, wy) * Z, nl = Math.hypot(gx, gy, 1);
+    const rel = Math.max(-12, Math.min(12, h - samp(HB, wx, wy)));
+    const shade = Math.max(0, (-gx * Lx - gy * Ly + Lz) / nl), f = (0.5 + 0.75 * shade) * (1 + 0.018 * rel);
+    const ripe = Math.min(1, Math.max(0, 0.2 + 0.55 * big(wx, wy) + 0.15 * (small(wx, wy) - 0.5) + 0.3 * (h - 120) / 40)), hl = Math.min(1, Math.max(0, (h - ZMIN) / 30));
+    const o = 4 * (py * Wd + px), grain = 0.94 + 0.12 * fine(wx, wy);
+    for (let k = 0; k < 3; k++) { const base = (meadow[k] + (crop[k] - meadow[k]) * ripe) * hl + low[k] * (1 - hl); d[o + k] = Math.max(0, Math.min(255, Math.round(base * f * grain))); }
+    d[o + 3] = 255;
+  }
+  x.putImageData(im, 0, 0); COLOUR = c; return c;
+}
+function drawWoodColour(g, w, s, cx0, cy0) {
+  const pts = w.pts;
+  g.save(); g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x * s + cx0, y * s + cy0) : g.moveTo(x * s + cx0, y * s + cy0)); g.closePath();
+  g.fillStyle = '#3f5226'; g.globalAlpha = 0.92; g.fill(); g.globalAlpha = 1; g.clip();
+  let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity; for (const [x, y] of pts) { bx0 = Math.min(bx0, x); bx1 = Math.max(bx1, x); by0 = Math.min(by0, y); by1 = Math.max(by1, y); }
+  const step = Math.max(10, 6 / s), R = rng(hashStr(w.name)), rad = Math.min(5, Math.max(1.4, 7 * s));
+  for (let y = by0; y <= by1; y += step) for (let x = bx0 + ((y / step) % 2) * step / 2; x <= bx1; x += step) {
+    const jx = x + (R() - 0.5) * step * 0.7, jy = y + (R() - 0.5) * step * 0.7, qx = jx * s + cx0, qy = jy * s + cy0, r = rad * (0.8 + 0.4 * R());
+    g.fillStyle = '#2c3b19'; g.beginPath(); g.arc(qx + r * 0.35, qy + r * 0.4, r, 0, 7); g.fill();
+    g.fillStyle = R() < 0.5 ? '#55692e' : '#4b6029'; g.beginPath(); g.arc(qx, qy, r, 0, 7); g.fill();
+    g.fillStyle = '#7a8f3e'; g.globalAlpha = 0.7; g.beginPath(); g.arc(qx - r * 0.35, qy - r * 0.35, r * 0.38, 0, 7); g.fill(); g.globalAlpha = 1;
+  }
+  g.restore();
+}
+{ const rt0 = renderTerrain;
+  renderTerrain = function () {
+    if (MAPSTYLE !== 'colour') return rt0();
+    if (!cssW) return;
+    const M = 0.18, cw = Math.ceil(cssW * (1 + 2 * M)), ch = Math.ceil(cssH * (1 + 2 * M)), ox = cssW * M, oy = cssH * M;
+    tcan.width = Math.round(cw * dpr); tcan.height = Math.round(ch * dpr);
+    const s = view.s, cx0 = view.tx + ox, cy0 = view.ty + oy; tview = { s, cx0, cy0, cw, ch };
+    const g = tctx; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, cw, ch);
+    const sx0 = cx0, sy0 = cy0, sx1 = WM * s + cx0, sy1 = HM * s + cy0, wx0 = -cx0 / s, wy0 = -cy0 / s, wx1 = (cw - cx0) / s, wy1 = (ch - cy0) / s;
+    g.save(); g.beginPath(); g.rect(sx0, sy0, sx1 - sx0, sy1 - sy0); g.clip();
+    g.imageSmoothingEnabled = true; g.drawImage(colourRelief(), sx0, sy0, sx1 - sx0, sy1 - sy0);
+    // faint 10 m contours keep it readable as a map
+    g.strokeStyle = '#3d4a22'; g.lineJoin = 'round'; g.lineWidth = 0.7; g.globalAlpha = 0.22; g.beginPath();
+    for (let L = Math.ceil(ZMIN / 10) * 10; L <= ZMAX; L += 10) for (const pl of contours(L)) { if (pl.bx1 < wx0 || pl.bx0 > wx1 || pl.by1 < wy0 || pl.by0 > wy1) continue; const p = pl.p; g.moveTo(p[0] * s + cx0, p[1] * s + cy0); for (let j = 2; j < p.length; j += 2) g.lineTo(p[j] * s + cx0, p[j + 1] * s + cy0); }
+    g.stroke(); g.globalAlpha = 1;
+    if (layers.woods) for (const w of WOODS) drawWoodColour(g, w, s, cx0, cy0);
+    if (layers.water) {
+      g.strokeStyle = '#4f7fa6'; g.lineCap = 'round'; g.lineJoin = 'round'; const zf = Math.pow(s / 0.095, 0.35);
+      for (const st of STREAMS) { let pts = []; for (let i = 0; i < st.length; i += 3) pts.push(st[i], st[i + 1]); const accs = []; for (let i = 2; i < st.length; i += 3) accs.push(st[i]); pts = chaikin(chaikin(pts, false), false); const n = pts.length / 2;
+        for (let i = 0; i < n - 1; i++) { const a = accs[Math.min(accs.length - 1, Math.floor(i / n * accs.length))]; if (a < 300) continue; g.lineWidth = Math.min(3.4, 0.9 + 0.45 * Math.log2(a / 300)) * zf; g.beginPath(); g.moveTo(pts[2 * i] * s + cx0, pts[2 * i + 1] * s + cy0); g.lineTo(pts[2 * i + 2] * s + cx0, pts[2 * i + 3] * s + cy0); g.stroke(); } }
+    }
+    g.restore();
+  };
+}
+{ const hk0 = drawHeightKey; drawHeightKey = function (g) { if (MAPSTYLE !== 'colour') hk0(g); }; }
+// smoke and flame over burning buildings: the columns could be seen across the field
+function drawFires(g) {
+  if (MAPSTYLE !== 'colour' || !SIM || !SIM.sps) return;
+  const wd = ((SIM.wind && SIM.wind.dir) || 270) + 180, wx = Math.sin(wd * Math.PI / 180), wy = -Math.cos(wd * Math.PI / 180), s = view.s;
+  for (const sp of SIM.sps) for (const sec of sp.secs || []) {
+    if (!sec.burnt) continue; const [x, y] = P(sec.x, sec.y), k = Math.max(0.6, Math.min(2.2, s / 0.12));
+    for (let i = 5; i >= 0; i--) { const d = i * 26 * k, r = (10 + i * 7) * k, cx = x + wx * d + Math.sin(i * 1.7) * 4 * k, cy = y + wy * d - i * 3 * k, gr = g.createRadialGradient(cx, cy, 0, cx, cy, r);
+      gr.addColorStop(0, `rgba(40,36,34,${0.5 - i * 0.06})`); gr.addColorStop(1, 'rgba(60,55,50,0)'); g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, r, 0, 7); g.fill(); }
+    const fr = g.createRadialGradient(x, y, 0, x, y, 9 * k); fr.addColorStop(0, 'rgba(255,190,80,0.95)'); fr.addColorStop(0.5, 'rgba(230,90,30,0.7)'); fr.addColorStop(1, 'rgba(200,60,20,0)'); g.fillStyle = fr; g.beginPath(); g.arc(x, y, 9 * k, 0, 7); g.fill();
+  }
+}
+{ const ed = extraDraw; extraDraw = g => { drawFires(g); if (ed) ed(g); }; }
+
 /* ================= 8b. the view through the glass ================= */
 // Tap the glass, then a place: the map closes in on it inside the eyepiece. Ground your eye cannot reach from where you stand (behind
 // a crest, in a hollow, under thick smoke, beyond the day's seeing) is shaded, and the troops shown are only those you yourself saw
@@ -6820,7 +6965,7 @@ function renderReview() {
 }
 function reviewRecord() {
   const ev = reviewEvents(), mine = G.review || { flagged: {}, notes: '' };
-  return { kind: 'waterloo-review', version: 'release 2', savedAt: new Date().toISOString(), seed: G.opts.seed, opts: G.opts,
+  return { kind: 'waterloo-review', version: 'release 3', savedAt: new Date().toISOString(), seed: G.opts.seed, opts: G.opts,
     result: { grade: SIM.result.grade, why: SIM.result.why, t: SIM.result.t, cas: SIM.result.cas, withdrawn: SIM.result.withdrawn || null }, metrics: SIM.metrics,
     orders: G.orderLog, refoughtFrom: G.refoughtFrom || null, toEnd: G.toEnd ? { mode: G.toEnd, from: G.toEndFrom } : null,
     umpireFlags: (G.reviewFlags || []).map(x => x.text), playerFlags: Object.keys(mine.flagged).filter(k => mine.flagged[k]).map(i => ({ t: ev[i].t, text: ev[i].text })),
@@ -6887,7 +7032,7 @@ requestAnimationFrame(loop);
 </script>
 
 <script>
-// the offline release: keep every file of the game in this device's cache (release 51a0798e09)
+// the offline release: keep every file of the game in this device's cache (release cdf6cd4e20)
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
