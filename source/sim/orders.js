@@ -449,13 +449,13 @@ function install(E) {
 
   /* ---------- Grouchy, off the map ---------- */
   function grouchyReceives(o) {
-    const S = E.ai && E.ai.S, G = E.leaders.grouchy;
+    const T = E.ai && E.ai.S && E.ai.S.timetable, Gs = T && T.FR && T.FR.toGuns ? T.FR.toGuns.grouchy : null, G = E.leaders.grouchy; // (3d) the AI's record of Grouchy's own choice (doctrine.js: toGunsTick)
     o.status = 'done'; o.actedAt = E.t;
     let reply;
     if (o.spec.action === 'marchToGuns') {
-      if (S && S.grouchy && S.grouchy.comes) reply = 'I am already marching toward Your Majesty, as Gérard urged.';
+      if (Gs && Gs.comes) reply = 'I am already marching toward Your Majesty, as Gérard urged.';
       else if (rnd('Grouchy obeys') < o.clarity * G.obe + 0.05) {
-        if (S && S.grouchy) S.grouchy.comes = true;
+        if (Gs) Gs.comes = true;
         const blocked = rnd('Dyle crossings') < 0.3;
         const arr = blocked ? null : E.t + rnd.tri(...CK.GROUCHY_MARCH, 'Grouchy march');
         if (arr) for (const u of E.offmap.filter(x => x.group === 'grouchy')) u.arriveAt = arr + (u.baseArrive || 0);

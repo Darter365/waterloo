@@ -52,6 +52,13 @@ function make(opts = {}) {
           for (const u of foot.slice(0, Math.floor(foot.length / 3))) st.reserve.add(u.id);
         }
       }
+      // (3d) what the battle's record says an arriving army did (its timetable: below) runs alongside, as the plan rules do; the corps it
+      // names are left to it (opts.timetables: false leaves every army to its generic commander)
+      if (!opts.embedded && opts.timetables !== false) for (const sd of E.sides) if (S[sd.id] && hasTimetable(sd)) {
+        S[sd.id].timetable = approachInit(E, sd.id, sd, {});
+        E.timedCorps = E.timedCorps || new Set();
+        for (const k of ['waits', 'follows', 'flanks']) for (const x of sd[k] || []) E.timedCorps.add(x.corps);
+      }
       return ai;
     },
     tick(E) {
@@ -64,6 +71,8 @@ function make(opts = {}) {
         if (sd.initiative.garrison) garrisonTick(E, sd.id, sd.initiative.garrison, S[sd.id]);
         if (sd.initiative.charge && S[sd.id].chargeLine) chargeTick(E, sd.id, sd.initiative.charge, S[sd.id].chargeLine, S[sd.id]);
       }
+      for (const sd of E.sides) if (S[sd.id] && S[sd.id].timetable) approachTick(E, sd.id, sd, S[sd.id].timetable);
+      for (const sd of E.sides) if (S[sd.id] && S[sd.id].timetable) toGunsTick(E, sd.id, sd, S[sd.id].timetable);
       for (const [side, st] of Object.entries(S)) {
         const chief = chiefOf(E, side), sd = E.sides.find(s => s.id === side);
         if (E.t < st.next) continue;
@@ -75,7 +84,7 @@ function make(opts = {}) {
       if (E.plans && !opts.embedded) E.plans.tick(E);
     },
     receive(E, o) { AI().apply(E, o); },
-    onArrival(E, u) { arrival(E, u, S[u.side]); },
+    onArrival(E, u) { const st = S[u.side]; if (st && st.timetable && approachArrival(E, u, E.sides.find(s => s.id === u.side), st.timetable)) return; arrival(E, u, st); },
     onRepulse(E, a, d, tgt) { for (const sd of E.sides) if (S[sd.id] && sd.initiative && sd.initiative.escalate) escalateOnRepulse(E, sd.id, sd.initiative.escalate, a, tgt, S[sd.id]); },
   };
   return ai;
@@ -90,6 +99,10 @@ function leaderOf(E, side, corps) { // the corps' own general: placed with the c
 const seen = (E, side, maxAge, pred) => { const ch = chiefOf(E, side); return AI().known(E, ch ? ch.id : null, maxAge, c => (c.side ? E.coalition[c.side] !== E.coalition[side] : true) && (!pred || pred(c)), E.coalition[side]); };
 function partnerEngaged(E, side) { return E.sideIds.some(s => s !== side && E.coalition[s] === E.coalition[side] && E.engaged && Object.keys(E.engaged).some(k => E.units.some(u => u.side === s && u.corps === k))) || E.sideIds.some(s => s !== side && E.coalition[s] === E.coalition[side] && E.flags[s.toLowerCase() + 'Engaged']); }
 const formedOf = (E, side) => E.units.filter(u => u.side === side && E.formed(u) && u.onMap);
+// the bodies the commander disposes of: not those of a corps that marches, halts and attacks by the battle's timetable (below)
+const freeOf = (E, side) => formedOf(E, side).filter(u => !(E.timedCorps && E.timedCorps.has(u.corps)));
+const TIMETABLE = ['delays', 'waits', 'follows', 'flanks', 'press', 'pursue', 'reports', 'toGuns'];
+const hasTimetable = sd => TIMETABLE.some(k => sd[k]);
 const isFoot = (E, u) => E.era.arms[u.arm].move === 'foot' && !u.held;
 const isHorse = (E, u) => !!E.era.arms[u.arm].charges;
 const isGuns = (E, u) => !!E.era.arms[u.arm].crew;
@@ -162,7 +175,7 @@ function targets(E, side, here) {
 // a corps still coming up (units yet to reach the field, or marching on it) waits until it has all arrived, unless the day is late
 function coming(E, side, corps) { return E.t < E.light.sunset - 180 && E.units.some(u => u.side === side && (u.corps || side) === corps && !u.gone && u.str > 0 && (!u.onMap || u.task.kind === 'march')); }
 function attack(E, side, st, chief) {
-  const agg = chief ? chief.agg : 0.6, mine = formedOf(E, side);
+  const agg = chief ? chief.agg : 0.6, mine = freeOf(E, side);
   if (!mine.length) return; // nothing on the field yet
   const here = centroid(mine), objs = targets(E, side, here);
   if (!objs.length) return;
@@ -284,7 +297,7 @@ function guns(E, side, st, main, mine) {
 
 /* ----- defence ----- */
 function defend(E, side, st, chief) {
-  const coal = E.coalition[side], mine = formedOf(E, side), sd = E.sides.find(s => s.id === side);
+  const coal = E.coalition[side], mine = freeOf(E, side), sd = E.sides.find(s => s.id === side);
   // (3d) a side whose battle pack gives it habits of its own uses them in place of the generic ones (Waterloo's allies: Wellington's)
   if (sd.feeds) feedTick(E, side, sd.feeds, st);
   if (sd.sectors && st.crestLine) sectorTick(E, side, sd.sectors, st.crestLine, st);
@@ -668,7 +681,7 @@ function launchWave(E, side, g, w, st, key) {
 /* ----- horse: fall on shaken or blown enemies near the line (the cavalry chief's aggression) ----- */
 function cavalry(E, side, st) {
   const sd = E.sides.find(s => s.id === side), cc = sd.cavChief && E.leaders[sd.cavChief] ? E.leaders[sd.cavChief] : chiefOf(E, side), agg = cc ? cc.agg : 0.6;
-  const horse = formedOf(E, side).filter(u => isHorse(E, u) && !u.charge && u.wind > 60 && u.coh > 50 && u.task.kind === 'hold');
+  const horse = freeOf(E, side).filter(u => isHorse(E, u) && !u.charge && u.wind > 60 && u.coh > 50 && u.task.kind === 'hold');
   if (!horse.length) return;
   // shaken or rallying enemies, and the enemy's horse when it is blown or galloping out of hand after a charge (est.: the moment a horse
   // reserve is kept for)
@@ -699,9 +712,225 @@ function arrival(E, u, st) {
   // once the whole corps is up (coming(), above)
   u.task.then = { kind: 'hold', since: E.t };
 }
+/* ===================== (3d) an army marching onto the field (battle pack, per side) =====================
+   What the record says an arriving army's commanders did, as habits with the battle's numbers in the pack (Waterloo: Blücher's march from
+   Wavre and Grouchy's choice at Walhain; release 3's prussianInit, onPrussianArrival and prussians, moved here unchanged). The historical
+   commander (ai.js) runs them for every army it has not handed to the generic doctrine; a generic army decides for itself.
+     delays   the march's chances, drawn once at the start and added to the arrival minutes of a force that marches on its own
+     waits    a corps halts out of sight where it comes on until its chief releases it, then takes a road to cover near the enemy,
+              assembles there and attacks
+     follows  a corps that comes on after a waiting corps, by its road, and attacks a place
+     flanks   a corps that comes on beside the ally's line and attacks the nearest enemy; it may be diverted to help a corps in trouble
+     press    rested foot sent at a place again while the enemy holds it
+     pursue   when the enemy has been drawing off a while, everything formed but the guns drives for his road of retreat
+     reports  officers sent to the ally's chief when a flag or metric is first set
+     toGuns   a detached force off the field that may hear the guns and march to them
+   The keys of each block are given where it is read. Times are minutes or 'hh:mm'; places, objectives, roads, leaders and corps are the
+   battle's ids; 'roll' names the dice (for the log of draws: it does not change them). Under strict history nothing is left to chance:
+   a draw takes its 'strict' value, chances do not happen. */
+const tm = t => Plans().tmin(t);
+const histOpen = E => E.history === 'open', histStrict = E => E.history === 'strict';
+const roadOf = (E, r) => E.routes[r[0]].slice(r[1]).map(p => [p[0], p[1]]); // [road id, first point]
+function attackAt(E, u, f) { // a body sent at a place ({ place }), a point of an objective's line ({ point: [objective, index] }) or a point objective ({ point: [objective] })
+  if (f.place) { const pl = E.spById[f.place]; E.setTask(u, { kind: 'attack', sp: f.place, point: [pl.x, pl.y], attempts: 0, maxAttempts: f.maxAttempts, form: 'attack' }); u.path = [[pl.x, pl.y]]; return; }
+  const o = E.objectives[f.point[0]], p = o.line && f.point[1] != null ? o.line[f.point[1]] : o.point; // a point of its line, else the objective's point
+  E.setTask(u, { kind: 'attack', point: [p[0], p[1]], attempts: 0, maxAttempts: f.maxAttempts, form: 'attack' }); u.path = [p];
+}
+function approachInit(E, side, sd, st) {
+  const rnd = E.rnd, open = histOpen(E), strict = histStrict(E);
+  st.draws = {}; st.waits = {}; st.flanks = {}; st.told = {}; st.toGuns = {};
+  // a field commander's strokes are aimed at the line of the army named (initiative.charge.lineOf: its crest)
+  const ch = sd.initiative && sd.initiative.charge; if (ch && ch.lineOf) { const o = E.sides.find(s => s.id === ch.lineOf); if (o && o.crest) st.chargeLine = crestLine(E, o.crest); }
+  /* delays: { force, draws, units }
+       a draw is a chance { key, roll, chance, open (x the chance under open history), range: [min, max], rangeRoll, says ('{min}': logged when it happens) }
+       or a spread { key, roll, tri: [lo, mode, hi], openHi (x hi under open history), strict (its value under strict history), centre (the
+       delay the listed minutes already allow for), says (always logged) }
+       units: [{ corps (else every unit of the force), add: { key: weight }, lead: { units, add: { key: weight } }, noise: { roll, sd, openSd | openTimes } }]:
+       a unit comes on at its listed minute + the sum of weight x (draw - centre) + a normal spread of sd minutes (openSd, or sd x openTimes,
+       under open history); a later entry naming the unit's corps replaces the first (each entry draws its own spread) */
+  const d = sd.delays;
+  if (d) {
+    const v = st.draws, centre = {};
+    for (const g of d.draws) {
+      centre[g.key] = g.centre || 0;
+      v[g.key] = g.tri ? (strict ? g.strict : rnd.tri(g.tri[0], g.tri[1], g.tri[2] * (open ? g.openHi || 1 : 1), g.roll))
+        : !strict && rnd(g.roll) < g.chance * (open ? g.open || 1 : 1) ? rnd.range(g.range[0], g.range[1], g.rangeRoll) : 0;
+    }
+    for (const g of d.draws) if (g.says && (g.tri || v[g.key])) E.logEvent('hidden', g.says.replace('{min}', Math.round(v[g.key])), { side, hidden: true });
+    for (const u of E.offmap.filter(o => o.group === d.force)) for (const r of d.units) {
+      if (r.corps && r.corps !== u.corps) continue;
+      const lead = r.lead && r.lead.units.includes(u.id) ? r.lead.add : {}, nz = r.noise;
+      let at = u.baseArrive;
+      for (const [k, w] of Object.entries(r.add)) at += (v[k] - centre[k]) * (lead[k] ?? w);
+      const n = rnd.normal(nz.roll);
+      u.arriveAt = at + (open && nz.openSd != null ? n * nz.openSd : n * nz.sd * (open ? nz.openTimes || 1 : 1));
+    }
+  }
+  // waits: the minutes a corps may lose getting out of its cover (assemble.exit: { roll, ok (the chance the way out goes well), lost (min), says })
+  for (const w of sd.waits || []) {
+    const x = w.assemble.exit, ws = st.waits[w.corps] = { release: null, attack: null, ready: null, exitDelay: 0 };
+    if (x) { ws.exitDelay = strict ? 0 : (rnd(x.roll) < x.ok ? 0 : x.lost); if (ws.exitDelay && x.says) E.logEvent('hidden', x.says, { side, hidden: true }); }
+  }
+  for (const g of sd.toGuns || []) st.toGuns[g.force] = { decided: false, comes: false };
+  return st;
+}
+// a body of the army comes on: a waiting corps halts out of sight (hide: { concealed (x the chance it is seen), height (m it stands above the
+// ground where it halts: a plateau just past the map's edge) }); a following or flank corps marches to its road's end and halts, ready; a
+// detached force that marched to the guns attacks its place
+function approachArrival(E, u, sd, st) {
+  const w = (sd.waits || []).find(x => x.corps === u.corps);
+  if (w) { u.task = { kind: 'march', then: null, since: E.t, wait: true }; u.path = null; u.halted = true; if (w.hide) { u.heightBonus = w.hide.height; u.concealed = w.hide.concealed; } return true; }
+  if ((sd.follows || []).some(x => x.corps === u.corps)) { u.task = { kind: 'march', then: () => ({ kind: 'hold', ready: 'follow' }), since: E.t }; return true; }
+  if ((sd.flanks || []).some(x => x.corps === u.corps)) { u.task = { kind: 'march', then: () => ({ kind: 'hold', ready: 'flank' }), since: E.t }; return true; }
+  const g = (sd.toGuns || []).find(x => x.force === u.group);
+  if (g) { const pl = E.spById[g.place]; u.task = { kind: 'march', then: () => ({ kind: 'attack', point: [pl.x, pl.y], attempts: 0, maxAttempts: g.maxAttempts, form: 'attack' }), since: E.t }; return true; }
+  return false;
+}
+function approachTick(E, side, sd, st) {
+  const t = E.t, strict = histStrict(E), A = AI(), coal = E.coalition[side];
+  const waits = sd.waits || [], mine = waits.map(w => E.units.filter(u => u.corps === w.corps && u.onMap && E.formed(u)));
+  /* waits[].release: { by (the chief who decides), partner (the ally's army), strictAt, when: [{ foot, engaged | danger | after }] (any one: at
+       least `foot` bodies of the corps' foot on the field, and the ally believed seriously engaged, or in danger, or the hour), danger (the
+       ally's morale, as the chief believes it, under which he is in danger), heard: { prefix, heavy, quiet, for, flag } (the ally is seriously
+       engaged after `for` min of cannonade from him at least `heavy` loud, the count starting again when it falls under `quiet`; or the
+       ally's officer says so; without the command layer, the engine's flag), news: { engaged, morale } (the keys of the chief's news), says }
+     waits[].road: [road, first point]: where it goes when released; it halts at the road's end and musters there */
+  waits.forEach((w, i) => {
+    const ws = st.waits[w.corps], r = w.release;
+    if (!ws.release) {
+      const foot = mine[i].filter(u => isFoot(E, u)).length, N = A.news(E, r.by), nk = r.news;
+      if (N) {
+        const h = r.heard, g = Object.entries(E.command.B[r.by].soundSlow).filter(([k]) => k.startsWith(h.prefix)).reduce((a, [, v]) => a + v, 0);
+        if (g >= h.heavy) { if (N.heavySince == null) N.heavySince = t; } else if (g < h.quiet) N.heavySince = null;
+        if (N.heavySince != null && t - N.heavySince >= h.for && !N[nk.engaged]) N[nk.engaged] = t;
+      }
+      const engaged = N ? !!N[nk.engaged] : E.flags[r.heard.flag];
+      const danger = N ? !!(N[nk.morale] && N[nk.morale].v < r.danger) : E.morale[r.partner] < r.danger;
+      if ((strict && t >= tm(r.strictAt)) || (!strict && r.when.some(c => foot >= c.foot && (c.engaged ? engaged : c.danger ? danger : t >= tm(c.after))))) {
+        ws.release = t; if (r.says) E.logEvent('hidden', r.says, { side, hidden: true });
+      }
+    }
+    if (ws.release) for (const u of mine[i]) if (u.task.kind === 'march' && u.task.wait) { u.task.wait = false; u.halted = false; u.heightBonus = 0; u.concealed = null; u.path = roadOf(E, w.road); u.task.then = () => ({ kind: 'hold', muster: w.corps }); }
+  });
+  // pursue: { after (min the enemy has been drawing off), coh, says }: everything formed but the guns, with cohesion over coh, drives for the
+  // nearest point of the enemy's road of retreat, never back toward his front
+  const pu = sd.pursue;
+  if (pu && !st.pursuit) {
+    const foe = enemySides(E, side).find(s => E.flags[s.toLowerCase() + 'Withdraw']), fw = foe ? E.flags[foe.toLowerCase() + 'Withdraw'] : null;
+    if (fw && t - fw >= pu.after) {
+      const us = E.units.filter(u => u.side === side && u.onMap && E.formed(u) && !isGuns(E, u) && u.coh > pu.coh);
+      if (us.length) {
+        st.pursuit = t; E.logEvent('orders', pu.says, { side, important: true });
+        const fsd = E.sides.find(s => s.id === foe), road = E.routes[fsd.retreat], rear = fsd.rear;
+        for (const u of us) {
+          const q = A.nearestOnPoly(u.x, u.y, road), dest = rear === 'N' ? [q[0], Math.min(q[1], u.y)] : rear === 'E' ? [Math.max(q[0], u.x), q[1]] : rear === 'W' ? [Math.min(q[0], u.x), q[1]] : [q[0], Math.max(q[1], u.y)];
+          E.setTask(u, { kind: 'attack', point: dest, attempts: 0, maxAttempts: 1, form: 'columns' }); u.path = [dest];
+        }
+      }
+    }
+  }
+  /* waits[].assemble: { foot (bodies of foot mustered before it goes; strictFoot under strict history), after (min to get ready once they
+       are), exit (above), crisis (the ally's morale, as the chief believes it, under which they go at once), strictAt, says }
+     waits[].attack: { foot: [{ units (else the rest), place | point: [objective, index], maxAttempts }], guns: { area (an objective), site:
+       { lat, spread (a random part of it, degrees), lon } }, horse: { area, maxCharges } }: every body that reaches the muster afterwards
+       goes in the same way
+     press: { after (the waiting corps whose attack starts it), corps, place, every (ticks), coh, maxAttempts }: rested foot of these corps,
+       halted and not mustering, sent at the place again unless their coalition holds it */
+  waits.forEach((w, i) => {
+    const ws = st.waits[w.corps], a = w.assemble, r = w.release, at = w.attack;
+    const muster = mine[i].filter(u => u.task.kind === 'hold' && u.task.muster);
+    if (!ws.attack && muster.filter(u => isFoot(E, u)).length >= (strict ? a.strictFoot : a.foot)) {
+      if (!ws.ready) ws.ready = t;
+      const N = A.news(E, r.by), bad = N ? !!(N[r.news.morale] && N[r.news.morale].v < a.crisis) : E.morale[r.partner] < a.crisis;
+      if (t >= ws.ready + a.after + ws.exitDelay || bad) { ws.attack = t; if (a.says) E.logEvent('hidden', a.says, { side, hidden: true }); }
+    }
+    if (strict && !ws.attack && t >= tm(a.strictAt)) ws.attack = t;
+    if (!ws.attack) return;
+    for (const u of mine[i]) {
+      if (u.task.kind !== 'hold' || !u.task.muster) continue;
+      if (isFoot(E, u)) { attackAt(E, u, at.foot.find(x => !x.units || x.units.includes(u.id))); E.setForm(u, 'attack'); }
+      else if (isGuns(E, u)) { const s = at.guns.site, site = E.ll2m(s.lat + E.rnd('gun site') * s.spread, s.lon); E.setTask(u, { kind: 'bombard', area: E.objectives[at.guns.area].line, site }); E.routeTo(u, site, true); }
+      else if (isHorse(E, u)) E.setTask(u, { kind: 'cavRaid', area: E.objectives[at.horse.area].line, home: [u.x, u.y], charges: 0, maxCharges: at.horse.maxCharges });
+    }
+    const p = sd.press;
+    if (p && p.after === w.corps && E.tick % p.every === 0) for (const u of E.units.filter(x => x.side === side && isFoot(E, x) && E.formed(x) && x.task.kind === 'hold' && !x.task.muster && x.coh > p.coh && p.corps.includes(x.corps))) {
+      if (E.spById[p.place].holder === coal) continue;
+      attackAt(E, u, p);
+    }
+  });
+  // follows: [{ corps, after (the waiting corps: once it is released, a body of this one still on the march with nowhere to go takes its road),
+  // road, place, maxAttempts }]
+  for (const f of sd.follows || []) {
+    for (const u of E.units.filter(x => x.corps === f.corps && x.onMap && E.formed(x) && x.task.kind === 'hold' && x.task.ready === 'follow')) { u.task.ready = null; attackAt(E, u, f); }
+    if (st.waits[f.after] && st.waits[f.after].release) for (const u of E.units.filter(x => x.corps === f.corps && x.onMap && x.task.kind === 'march' && !x.path)) u.path = roadOf(E, f.road);
+  }
+  /* flanks: [{ corps, near (m: its foot attack the nearest enemy within this), place, dy (m south of the place, negative north: where its foot
+       go when no enemy is near), maxAttempts, area (an objective: its horse raid it, its guns bombard it), gunAt: [dx, dy] (m from where the
+       guns halt), horseCharges, divert }]
+     divert: { help (the waiting corps), from, to (that corps' general, this one's), place, after (min since that corps attacked), message,
+       near: { place, within } (this corps' head is near the ally's line), roll, chance, openTimes, says, maxAttempts, recall: { ride: [min,
+       max], rideRoll, roll, chance, ok, fail } }: once the waiting corps has been attacking `after` min and the enemy holds its place, its
+       general sends an officer for help; when this corps' general has the news and his head is near the line, he may turn south (chance),
+       and a liaison officer from the ally may ride after him and bring him back (chance) */
+  for (const f of sd.flanks || []) {
+    const fs = st.flanks[f.corps] = st.flanks[f.corps] || {}, dv = f.divert;
+    for (const u of E.units.filter(x => x.corps === f.corps && x.onMap && E.formed(x) && x.task.kind === 'hold' && x.task.ready === 'flank')) {
+      u.task.ready = null;
+      if (fs.diverted) { attackAt(E, u, { place: dv.place, maxAttempts: dv.maxAttempts }); continue; }
+      if (isFoot(E, u)) {
+        const target = E.units.filter(e => E.coalition[e.side] !== coal && E.formed(e) && hyp(e.x - u.x, e.y - u.y) < f.near).sort((a, b) => hyp(a.x - u.x, a.y - u.y) - hyp(b.x - u.x, b.y - u.y))[0];
+        const pl = E.spById[f.place], p = target ? [target.x, target.y] : [pl.x, pl.y + f.dy];
+        E.setTask(u, { kind: 'attack', point: p, attempts: 0, maxAttempts: f.maxAttempts, form: 'attack' }); u.path = [p];
+      } else if (isHorse(E, u)) E.setTask(u, { kind: 'cavRaid', area: E.objectives[f.area].line, home: [u.x, u.y], charges: 0, maxCharges: f.horseCharges });
+      else { E.setTask(u, { kind: 'bombard', area: E.objectives[f.area].line, site: [u.x + f.gunAt[0], u.y + f.gunAt[1]] }); E.routeTo(u, u.task.site, true); }
+    }
+    if (!dv) continue;
+    if (!fs.check) {
+      const np = E.spById[dv.near.place], hw = st.waits[dv.help], hp = E.spById[dv.place], foeHolds = h => !!h && h !== coal;
+      const lead = E.units.find(u => u.corps === f.corps && u.onMap && E.formed(u) && hyp(u.x - np.x, u.y - np.y) < dv.near.within);
+      if (E.command && !fs.crisisSent && hw.attack && t - hw.attack > dv.after && foeHolds(A.placeHolder(E, dv.from, dv.place))) { fs.crisisSent = t; E.command.message(dv.from, dv.to, dv.message, B => { B.news.crisis = E.t; }); }
+      const N = A.news(E, dv.to);
+      const crisis = N ? !!N.crisis : foeHolds(hp.holder) && hw.attack && t - hw.attack > dv.after;
+      if (lead && crisis) {
+        fs.check = t;
+        if (!strict && E.rnd(dv.roll) < dv.chance * (histOpen(E) ? dv.openTimes || 1 : 1)) {
+          fs.diverted = t; if (dv.says) E.logEvent('hidden', dv.says, { side, hidden: true, important: true });
+          const rc = dv.recall; if (rc) { fs.recallAt = t + E.rnd.range(rc.ride[0], rc.ride[1], rc.rideRoll); fs.recallOk = E.rnd(rc.roll) < rc.chance; }
+        }
+      }
+    }
+    if (fs.diverted && fs.recallAt && t >= fs.recallAt) {
+      fs.recallAt = null; const rc = dv.recall;
+      if (fs.recallOk) { fs.diverted = null; E.logEvent('hidden', rc.ok, { side, hidden: true }); for (const u of E.units.filter(x => x.corps === f.corps && E.formed(x) && x.onMap)) if (u.task.kind === 'attack' && u.task.sp === dv.place) E.setTask(u, { kind: 'hold', ready: 'flank' }); }
+      else E.logEvent('hidden', rc.fail, { side, hidden: true });
+    }
+  }
+  // reports: [{ flag | metric, from, to, label, news (the key it sets in the recipient's news), writeMin }] (only with the command layer)
+  if (E.command) (sd.reports || []).forEach((r, i) => {
+    if ((r.flag ? E.flags[r.flag] : E.metrics[r.metric]) && !st.told[i]) { st.told[i] = t; E.command.message(r.from, r.to, r.label, B => { B.news[r.news] = E.t; }, r.writeMin); }
+  });
+}
+/* toGuns: [{ force, flag (the battle has begun), at (the hour the guns are heard), roll, chance, openTimes, blocked (the chance its road is
+   held), blockRoll, march: [lo, mode, hi] (min), marchRoll, says: { comes ('{at}'), blocked, stays }, place, maxAttempts }]: once, the force's
+   general hears the guns and may be persuaded to march to them; if he does and his road is open, his bodies come on after the march at
+   their listed minutes (as gaps between them) and attack the place */
+function toGunsTick(E, side, sd, st) {
+  for (const g of sd.toGuns || []) {
+    const gs = st.toGuns[g.force];
+    if (gs.decided || !E.flags[g.flag] || E.t < tm(g.at)) continue;
+    gs.decided = true;
+    if (!histStrict(E) && E.rnd(g.roll) < g.chance * (histOpen(E) ? g.openTimes || 1 : 1)) {
+      gs.comes = true; const block = E.rnd(g.blockRoll);
+      const arr = block < g.blocked ? null : E.t + E.rnd.tri(g.march[0], g.march[1], g.march[2], g.marchRoll);
+      E.logEvent('hidden', arr ? g.says.comes.replace('{at}', E.fmtT(arr)) : g.says.blocked, { side, hidden: true, important: true });
+      if (arr) for (const u of E.offmap.filter(o => o.group === g.force)) u.arriveAt = arr + u.baseArrive;
+    } else E.logEvent('hidden', g.says.stays, { side, hidden: true });
+  }
+}
 function groupBy(a, f) { const o = {}; for (const x of a) (o[f(x)] = o[f(x)] || []).push(x); return o; }
 
-const api = { make, crestInit, crestTick, crestLine, feedTick, counterTick, sectorTick, reoccupyTick, stepBackTick, advanceTick, withdrawTick, callTick, shiftTick, partnerIn, liaisonTick, garrisonTick, escalateOnRepulse, chargeTick };
+const api = { make, crestInit, crestTick, crestLine, feedTick, counterTick, sectorTick, reoccupyTick, stepBackTick, advanceTick, withdrawTick, callTick, shiftTick, partnerIn, liaisonTick, garrisonTick, escalateOnRepulse, chargeTick,
+  approachInit, approachArrival, approachTick, toGunsTick };
 root.WDoctrine = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

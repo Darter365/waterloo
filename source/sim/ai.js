@@ -221,154 +221,19 @@ function unitControl(E) {
    counter, sectors, reoccupy, stepBack, liaison, shifts, advance, withdraw, calls). The reference battles replay exactly with it, as they
    did with the code it replaced (release 3's wellingtonInit, wellingtonUnits, wellington and uxbridge). */
 
-/* ===================== the Prussians ===================== */
-function prussianInit(E, S) {
-  const H = E.history, rnd = E.rnd, wide = H === 'open' ? 1.5 : 1;
-  const hes = H !== 'strict' && rnd('Gneisenau hesitates') < 0.10 * wide ? rnd.range(60, 120, 'hesitation') : 0;
-  const fire = H === 'strict' ? 60 : rnd.tri(0, 60, 180 * (H === 'open' ? 1.3 : 1), 'fire in Wavre');
-  S.prDelay = { hes, fire };
-  if (hes) E.logEvent('hidden', `Gneisenau doubts Wellington will stand, and holds the Prussian march back ${Math.round(hes)} minutes.`, { side: 'PR', hidden: true });
-  E.logEvent('hidden', `The fire in Wavre costs Bülow's rear brigades ${Math.round(fire)} minutes (most likely about 60).`, { side: 'PR', hidden: true });
-  for (const u of E.offmap.filter(o => o.group === 'prussians')) {
-    const lead = /^b15|^b16/.test(u.id), dev = (fire - 60) * (lead ? 0.7 : 1);
-    u.arriveAt = u.baseArrive + hes + dev + (H === 'open' ? rnd.normal('march noise') * 25 : rnd.normal('march noise') * 12);
-    if (u.corps === 'zieten') u.arriveAt = u.baseArrive + hes * 0.5 + rnd.normal('Zieten march') * 30 * wide;
+/* ===================== armies on the march, and the generals' own initiative =====================
+   (3d) Blücher's march and Grouchy's choice are the generic habits of an arriving army (doctrine.js: approachInit, approachArrival,
+   approachTick, toGunsTick) with Waterloo's numbers in the pack (side PR: delays, waits, follows, flanks, press, pursue, reports; side FR:
+   toGuns). The reference battles replay exactly with them, as they did with the code they replaced (release 3's prussianInit,
+   onPrussianArrival and prussians). The generals' own strokes (Lobau, Ney, Jérôme) are the pack's initiative, by the same module. Both run
+   for every army not handed to the generic doctrine, which takes its own decisions. */
+function initiativeTick(E, S) {
+  for (const sd of E.sides) {
+    const st = S.timetable[sd.id];
+    if (!st || !sd.initiative || E.flags[sd.id.toLowerCase() + 'Withdraw']) continue; // (6) in a general retreat nobody starts anything new
+    if (sd.initiative.garrison) Doc().garrisonTick(E, sd.id, sd.initiative.garrison, st);
+    if (sd.initiative.charge && st.chargeLine) Doc().chargeTick(E, sd.id, sd.initiative.charge, st.chargeLine, st);
   }
-  S.bulowRelease = null; S.bulowAttack = null; S.exitDelay = H === 'strict' ? 0 : (rnd("Bülow's exit from the woods") < 0.8 ? 0 : 45);
-  if (S.exitDelay) E.logEvent('hidden', "Bülow's guides pick a poor track out of the Bois de Paris: 45 minutes lost.", { side: 'PR', hidden: true });
-  // Grouchy: hears the guns at 11:30
-  S.grouchy = { decided: false, comes: false };
-}
-function onPrussianArrival(E, u, S) {
-  if (u.corps === 'bulow') {
-    // wait concealed at Saint-Lambert until released, then file through the Lasne defile to the Bois de Paris
-    u.task = { kind: 'march', then: null, since: E.t, wait: true }; u.path = null; u.halted = true;
-    // they wait on the Saint-Lambert plateau, just past the map edge: EU-DEM puts it at 112-120 m against 100-105 m at the edge point
-    u.heightBonus = 15;
-    u.concealed = 0.02; // kept in the hollows and woods round Saint-Lambert (rules doc: concealment; value est., set so the French first glimpse them around midday)
-  } else if (u.corps === 'pirch') {
-    u.task = { kind: 'march', then: (E2, uu) => ({ kind: 'hold', prReady: true }), since: E.t };
-  } else if (u.corps === 'zieten') {
-    u.task = { kind: 'march', then: (E2, uu) => ({ kind: 'hold', zReady: true }), since: E.t };
-  } else if (u.group === 'grouchy') {
-    u.task = { kind: 'march', then: (E2, uu) => ({ kind: 'attack', point: E2.spById.plancenoit.secs[0].x ? [E2.spById.plancenoit.x, E2.spById.plancenoit.y] : [uu.x - 1500, uu.y], attempts: 0, maxAttempts: 2, form: 'attack' }), since: E.t };
-  }
-}
-function prussians(E, S) {
-  const t = E.t, strict = E.history === 'strict';
-  const bul = E.units.filter(u => u.corps === 'bulow' && u.onMap && E.formed(u));
-  // release from Saint-Lambert
-  if (!S.bulowRelease) {
-    const echelons = bul.filter(u => u.type === 'inf').length, BN = news(E, 'blucher');
-    if (BN) {
-      // Blücher judges Wellington seriously engaged after an hour of heavy cannonade from Mont-Saint-Jean (est.), or when Müffling says so
-      const g = Object.entries(E.command.B.blucher.soundSlow).filter(([k]) => k.startsWith('guns')).reduce((a, [, v]) => a + v, 0);
-      if (g >= 15) { if (BN.heavySince == null) BN.heavySince = t; } else if (g < 8) BN.heavySince = null;
-      if (BN.heavySince != null && t - BN.heavySince >= 60 && !BN.wellEngaged) BN.wellEngaged = t;
-    }
-    const engaged = BN ? !!BN.wellEngaged : E.flags.alliedEngaged;
-    const danger = BN ? !!(BN.alMorale && BN.alMorale.v < 55) : E.morale.AL < 55;
-    if ((strict && t >= 13 * 60) || (!strict && ((echelons >= 4 && engaged) || (echelons >= 2 && danger) || t >= 15 * 60 + 30 && echelons >= 2))) {
-      S.bulowRelease = t; E.logEvent('hidden', 'Blücher orders Bülow forward from Saint-Lambert into the Lasne valley.', { side: 'PR', hidden: true });
-    }
-  }
-  if (S.bulowRelease) {
-    for (const u of bul) if (u.task.kind === 'march' && u.task.wait) { u.task.wait = false; u.halted = false; u.heightBonus = 0; u.concealed = null; u.path = E.routes.bulow.slice(2).map(p => [p[0], p[1]]); u.task.then = (E2, uu) => ({ kind: 'hold', atWood: true }); }
-  }
-  // (6) the French drawing off: Blücher presses for the high road behind them, as Gneisenau's pursuit did on the night (est. 20 min to see it)
-  if (!S.prPursuit && E.flags.frWithdraw && E.t - E.flags.frWithdraw >= 20) {
-    const pr = E.units.filter(u => u.side === 'PR' && u.onMap && E.formed(u) && u.type !== 'art' && u.coh > 45);
-    if (pr.length) {
-      S.prPursuit = E.t; E.logEvent('orders', 'Blücher sees the French going and drives for the Charleroi road.', { side: 'PR', important: true });
-      const road = E.routes.frRetreat;
-      for (const u of pr) { const q = nearestOnPoly(u.x, u.y, road), dest = [q[0], Math.max(q[1], u.y)]; E.setTask(u, { kind: 'attack', point: dest, attempts: 0, maxAttempts: 1, form: 'columns' }); u.path = [dest]; }
-    }
-  }
-  // assemble in the Bois de Paris, then attack Plancenoit and Frischermont
-  const atWood = bul.filter(u => u.task.kind === 'hold' && u.task.atWood);
-  if (!S.bulowAttack && atWood.filter(u => u.type === 'inf').length >= (strict ? 4 : 3)) { if (!S.woodReady) S.woodReady = t; const BN2 = news(E, 'blucher'), alBad = BN2 ? !!(BN2.alMorale && BN2.alMorale.v < 45) : E.morale.AL < 45; if (t >= S.woodReady + 20 + S.exitDelay || alBad) { S.bulowAttack = t; E.logEvent('hidden', 'Bülow debouches from the Bois de Paris.', { side: 'PR', hidden: true }); } }
-  if (strict && !S.bulowAttack && t >= 16 * 60 + 30) S.bulowAttack = t;
-  if (S.bulowAttack) {
-    for (const u of bul) {
-      if (u.task.kind !== 'hold' || !u.task.atWood) continue;
-      const pl = E.spById.plancenoit, fr = E.spById.frischermont;
-      let tgt;
-      if (u.type === 'inf') { const north = /^b15/.test(u.id); tgt = north ? 'eastFlankN' : 'plancenoit'; }
-      if (u.type === 'inf') {
-        if (tgt === 'plancenoit') { E.setTask(u, { kind: 'attack', sp: 'plancenoit', point: [pl.x, pl.y], attempts: 0, maxAttempts: 3, form: 'attack' }); u.path = [[pl.x, pl.y]]; E.setForm(u, 'attack'); }
-        else { const p = E.objectives.eastFlank.line[1]; E.setTask(u, { kind: 'attack', point: [p[0], p[1]], attempts: 0, maxAttempts: 6, form: 'attack' }); u.path = [p]; E.setForm(u, 'attack'); }
-      } else if (u.type === 'art') { const site = E.ll2m(50.6655 + E.rnd('gun site') * 0.004, 4.4492); E.setTask(u, { kind: 'bombard', area: E.objectives.eastFlank.line, site }); E.routeTo(u, site, true); }
-      else if (u.type === 'cav') { E.setTask(u, { kind: 'cavRaid', area: E.objectives.eastFlank.line, home: [u.x, u.y], charges: 0, maxCharges: 4 }); }
-    }
-    // keep pressing Plancenoit with whatever is rested
-    if (E.tick % 10 === 0) for (const u of E.units.filter(u => u.side === 'PR' && u.type === 'inf' && E.formed(u) && u.task.kind === 'hold' && !u.task.atWood && u.coh > 65 && (u.corps === 'bulow' || u.corps === 'pirch'))) {
-      const pl = E.spById.plancenoit; if (pl.holder === 'AL') continue;
-      E.setTask(u, { kind: 'attack', sp: 'plancenoit', point: [pl.x, pl.y], attempts: 0, maxAttempts: 4, form: 'attack' }); u.path = [[pl.x, pl.y]];
-    }
-  }
-  // Pirch follows Bülow along the same road, after Bülow's columns have cleared Saint-Lambert
-  for (const u of E.units.filter(u => u.corps === 'pirch' && u.onMap && E.formed(u) && u.task.kind === 'hold' && u.task.prReady)) {
-    u.task.prReady = false; const pl = E.spById.plancenoit;
-    E.setTask(u, { kind: 'attack', sp: 'plancenoit', point: [pl.x, pl.y], attempts: 0, maxAttempts: 4, form: 'attack' }); u.path = [[pl.x, pl.y]];
-  }
-  if (S.bulowRelease) for (const u of E.units.filter(u => u.corps === 'pirch' && u.onMap && u.task.kind === 'march' && !u.path)) { u.path = E.routes.bulow.slice(2).map(p => [p[0], p[1]]); }
-  // Zieten: down the Ohain road to Papelotte, then into the French right
-  for (const u of E.units.filter(u => u.corps === 'zieten' && u.onMap && E.formed(u) && u.task.kind === 'hold' && u.task.zReady)) {
-    u.task.zReady = false;
-    if (S.zietenDiverted) { const pl = E.spById.plancenoit; E.setTask(u, { kind: 'attack', sp: 'plancenoit', point: [pl.x, pl.y], attempts: 0, maxAttempts: 3, form: 'attack' }); u.path = [[pl.x, pl.y]]; continue; }
-    if (u.type === 'inf') { const pts = [E.spById.papelotte, E.spById.lahaye, E.spById.smohain]; const target = E.units.filter(e => e.side === 'FR' && E.formed(e) && hyp(e.x - u.x, e.y - u.y) < 2500).sort((a, b) => hyp(a.x - u.x, a.y - u.y) - hyp(b.x - u.x, b.y - u.y))[0];
-      const p = target ? [target.x, target.y] : [pts[0].x, pts[0].y - 100];
-      E.setTask(u, { kind: 'attack', point: p, attempts: 0, maxAttempts: 4, form: 'attack' }); u.path = [p]; }
-    else if (u.type === 'cav') E.setTask(u, { kind: 'cavRaid', area: E.objectives.ridgeEast.line, home: [u.x, u.y], charges: 0, maxCharges: 4 });
-    else { E.setTask(u, { kind: 'bombard', area: E.objectives.ridgeEast.line, site: [u.x - 300, u.y + 300] }); E.routeTo(u, u.task.site, true); }
-  }
-  // Zieten diverted south? (35% when near Wellington's left while Plancenoit is in crisis)
-  if (!S.zietenCheck) {
-    const lead = E.units.find(u => u.corps === 'zieten' && u.onMap && E.formed(u) && hyp(u.x - E.spById.papelotte.x, u.y - E.spById.papelotte.y) < 2000);
-    // Zieten hears of Plancenoit's trouble from an officer Bülow sends him (rules doc: Zieten diverted)
-    if (E.command && !S.crisisSent && S.bulowAttack && t - S.bulowAttack > 30 && placeHolder(E, 'bulow', 'plancenoit') === 'FR') { S.crisisSent = t; E.command.message('bulow', 'zieten', 'an officer from Bülow asking Zieten for help at Plancenoit', B => { B.news.crisis = E.t; }); }
-    const ZN = news(E, 'zieten');
-    const crisis = ZN ? !!ZN.crisis : E.spById.plancenoit.holder === 'FR' && S.bulowAttack && t - S.bulowAttack > 30;
-    if (lead && crisis) {
-      S.zietenCheck = t;
-      if (E.history !== 'strict' && E.rnd('Zieten diverted') < 0.35 * (E.history === 'open' ? 1.3 : 1)) {
-        S.zietenDiverted = t; E.logEvent('hidden', 'Zieten, told the Prussians at Plancenoit are in trouble, turns his column south.', { side: 'PR', hidden: true, important: true });
-        S.mufflingAt = t + E.rnd.range(10, 30, 'Müffling ride'); S.mufflingOk = E.rnd('Müffling persuades Zieten') < 0.6;
-      }
-    }
-  }
-  if (S.zietenDiverted && S.mufflingAt && t >= S.mufflingAt) {
-    S.mufflingAt = null;
-    if (S.mufflingOk) { S.zietenDiverted = null; E.logEvent('hidden', 'Müffling gallops after Zieten and brings him back to Wellington\'s left.', { side: 'PR', hidden: true }); for (const u of E.units.filter(u => u.corps === 'zieten' && E.formed(u) && u.onMap)) { if (u.task.kind === 'attack' && u.task.sp === 'plancenoit') { E.setTask(u, { kind: 'hold', zReady: true }); } } }
-    else E.logEvent('hidden', 'Müffling cannot find Zieten in time; I Corps goes on toward Plancenoit.', { side: 'PR', hidden: true });
-  }
-  if (E.command) {
-    if (E.flags.prEngaged && !S.toldPr) { S.toldPr = t; E.command.message('bulow', 'wellington', "Bülow's officer to Wellington: the Prussians are engaged", B => { B.news.prEngaged = E.t; }); }
-    if (E.metrics.zietenPapelotte && !S.toldZ) { S.toldZ = t; E.command.message('zieten', 'wellington', "Zieten's officer to Wellington", B => { B.news.zieten = E.t; }, 1); }
-  }
-  // Grouchy hears the cannonade
-  if (!S.grouchy.decided && E.flags.opened && t >= 11 * 60 + 30) {
-    S.grouchy.decided = true;
-    if (E.history !== 'strict' && E.rnd('Gérard persuades Grouchy') < 0.10 * (E.history === 'open' ? 1.5 : 1)) {
-      S.grouchy.comes = true; const block = E.rnd('Dyle crossings');
-      const arr = block < 0.3 ? null : t + E.rnd.tri(300, 400, 560, 'Grouchy march');
-      E.logEvent('hidden', arr ? `Gérard persuades Grouchy to march to the guns; he will reach the field around ${E.fmtT(arr)}.` : 'Grouchy turns west, but the Dyle crossings are held: he never arrives.', { side: 'FR', hidden: true, important: true });
-      if (arr) for (const u of E.offmap.filter(o => o.group === 'grouchy')) u.arriveAt = arr + u.baseArrive;
-    } else E.logEvent('hidden', 'Grouchy hears the guns at Walhain but keeps on toward Wavre.', { side: 'FR', hidden: true });
-  }
-}
-
-/* ===================== French corps reactions and Ney ===================== */
-function frenchReactions(E, S) {
-  const t = E.t;
-  if (E.flags.frWithdraw) return; // (6) in a general retreat nobody starts anything new: no garrisons, no charges, no exploitation
-  // Lobau garrisons Plancenoit when the Prussians close in ((3d) the battle pack's initiative, by the generic doctrine's garrisonTick)
-  Doc().garrisonTick(E, 'FR', E.sides.find(s => s.id === 'FR').initiative.garrison, S);
-  // Jérôme escalates at Hougoumont when his men are thrown back
-  // (handled in onRepulse)
-  // Ney: the misread retreat (he sees allied units moving back over the crest and sends the cavalry), the second wave, and pressing the
-  // centre once La Haye Sainte is taken ((3d) the battle pack's initiative.charge, by the generic doctrine's chargeTick)
-  Doc().chargeTick(E, 'FR', E.sides.find(s => s.id === 'FR').initiative.charge, S.crestLine, S);
 }
 
 const reserved = (E, u) => !!(E.command && E.command.reserved && E.command.reserved[u.id]); // held back by the Emperor's own order: Ney cannot take them (5e)
@@ -395,11 +260,12 @@ function make(opts = {}) {
     S,
     init(E) {
       E.ai = ai; E.plan = { steps: [], done: {} };
-      // (3d) the allied army is commanded by the generic doctrine, its habits from the battle pack (opts.generic may name more armies)
+      // (3d) the allied army is commanded by the generic doctrine, its habits from the battle pack (opts.generic may name more armies);
+      // the others march, halt and attack by their timetables and their generals' initiative (battle pack)
       S.generic = [...new Set(['AL', ...(opts.generic || [])])];
-      S.crestLine = Doc().crestLine(E, E.sides.find(s => s.id === 'AL').crest); // the line Ney watches
       S.gen = Doc().make({ sides: S.generic, embedded: true }).init(E);
-      prussianInit(E, S);
+      S.timetable = {};
+      for (const sd of E.sides) if (!S.generic.includes(sd.id)) S.timetable[sd.id] = Doc().approachInit(E, sd.id, sd, {});
       // French starting posture: hold; guns hold fire until ordered
       for (const u of E.units) if (u.side === 'FR' && u.onMap) u.task = { kind: 'hold', since: E.t };
       // the 11:00 deployment: Marbot's 7th Hussars (Bruno's brigade, Jacquinot) watch the far right toward Lasne and the Dyle
@@ -414,16 +280,18 @@ function make(opts = {}) {
     tick(E) {
       unitControl(E);
       S.gen.tick(E);
-      prussians(E, S);
-      frenchReactions(E, S);
+      for (const sd of E.sides) if (S.timetable[sd.id]) Doc().approachTick(E, sd.id, sd, S.timetable[sd.id]);
+      for (const sd of E.sides) if (S.timetable[sd.id]) Doc().toGunsTick(E, sd.id, sd, S.timetable[sd.id]);
+      initiativeTick(E, S);
       if (E.plan.steps.length) runPlan(E, S);
       if (opts.onTick) opts.onTick(E, S);
     },
     receive(E, o) { apply(E, o); },
-    onArrival(E, u) { onPrussianArrival(E, u, S); },
+    onArrival(E, u) { if (S.timetable[u.side]) Doc().approachArrival(E, u, E.sides.find(s => s.id === u.side), S.timetable[u.side]); },
     onRepulse(E, a, d, tgt) {
-      // Jérôme's escalation at Hougoumont ((3d) the battle pack's initiative, by the generic doctrine's escalateOnRepulse)
-      Doc().escalateOnRepulse(E, 'FR', E.sides.find(s => s.id === 'FR').initiative.escalate, a, tgt, S);
+      // a general sends his next body in when an attack is thrown back (the battle pack's initiative.escalate: Jérôme at Hougoumont)
+      for (const sd of E.sides) if (S.timetable[sd.id] && sd.initiative && sd.initiative.escalate) Doc().escalateOnRepulse(E, sd.id, sd.initiative.escalate, a, tgt, S.timetable[sd.id]);
+      S.gen.onRepulse(E, a, d, tgt); // and the generic armies' generals
     },
   };
   return ai;

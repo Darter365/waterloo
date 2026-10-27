@@ -4,7 +4,7 @@ The game served at the repository root (GitHub Pages) is built from here, with t
 
 | Folder | What it holds |
 | --- | --- |
-| `sim/` | The engine (`engine.js`), the commanders (`doctrine.js`: generic, for any battle; `ai.js`: Waterloo's own habits, being moved to data), plan rules (`plans.js`), the command layer (`command.js`, `orders.js`), replays (`replay.js`), the game page (`_game*.js`, `_css_*.css`, `_game_body.html`) and the tests |
+| `sim/` | The engine (`engine.js`), the commanders (`doctrine.js`: generic, for any battle, with each battle's habits and timetables as data in its pack; `ai.js`: the historical runner, which gives the armies not commanded generically their recorded plan, timetable and generals' initiative), plan rules (`plans.js`), the command layer (`command.js`, `orders.js`), replays (`replay.js`), the game page (`_game*.js`, `_css_*.css`, `_game_body.html`) and the tests |
 | `sim/packs/` | Everything a battle is, as data: eras (`eras/`), nations, leaders, battles (`battles/`), orders of battle (`oob/`, made from CSV), terrain (`maps/`, made from survey files); `validate.js` checks them |
 | `sim/tools/` | `fight.js` (any battle, generic commanders), `tune.js` (era constants against every battle's targets), `band.js` (Waterloo's band), `bench.js` (single-situation tests), `oob.js` (CSV armies), `map.js` (the map pipeline), `replay.js` (replay files), `lint.js` (no battle or era names in the engine), `build_lab.py` |
 | `sim/lab/` | The battle lab page (built into `sim/lab.html` and the site's `lab.html`) |
@@ -21,6 +21,7 @@ The game served at the repository root (GitHub Pages) is built from here, with t
 1. Terrain: a spec, spot heights (or an ESRI grid) and a GeoJSON of roads, woods, villages and buildings in `sim/packs/maps/`; `node sim/tools/map.js build sim/packs/maps/<id>.map.json`.
 2. Army lists: a CSV in `sim/packs/oob/`; `node sim/tools/oob.js import sim/packs/oob/<id>.csv <id>`.
 3. The battle: `sim/packs/battles/<id>.js` with its sides, places, objectives, roads of march, leaders, victory rules and targets (see `toy-ridge.js`); add the files to `sim/packs/all.js` and `PACKS` in `sim/build_game.py`.
+   What the record says a side's commanders did goes in the same file, as data the generic commanders run alongside: plan rules (`plans`), a defender's habits (`crest`, `feeds`, `sectors` ...), generals' initiative (`initiative`), and an arriving army's timetable (`delays`, `waits`, `follows`, `flanks`, `press`, `pursue`, `reports`; `toGuns` for a detached force). `doctrine.js` describes every key; Waterloo's Prussians and the test battle's Green corps are worked examples. `fight.js --no-timetables` fights without them.
 4. `node sim/packs/validate.js <id>`, then `node sim/tools/fight.js <id> 20`, or open the lab.
 
 ## Testing

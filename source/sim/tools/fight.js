@@ -1,6 +1,6 @@
 /* Fight any battle pack with the generic commanders (doctrine.js) on every side, many times, and summarise: the quick port and quick
    tuning tool of the engine roadmap (phase 4: the battle test page runs the same thing in the browser).
-     node tools/fight.js <battle> [n=20] [--start <name>] [--log <seed>] [--trace <seed>]
+     node tools/fight.js <battle> [n=20] [--start <name>] [--log <seed>] [--trace <seed>] [--no-timetables]
    --log prints one battle's log (the important lines) instead of the summary; --trace adds, every half hour, each army's morale and
    what its formed bodies are doing (task counts, mean cohesion). */
 'use strict';
@@ -10,7 +10,7 @@ const P = require(path.join(SIM, 'packs', 'all.js')), En = require(path.join(SIM
 require(path.join(SIM, 'ai.js'));
 function fight(battle, seed, start, every) {
   const E = En.create({ battle, seed, scenario: start });
-  D.make().init(E);
+  D.make(process.argv.includes('--no-timetables') ? { timetables: false } : {}).init(E); // (3d) --no-timetables: without the battle's timetables
   if (!every) { E.run(); return E; }
   let next = E.t; const out = [];
   while (!E.over) { if (E.t >= next) { next += every; out.push({ t: E.t, text: trace(E) }); } E.step(); }

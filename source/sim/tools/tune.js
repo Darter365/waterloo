@@ -1,6 +1,6 @@
 /* The multi-battle tuner (engine roadmap 4b): try the era's constants against every battle that has targets at once, so a change that
    puts one battle in its band does not quietly push another out of its own.
-     node tools/tune.js [--n 60] [--battles waterloo,toy-ridge] [--set NAME=v ...] [--sweep NAME=v1,v2,...] [--seed 1000] [--procs 2]
+     node tools/tune.js [--n 60] [--battles waterloo,toy-ridge] [--set NAME=v ...] [--sweep NAME=v1,v2,...] [--seed 1000] [--procs 2] [--generic AL,PR] [--no-timetables]
    --set changes an era constant (E.K) for every run; --sweep tries each value in turn (several sweeps: every combination). Each battle is
    fought the way its targets say (runner: 'historical' = its recorded plan through the command layer; else the generic commanders on
    every side), n times from the same seeds for every setting, so settings are compared on the same dice.
@@ -45,7 +45,7 @@ module.exports = { judge, fightAll };
 
 if (require.main === module) {
   const a = process.argv.slice(2), opt = (k, d) => { const i = a.indexOf('--' + k); return i >= 0 ? a[i + 1] : d; }, all = k => a.flatMap((x, i) => x === '--' + k ? [a[i + 1]] : []);
-  const n = +opt('n', 60), seed0 = +opt('seed', 1000), procs = +opt('procs', 2), aiOpts = opt('generic') ? { generic: opt('generic').split(',') } : undefined; // --generic AL: those armies by the generic doctrine (3d)
+  const n = +opt('n', 60), seed0 = +opt('seed', 1000), procs = +opt('procs', 2), aiOpts = Object.assign({}, opt('generic') ? { generic: opt('generic').split(',') } : {}, process.argv.includes('--no-timetables') ? { timetables: false } : {}); // --generic AL: those armies by the generic doctrine (3d); --no-timetables: the generic commanders alone, without the battles' timetables
   const battles = (opt('battles', '') || Object.keys(P.battles).filter(id => P.battles[id].targets).join(',')).split(',').filter(Boolean);
   const base = {}; for (const s of all('set')) { const [k, v] = s.split('='); base[k.replace(/^K\./, '')] = +v; }
   let grid = [{}]; for (const s of all('sweep')) { const [k, vs] = s.split('='); grid = grid.flatMap(g => vs.split(',').map(v => Object.assign({}, g, { [k.replace(/^K\./, '')]: +v }))); }

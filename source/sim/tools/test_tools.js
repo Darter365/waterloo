@@ -48,6 +48,23 @@ broken('t-feed', B => { B.sides = B.sides.map(s => s.id === 'AL' ? { ...s, feeds
 broken('t-call', B => { B.sides = B.sides.map(s => s.id === 'AL' ? { ...s, calls: [{ ...s.calls[0], force: 'atlantis' }] } : s); }, /calls force "atlantis"/);
 broken('t-init', B => { B.sides = B.sides.map(s => s.id === 'FR' ? { ...s, initiative: { garrison: [{ ...s.initiative.garrison[0], leader: 'nobody' }], escalate: [] } } : s); }, /initiative leader "nobody"/);
 broken('t-side-obj', B => { B.sides = B.sides.map(s => s.id === 'FR' ? { ...s, objectives: { atlantis: 2 } } : s); }, /objective "atlantis" is not on the map/);
+// (3d) an arriving army's timetable and a detached force's march to the guns name things that must exist
+const onSide = (B, id, f) => { B.sides = B.sides.map(s => s.id === id ? f(JSON.parse(JSON.stringify(s))) : s); };
+broken('t-wait-road', B => onSide(B, 'PR', s => { s.waits[0].road = ['nowhere', 2]; return s; }), /waits road "nowhere"/);
+broken('t-wait-rest', B => onSide(B, 'PR', s => { s.waits[0].attack.foot = [s.waits[0].attack.foot[0]]; return s; }), /must end with an entry for the rest/);
+broken('t-follow', B => onSide(B, 'PR', s => { s.follows[0].after = 'nobody'; return s; }), /follows after "nobody"/);
+broken('t-delay-key', B => onSide(B, 'PR', s => { s.delays.units[0].add.ghost = 1; return s; }), /add "ghost", which is not a draw/);
+broken('t-divert', B => onSide(B, 'PR', s => { s.flanks[0].divert.to = 'nobody'; return s; }), /flanks divert leader "nobody"/);
+broken('t-toguns', B => onSide(B, 'FR', s => { s.toGuns[0].force = 'nobody'; return s; }), /toGuns force "nobody"/);
+// the toy battle's Green corps keeps its timetable under the generic commanders: it comes on late by its draws, halts out of sight,
+// is released and attacks; without timetables (opts.timetables: false) it is the generic commander's
+{ const En = require('../engine.js'), D = require('../doctrine.js');
+  const E = En.create({ battle: 'toy-ridge', seed: 5, scenario: '1100' }), ai = D.make().init(E), st = ai.S.GR.timetable; // (seed 5: released at 15:30)
+  ok(!!st && E.units.filter(u => u.side === 'GR').every(u => u.arriveAt !== u.baseArrive), 'timetable: the toy Green corps comes on by its draws');
+  let hidden = false; while (!E.over && E.t < 17 * 60) { E.step(); if (E.units.some(u => u.side === 'GR' && u.onMap && u.task.wait && u.concealed === 0.3)) hidden = true; }
+  ok(hidden && st.waits.green.release != null && st.waits.green.attack != null, 'timetable: Green halts out of sight, is released and attacks');
+  const E2 = En.create({ battle: 'toy-ridge', seed: 2, scenario: '1100' }), ai2 = D.make({ timetables: false }).init(E2);
+  ok(!ai2.S.GR.timetable && !E2.timedCorps && E2.units.filter(u => u.side === 'GR').every(u => u.arriveAt === u.baseArrive), 'timetable: off, Green is the generic commander\'s'); }
 // plan conditions read the clock, places and flags (the truth, with no command layer)
 { const En = require('../engine.js'), Pl = require('../plans.js'); require('../ai.js');
   const E = En.create({ battle: 'toy-ridge', seed: 1 });

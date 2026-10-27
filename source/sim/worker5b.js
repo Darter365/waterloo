@@ -12,7 +12,7 @@ process.on('message', ({ seeds, K, opts }) => {
       reports: E.command.inbox.filter(x => x.kind === 'report').length, summaries: E.command.inbox.filter(x => x.kind === 'summary').length, decisions: E.command.inbox.filter(x => x.decision).length,
       ridersLost: E.command.riders.filter(x => x.status === 'lost' || x.status === 'captured').length, ordersLost: E.command.orders.filter(o => o.status === 'lost').length, misreads: E.command.orders.filter(o => o.misread).length,
       mMin: ['FR', 'AL', 'PR'].map(k => Math.round(Math.min(...E.history_.map(x => x.morale[k])))), m18: h(1080) ? ['FR', 'AL', 'PR'].map(k => Math.round(h(1080).morale[k])) : null, mEnd: ['FR', 'AL', 'PR'].map(k => Math.round(E.morale[k])),
-      wellEngagedAtBlucher: E.command.B.blucher.news.wellEngaged ?? null, release: E.ai.S.bulowRelease ?? null, advance: E.ai.S.advanced ? true : false });
+      wellEngagedAtBlucher: E.command.B.blucher.news.wellEngaged ?? null, release: E.ai.S.timetable.PR.waits.bulow.release ?? null, advance: E.ai.S.gen.S.AL.advanced ? true : false });
   }
   process.send(out, () => process.exit(0)); // (8) exit only once the message is out: a large batch was lost when the process exited first
 });

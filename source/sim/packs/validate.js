@@ -235,6 +235,59 @@ function validate(id) {
     if (s.liaison) { if (!(B.leaders || []).some(l => l.id === s.liaison.to)) E(`side ${s.id}: liaison to "${s.liaison.to}", who is not placed in the battle`); needPlace(s, 'liaison', s.liaison.place); }
     if ((s.feeds || s.sectors || s.counter || s.reoccupy || s.stepBack || s.liaison) && !s.crest && (s.sectors || s.counter || s.stepBack || s.liaison)) E(`side ${s.id}: sectors, counter, stepBack and liaison work from its crest line: give the side a crest`);
   }
+  // (3d) an army marching onto the field and a detached force that may march to the guns (doctrine.js: approachInit ... toGunsTick)
+  const corpsIds = new Set(Object.values(W.CORPS || {}).concat(...(W.FORCES || []).map(f => f.units.map(u => u[7]))));
+  const isPlaced = id => (B.leaders || []).some(l => l.id === id), isTime = t => typeof t === 'number' || /^\d{1,2}:\d{2}$/.test(t || '');
+  const needLine = (s, what, id) => { if (!((W.OBJECTIVES || {})[id] || {}).line) E(`side ${s.id}: ${what} objective "${id}" is not a line on the map`); };
+  const needRoad = (s, what, r) => { if (!Array.isArray(r) || !(W.ROUTES || {})[r[0]]) E(`side ${s.id}: ${what} road "${r && r[0]}" is not one of the battle's routes`); else if (!(r[1] >= 0 && r[1] < W.ROUTES[r[0]].length)) E(`side ${s.id}: ${what} road "${r[0]}" has no point ${r[1]}`); };
+  const needCorps = (s, what, c) => { if (!corpsIds.has(c)) E(`side ${s.id}: ${what} corps "${c}" is not in the order of battle`); };
+  const needLeader = (s, what, l) => { if (!isPlaced(l)) E(`side ${s.id}: ${what} leader "${l}" is not placed in the battle`); };
+  for (const s of sides) {
+    const d = s.delays, waitCorps = new Set((s.waits || []).map(w => w.corps));
+    if (d) {
+      const F = (W.FORCES || []).find(f => f.group === d.force), keys = new Set((d.draws || []).map(g => g.key));
+      if (!F) E(`side ${s.id}: delays force "${d.force}" is not one of the battle's forces`); else if (!F.marches) Wn(`side ${s.id}: delays force "${d.force}" does not march on its own: its arrival minutes are set when it is called`);
+      for (const g of d.draws || []) { if (!g.key || !g.roll) E(`side ${s.id}: a delays draw needs a key and a roll`); if (!(g.tri ? g.tri.length === 3 && num(g.strict) : num(g.chance) && Array.isArray(g.range) && g.range.length === 2)) E(`side ${s.id}: delays draw "${g.key}" needs tri: [lo, mode, hi] and strict, or chance and range: [min, max]`); }
+      for (const r of d.units || []) {
+        if (r.corps) needCorps(s, 'delays', r.corps);
+        for (const k of Object.keys(r.add || {}).concat(Object.keys((r.lead || {}).add || {}))) if (!keys.has(k)) E(`side ${s.id}: delays units add "${k}", which is not a draw`);
+        if (r.lead) needUnits(s, 'delays lead', r.lead.units);
+        if (!r.noise || !num(r.noise.sd) || !r.noise.roll) E(`side ${s.id}: delays units need noise: { roll, sd }`);
+      }
+      if (!(d.units || []).length || (d.units[0] || {}).corps) E(`side ${s.id}: delays units must start with an entry for every unit of the force (no corps)`);
+    }
+    for (const w of s.waits || []) {
+      needCorps(s, 'waits', w.corps); needRoad(s, 'waits', w.road);
+      const r = w.release || {}, a = w.assemble || {}, at = w.attack || {};
+      needLeader(s, 'waits release', r.by);
+      if (!sideIds.has(r.partner)) E(`side ${s.id}: waits release partner "${r.partner}" is not an army of this battle`);
+      if (!(r.when || []).length) E(`side ${s.id}: waits release needs when: [conditions]`);
+      for (const c of r.when || []) if (c.after != null && !isTime(c.after)) E(`side ${s.id}: waits release after "${c.after}" is not a time`);
+      for (const t of [r.strictAt, a.strictAt]) if (!isTime(t)) E(`side ${s.id}: waits needs strictAt times (release and assemble)`);
+      if (!r.heard || !r.news) E(`side ${s.id}: waits release needs heard: {...} and news: { engaged, morale }`);
+      if (!num(a.foot) || !num(a.after)) E(`side ${s.id}: waits assemble needs foot and after`);
+      const foot = at.foot || [];
+      if (!foot.length || foot[foot.length - 1].units) E(`side ${s.id}: waits attack foot must end with an entry for the rest (no units)`);
+      for (const f of foot) { needUnits(s, 'waits attack', f.units); if (f.place) needPlace(s, 'waits attack', f.place); else if (f.point) { if (f.point[1] != null) needLine(s, 'waits attack', f.point[0]); else if (!(W.OBJECTIVES || {})[f.point[0]]) E(`side ${s.id}: waits attack objective "${f.point[0]}" is not on the map`); } else E(`side ${s.id}: waits attack foot needs a place or a point`); }
+      if (at.guns) needLine(s, 'waits attack guns', at.guns.area); if (at.horse) needLine(s, 'waits attack horse', at.horse.area);
+    }
+    for (const f of s.follows || []) { needCorps(s, 'follows', f.corps); needRoad(s, 'follows', f.road); needPlace(s, 'follows', f.place); if (!waitCorps.has(f.after)) E(`side ${s.id}: follows after "${f.after}", which is not a waiting corps of this side`); }
+    if (s.press) { const p = s.press; needPlace(s, 'press', p.place); for (const c of p.corps || []) needCorps(s, 'press', c); if (!waitCorps.has(p.after)) E(`side ${s.id}: press after "${p.after}", which is not a waiting corps of this side`); }
+    for (const f of s.flanks || []) {
+      needCorps(s, 'flanks', f.corps); needPlace(s, 'flanks', f.place); needLine(s, 'flanks', f.area);
+      const dv = f.divert; if (!dv) continue;
+      if (!waitCorps.has(dv.help)) E(`side ${s.id}: flanks divert help "${dv.help}", which is not a waiting corps of this side`);
+      needPlace(s, 'flanks divert', dv.place); needPlace(s, 'flanks divert', (dv.near || {}).place); needLeader(s, 'flanks divert', dv.from); needLeader(s, 'flanks divert', dv.to);
+    }
+    if (s.pursue) for (const o of sides) if (o.coalition !== s.coalition && !(W.ROUTES || {})[o.retreat]) E(`side ${s.id}: pursue needs side ${o.id}'s retreat road on the map`);
+    for (const r of s.reports || []) { if (!r.flag && !r.metric) E(`side ${s.id}: a report needs a flag or a metric`); needLeader(s, 'reports', r.from); needLeader(s, 'reports', r.to); if (!r.news) E(`side ${s.id}: a report needs news (the key it sets)`); }
+    for (const g of s.toGuns || []) {
+      if (!forceIds.has(g.force)) E(`side ${s.id}: toGuns force "${g.force}" is not one of the battle's forces`);
+      needPlace(s, 'toGuns', g.place); if (!isTime(g.at)) E(`side ${s.id}: toGuns at "${g.at}" is not a time`);
+      if (!Array.isArray(g.march) || g.march.length !== 3) E(`side ${s.id}: toGuns march must be [lo, mode, hi] minutes`);
+      if (!g.says || !g.says.comes || !g.says.blocked || !g.says.stays) E(`side ${s.id}: toGuns says needs comes, blocked and stays`);
+    }
+  }
   const wx = B.weather || {};
   if (wx.cohesion0 != null && !num(wx.cohesion0)) E('weather: cohesion0 must be a number');
   if (wx.humidFrom != null && !num(wx.humidFrom)) E('weather: humidFrom must be minutes after midnight');

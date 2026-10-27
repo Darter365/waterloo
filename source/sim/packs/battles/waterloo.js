@@ -442,6 +442,11 @@ P.register('battle', 'waterloo', { version: '1.0', // (4e) versions start at pha
   // runaway pursuit rallies, toward the coalition's lead army's rear (release 3: French 600, allies 900)
   sides: [
     { id: 'FR', name: 'French', colour: '#2f4f8f', morale0: 80, coalition: 'FR', fatigue0: 25, rallyBack: 600, chief: 'napoleon', rear: 'S', retreat: 'frRetreat', exit: [50.6380, 4.4270], rearguard: [50.65675, 4.41333], posture: 'attack',
+      // (3d) what the field is worth to a generic French commander (doctrine.js: targets; only when the French are not given Napoleon's
+      // orders): the allied centre on the ridge first, then La Haye Sainte and the ridge east of it (d'Erlon's aim), Hougoumont and the ridge
+      // west of the road; nothing behind his own line (Plancenoit and La Belle Alliance, worth a place each on the map, are his to defend, not
+      // to attack). Est., from Napoleon's plan of the day; without them the generic attacker went for those two first, unopposed.
+      objectives: { ridgeCentre: 3, lhs: 2, ridgeEast: 2, hougoumont: 1, ridgeWest: 1, papelotte: 0.5, plancenoit: 0, ba: 0 },
       // (3d) the French generals' own initiative (doctrine.js): Lobau throws a brigade into Plancenoit when the Prussians (or troops he cannot
       // name east of it) come within 1,600 m and it has no garrison (chance 0.7 a tick, est.); Jérôme sends the next of his brigades into
       // Hougoumont each time an attack there is thrown back (chance 0.5 x his aggression; release 3)
@@ -465,6 +470,12 @@ P.register('battle', 'waterloo', { version: '1.0', // (4e) versions start at pha
             footId: 'neyCentre', footRideMin: 5, maxAttempts: 3, footText: 'Ney sends what infantry he can find against the allied centre.', says: 'With La Haye Sainte taken, Ney presses the allied centre.', note: 'exploit' } },
         escalate: [{ place: 'hougoumont', leader: 'jerome', to: 'reille', units: ['soye', 'jamin', 'gauthier'], chance: 0.5, maxAttempts: 4, rideMin: 4, says: 'Jérôme commits {unit} to Hougoumont.' }],
       },
+      // (3d) Grouchy at Walhain (doctrine.js: toGunsTick; release 3's values, est.): once the battle has opened he hears the guns at 11:30, and
+      // Gérard persuades him to march to them (chance 0.10, x1.5 under open history); the Prussian rearguard holds the Dyle crossings (chance
+      // 0.3); else the march takes 300-560 min (most likely 400), his bodies come on at their listed gaps and go for Plancenoit
+      toGuns: [{ force: 'grouchy', flag: 'opened', at: '11:30', roll: 'Gérard persuades Grouchy', chance: 0.10, openTimes: 1.5, blocked: 0.3, blockRoll: 'Dyle crossings', march: [300, 400, 560], marchRoll: 'Grouchy march',
+        says: { comes: 'Gérard persuades Grouchy to march to the guns; he will reach the field around {at}.', blocked: 'Grouchy turns west, but the Dyle crossings are held: he never arrives.', stays: 'Grouchy hears the guns at Walhain but keeps on toward Wavre.' },
+        place: 'plancenoit', maxAttempts: 2 }],
       retreatSays: 'The French army begins to retreat on Charleroi.' },
     { id: 'AL', name: 'Anglo-allied', colour: '#a8322b', morale0: 70, coalition: 'AL', fatigue0: 15, rallyBack: 900,
       // (3d) Wellington's first line behind the crest of Mont-Saint-Jean: the crest is the lane along it (the Chemin d'Ohain east of the
@@ -508,7 +519,49 @@ P.register('battle', 'waterloo', { version: '1.0', // (4e) versions start at pha
       wagons: { rifle: { roll: 'rifle wagon', near: 0.25, far: 0.35, farFrom: 1050,
         says: { near: 'The rifle-ammunition wagon for La Haye Sainte is close behind the ridge.', far: 'The rifle-ammunition wagon for La Haye Sainte is stuck far back on the Brussels road.', lost: 'The rifle-ammunition wagon for La Haye Sainte is lost on the road from Brussels.' },
         short: 'No rifle cartridges can be found for {place}; musket rounds do not fit the Baker rifle.' } } },
-    { id: 'PR', name: 'Prussian', colour: '#4a4a4a', morale0: 75, coalition: 'AL', fatigue0: 15, chief: 'blucher', rear: 'E', retreat: 'prRetreat', posture: 'attack' },
+    { id: 'PR', name: 'Prussian', colour: '#4a4a4a', morale0: 75, coalition: 'AL', fatigue0: 15, chief: 'blucher', rear: 'E', retreat: 'prRetreat', posture: 'attack',
+      // (3d) Blücher's march from Wavre (doctrine.js: approachInit, approachArrival, approachTick; release 3's values, est. unless the rules doc
+      // gives them). The march's chances: Gneisenau, doubting Wellington will stand, may hold the march back (chance 0.10, 60-120 min); the
+      // fire in Wavre delays Bülow's rear brigades (most likely 60 min, which the listed minutes already allow for; his lead brigades, the 15th
+      // and 16th, feel 0.7 of it); every body has a spread of 12 min (25 under open history); Zieten feels half of Gneisenau's doubt, not the
+      // fire, and has his own spread of 30 min
+      delays: { force: 'prussians',
+        draws: [{ key: 'doubt', roll: 'Gneisenau hesitates', chance: 0.10, open: 1.5, range: [60, 120], rangeRoll: 'hesitation', says: 'Gneisenau doubts Wellington will stand, and holds the Prussian march back {min} minutes.' },
+          { key: 'fire', roll: 'fire in Wavre', tri: [0, 60, 180], openHi: 1.3, strict: 60, centre: 60, says: "The fire in Wavre costs Bülow's rear brigades {min} minutes (most likely about 60)." }],
+        units: [{ add: { doubt: 1, fire: 1 }, lead: { units: ['b15a', 'b15b', 'b16a', 'b16b'], add: { fire: 0.7 } }, noise: { roll: 'march noise', sd: 12, openSd: 25 } },
+          { corps: 'zieten', add: { doubt: 0.5 }, noise: { roll: 'Zieten march', sd: 30, openTimes: 1.5 } }] },
+      // Bülow halts out of sight on the Saint-Lambert plateau, just past the map's edge (EU-DEM puts it at 112-120 m against 100-105 m at the
+      // edge point; kept in the hollows and woods round it, concealment 0.02: set so the French first glimpse them around midday) until
+      // Blücher releases him: at 13:00 under strict history; else once four of his foot are up and Wellington is seriously engaged (an hour
+      // of heavy cannonade from Mont-Saint-Jean, est., or Müffling says so), or two are up and Wellington's morale is believed under 55, or two
+      // are up at 15:30. He files through the Lasne defile to the Bois de Paris, waits there for three of his foot (four under strict
+      // history) and 20 min more (45 more if his guides pick a poor track out of the woods, chance 0.2), or goes at once if Wellington's
+      // morale is believed under 45 (16:30 under strict history), and attacks: the 15th Brigade the heights toward Frischermont, the rest
+      // Plancenoit; his guns bombard the heights between, his horse raids them
+      waits: [{ corps: 'bulow', hide: { concealed: 0.02, height: 15 }, road: ['bulow', 2],
+        release: { by: 'blucher', partner: 'AL', strictAt: '13:00', danger: 55, when: [{ foot: 4, engaged: true }, { foot: 2, danger: true }, { foot: 2, after: '15:30' }],
+          heard: { prefix: 'guns', heavy: 15, quiet: 8, for: 60, flag: 'alliedEngaged' }, news: { engaged: 'wellEngaged', morale: 'alMorale' }, says: 'Blücher orders Bülow forward from Saint-Lambert into the Lasne valley.' },
+        assemble: { foot: 3, strictFoot: 4, after: 20, crisis: 45, strictAt: '16:30', says: 'Bülow debouches from the Bois de Paris.',
+          exit: { roll: "Bülow's exit from the woods", ok: 0.8, lost: 45, says: "Bülow's guides pick a poor track out of the Bois de Paris: 45 minutes lost." } },
+        attack: { foot: [{ units: ['b15a', 'b15b'], point: ['eastFlank', 1], maxAttempts: 6 }, { place: 'plancenoit', maxAttempts: 3 }],
+          guns: { area: 'eastFlank', site: { lat: 50.6655, spread: 0.004, lon: 4.4492 } }, horse: { area: 'eastFlank', maxCharges: 4 } } }],
+      // Pirch follows Bülow by the same road and goes for Plancenoit; rested Prussian foot (cohesion over 65) are sent at it again every 20 min
+      // while the allies do not hold it
+      follows: [{ corps: 'pirch', after: 'bulow', road: ['bulow', 2], place: 'plancenoit', maxAttempts: 4 }],
+      press: { after: 'bulow', corps: ['bulow', 'pirch'], place: 'plancenoit', every: 10, coh: 65, maxAttempts: 4 },
+      // Zieten comes down the Ohain road and goes for the nearest French within 2.5 km (else 100 m north of Papelotte); his horse raids and
+      // his guns bombard the ridge east of La Haye Sainte. Once Bülow has been attacking 30 min with Plancenoit in French hands, Bülow sends
+      // to Zieten for help; when the news reaches him and his head is within 2 km of Papelotte, he turns south (chance 0.35, x1.3 under open
+      // history), and Müffling rides after him (10-30 min) and brings him back (chance 0.6)
+      flanks: [{ corps: 'zieten', near: 2500, place: 'papelotte', dy: -100, maxAttempts: 4, area: 'ridgeEast', gunAt: [-300, 300], horseCharges: 4,
+        divert: { help: 'bulow', from: 'bulow', to: 'zieten', place: 'plancenoit', after: 30, message: 'an officer from Bülow asking Zieten for help at Plancenoit', near: { place: 'papelotte', within: 2000 },
+          roll: 'Zieten diverted', chance: 0.35, openTimes: 1.3, maxAttempts: 3, says: 'Zieten, told the Prussians at Plancenoit are in trouble, turns his column south.',
+          recall: { ride: [10, 30], rideRoll: 'Müffling ride', roll: 'Müffling persuades Zieten', chance: 0.6, ok: "Müffling gallops after Zieten and brings him back to Wellington's left.", fail: 'Müffling cannot find Zieten in time; I Corps goes on toward Plancenoit.' } } }],
+      // (6) the French drawing off: Blücher presses for the high road behind them, as Gneisenau's pursuit did on the night (est. 20 min to see it)
+      pursue: { after: 20, coh: 45, says: 'Blücher sees the French going and drives for the Charleroi road.' },
+      // officers to Wellington: Bülow's when the Prussians are engaged, Zieten's when he reaches Papelotte
+      reports: [{ flag: 'prEngaged', from: 'bulow', to: 'wellington', label: "Bülow's officer to Wellington: the Prussians are engaged", news: 'prEngaged' },
+        { metric: 'zietenPapelotte', from: 'zieten', to: 'wellington', label: "Zieten's officer to Wellington", news: 'zieten', writeMin: 1 }] },
   ],
   /* the starts (scenarios): the clock, the ground (wet 0-1; it dries 0.13 an hour from dryFrom, never below 0.2: rules doc), and for 05:00
      where the French lie and come up. Est. throughout: the sources agree that the rain stopped about 06:00, that Napoleon at 05:00 set the

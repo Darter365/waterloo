@@ -49,7 +49,22 @@ P.register('battle', 'toy-ridge', { version: '1.0', oob: 'toy-ridge', terrain: '
     { id: 'BL', name: 'Blue', colour: '#2f5f9f', morale0: 70, coalition: 'BL', chief: 'azur', rear: 'N', retreat: 'blueRetreat', posture: 'defend', reserve: ['blueRes'],
       crest: { from: [{ objective: 'ailRidge' }], first: ['b1', 'b2'] } },
     { id: 'RD', name: 'Red', colour: '#b0352d', morale0: 75, coalition: 'RD', chief: 'carmin', rear: 'S', retreat: 'redRetreat', exit: edge(2000, HM - 20), rearguard: ll(2000, 2900), posture: 'attack', reserve: ['redRes'], objectives: { ailRidge: 2 } },
-    { id: 'GR', name: 'Green', colour: '#3f7a35', morale0: 70, coalition: 'BL', chief: 'sinople', rear: 'E', retreat: 'greenRetreat', posture: 'attack', objectives: { redRise: 2 } },
+    { id: 'GR', name: 'Green', colour: '#3f7a35', morale0: 70, coalition: 'BL', chief: 'sinople', rear: 'E', retreat: 'greenRetreat', posture: 'attack', objectives: { redRise: 2 },
+      // (3d) Green's timetable: the habits of an arriving army (doctrine.js: approachInit ... approachTick), here to prove they work on a
+      // battle no code knows. Invented numbers: Sinople may set out late (chance 0.25, 30-90 min) and the road costs 0-40 min (most likely
+      // 10); his corps halts in the woods at the east edge until Red stands on the ridge, or Blue's morale falls under 50, or 15:30 (14:30
+      // under strict history); then it comes out by the road toward Saint-Ail, waits 10 min for its two brigades of foot, and goes for the
+      // Red rise behind Red's line, its guns and horse against Red's men on the ridge; when Red has been drawing off 20 min it pursues
+      delays: { force: 'green',
+        draws: [{ key: 'late', roll: 'Green sets out late', chance: 0.25, range: [30, 90], rangeRoll: 'late start', says: "General Sinople's corps sets out {min} minutes late." },
+          { key: 'road', roll: 'the eastern road', tri: [0, 10, 40], strict: 10, centre: 10, says: 'The road from the east costs the Green corps {min} minutes (most likely about 10).' }],
+        units: [{ add: { late: 1, road: 1 }, noise: { roll: 'march noise', sd: 5 } }] },
+      waits: [{ corps: 'green', hide: { concealed: 0.3, height: 0 }, road: ['green', 2],
+        release: { by: 'sinople', partner: 'BL', strictAt: '14:30', danger: 50, when: [{ foot: 2, engaged: true }, { foot: 1, danger: true }, { foot: 2, after: '15:30' }],
+          heard: { prefix: 'guns', heavy: 15, quiet: 8, for: 30, flag: 'ridgeTaken' }, news: { engaged: 'blueEngaged', morale: 'blueMorale' }, says: 'Sinople hears that Red is on the ridge and sends his corps in.' },
+        assemble: { foot: 2, strictFoot: 2, after: 10, crisis: 40, strictAt: '15:00', says: 'The Green corps comes out of the woods east of Saint-Ail.' },
+        attack: { foot: [{ point: ['redRise'], maxAttempts: 3 }], guns: { area: 'ailRidge', site: { lat: ll(3300, 1450)[0], spread: 0.002, lon: ll(3300, 1450)[1] } }, horse: { area: 'ailRidge', maxCharges: 3 } } }],
+      pursue: { after: 20, coh: 45, says: 'Sinople sees Red going and drives for the southern road.' } },
   ],
   starts: { '1100': { t: 660, wet0: 0.3 } },
   weather: { vis: [[600, 7000], [1200, 6000]] },
