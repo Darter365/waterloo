@@ -44,7 +44,7 @@ game = '\n'.join([
     L(598, 615), view, L(637, 766), live, L(1027, 1075),
     R('_shared_draw.js'), R('_interact.js'), R('_game.js'), R('_game_orders.js'), R('_game_disp.js'), R('_game_letters.js'), R('_game_staff.js'), R('_game_pencil.js'), R('_game_alarm.js'), R('_game_mapstyle.js'), R('_game_glass.js'), R('_game_aar.js'), R('_game_review.js'), R('_game_end.js'), R('_game_boot.js'), '})();'])
 # the packs first (registry, then eras, nations, leaders, battles: the order packs/all.js loads them in node), then the engine
-PACKS = ['packs/registry.js', 'packs/eras/napoleonic.js', 'packs/eras/medieval-test.js', 'packs/nations/napoleonic.js', 'packs/leaders/napoleonic.js', 'packs/battles/waterloo.js', 'packs/battles/toy-ridge.js', 'packs/oob/toy-ridge.js']
+PACKS = ['packs/registry.js', 'packs/eras/napoleonic.js', 'packs/eras/medieval-test.js', 'packs/nations/napoleonic.js', 'packs/leaders/napoleonic.js', 'packs/maps/toy-ridge.js', 'packs/oob/toy-ridge.js', 'packs/battles/waterloo.js', 'packs/battles/toy-ridge.js']
 srcs = PACKS + ['data.js', 'engine.js', 'ai.js', 'command.js', 'orders.js', 'plans.js', 'script.js', 'doctrine.js', 'replay.js']
 sid = lambda f: 'src-' + f[:-3].replace('/', '-')
 # each engine script carries an id so the after-action report's re-run worker can be built from the same source (step 6);

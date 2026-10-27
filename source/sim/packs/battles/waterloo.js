@@ -441,9 +441,9 @@ P.register('battle', 'waterloo', { version: '1.0', // (4e) versions start at pha
   // exit: where its line of retreat leaves the map; rearguard: where a rearguard would stand to cover it; rallyBack: how far back (m) a
   // runaway pursuit rallies, toward the coalition's lead army's rear (release 3: French 600, allies 900)
   sides: [
-    { id: 'FR', name: 'French', morale0: 80, coalition: 'FR', fatigue0: 25, rallyBack: 600, chief: 'napoleon', rear: 'S', retreat: 'frRetreat', exit: [50.6380, 4.4270], rearguard: [50.65675, 4.41333], posture: 'attack',
+    { id: 'FR', name: 'French', colour: '#2f4f8f', morale0: 80, coalition: 'FR', fatigue0: 25, rallyBack: 600, chief: 'napoleon', rear: 'S', retreat: 'frRetreat', exit: [50.6380, 4.4270], rearguard: [50.65675, 4.41333], posture: 'attack',
       retreatSays: 'The French army begins to retreat on Charleroi.' },
-    { id: 'AL', name: 'Anglo-allied', morale0: 70, coalition: 'AL', fatigue0: 15, rallyBack: 900,
+    { id: 'AL', name: 'Anglo-allied', colour: '#a8322b', morale0: 70, coalition: 'AL', fatigue0: 15, rallyBack: 900,
       // (3d) Wellington's first line behind the crest of Mont-Saint-Jean: the crest is the lane along it (the Chemin d'Ohain east of the
       // crossroads, the Braine-l'Alleud road west of it); these twelve brigades stand on it when French foot come near (doctrine.js: crest)
       crest: { from: [{ road: "Chemin de Braine-l'Alleud", reverse: true }, { road: "Chemin d'Ohain", slice: [1, 5] }], first: ['byng', 'maitland', 'chalkett', 'kielm', 'ompteda', 'kempt', 'bylandt', 'pack', 'best', 'vincke', 'bernhard', 'mitchell'],
@@ -453,7 +453,7 @@ P.register('battle', 'waterloo', { version: '1.0', // (4e) versions start at pha
       wagons: { rifle: { roll: 'rifle wagon', near: 0.25, far: 0.35, farFrom: 1050,
         says: { near: 'The rifle-ammunition wagon for La Haye Sainte is close behind the ridge.', far: 'The rifle-ammunition wagon for La Haye Sainte is stuck far back on the Brussels road.', lost: 'The rifle-ammunition wagon for La Haye Sainte is lost on the road from Brussels.' },
         short: 'No rifle cartridges can be found for {place}; musket rounds do not fit the Baker rifle.' } } },
-    { id: 'PR', name: 'Prussian', morale0: 75, coalition: 'AL', fatigue0: 15, chief: 'blucher', rear: 'E', retreat: 'prRetreat', posture: 'attack' },
+    { id: 'PR', name: 'Prussian', colour: '#4a4a4a', morale0: 75, coalition: 'AL', fatigue0: 15, chief: 'blucher', rear: 'E', retreat: 'prRetreat', posture: 'attack' },
   ],
   /* the starts (scenarios): the clock, the ground (wet 0-1; it dries 0.13 an hour from dryFrom, never below 0.2: rules doc), and for 05:00
      where the French lie and come up. Est. throughout: the sources agree that the rain stopped about 06:00, that Napoleon at 05:00 set the
@@ -484,6 +484,15 @@ P.register('battle', 'waterloo', { version: '1.0', // (4e) versions start at pha
   /* how the battle is graded (rules doc): the attacker; a decisive win also holds the high road at La Belle Alliance (no enemy foot or horse
      within 600 m) with morale 40 or more; an attacker who breaks before 18:00 suffers a catastrophe; holding the crest of the ridge at the end
      is a marginal win */
+  // (4b) what a calibrated engine should give for this battle, fought with Napoleon's orders (the band decided with Chris; losses: the rules
+  // doc's 1815 ranges). tools/tune.js judges every era change against these and every other battle's targets; tools/band.js shows more.
+  targets: { runner: 'historical', checks: [
+    { what: 'allied victories', share: 'Allied victory|French catastrophe', not: '^Marginal', min: 75, max: 90 },
+    { what: 'French victories (any)', share: 'French victory', below: 5 },
+    { what: 'French killed and wounded (median)', losses: 'FR', median: [20000, 27000] },
+    { what: 'Anglo-allied killed and wounded (median)', losses: 'AL', median: [13000, 17000] },
+    { what: 'Prussian killed and wounded (median)', losses: 'PR', median: [5000, 8000] },
+  ] },
   victory: { attacker: 'FR', decisive: { holds: 'ba', within: 600, morale: 40 }, catastropheBefore: 1080, marginal: 'ridgeCentre' },
   // the corps by name, for the log
   corpsNames: { bulow: "Bülow's IV Corps", pirch: "Pirch's II Corps", zieten: "Zieten's I Corps", hal: "Prince Frederik's corps from Hal", grouchy: "Grouchy's wing" },

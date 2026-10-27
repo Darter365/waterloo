@@ -4,5 +4,6 @@ set -e
 cd "$(dirname "$0")"
 python3 sim/build_game.py
 python3 offline/build_offline.py
+python3 sim/tools/build_lab.py
 cp -r offline/site/* ..
 echo "site copied to the repository root; commit and push to publish"

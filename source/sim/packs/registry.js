@@ -3,8 +3,20 @@
    and the engine reads only what this resolver hands it. (Engine roadmap, phase 1.) */
 (function (root) {
 'use strict';
-const P = root.WPacks || (root.WPacks = { eras: {}, nations: {}, leaders: {}, battles: {}, oobs: {}, resolved: {} });
-P.oobs = P.oobs || {};
+const P = root.WPacks || (root.WPacks = { eras: {}, nations: {}, leaders: {}, battles: {}, oobs: {}, maps: {}, resolved: {} });
+P.oobs = P.oobs || {}; P.maps = P.maps || {};
+/* (4c) a terrain pack (made by tools/map.js from survey files): the field's grid, heights and features. P.terrain(id) gives it ready for a
+   battle's map: heights unpacked (16-bit decimetres) and the conversions between latitude-longitude and map metres built from its corner. */
+P.terrain = function (id) {
+  const T = P.maps[id]; if (!T) return null;
+  if (T._W) return T._W;
+  const bin = typeof atob === 'function' ? atob(T.TB64) : Buffer.from(T.TB64, 'base64').toString('binary');
+  const dv = new DataView(new ArrayBuffer(bin.length)); for (let i = 0; i < bin.length; i++) dv.setUint8(i, bin.charCodeAt(i));
+  const H = new Float32Array(T.NX * T.NY); for (let i = 0; i < H.length; i++) H[i] = dv.getInt16(i * 2, true) / 10;
+  const { LAT0, LON0, MLAT, MLON } = T, ll2m = (lat, lon) => [(lon - LON0) * MLON, (LAT0 - lat) * MLAT], m2ll = (x, y) => [LAT0 - y / MLAT, LON0 + x / MLON];
+  const W = Object.assign({}, T, { H, ll2m, m2ll }); delete W.TB64; delete W.source; delete W.id;
+  Object.defineProperty(T, '_W', { value: W, enumerable: false }); return W;
+};
 P.register = function (kind, id, data) {
   const shelf = P[kind + 's']; if (!shelf) throw new Error(`unknown pack kind "${kind}"`);
   shelf[id] = Object.assign({ id }, data); delete P.resolved[id]; return shelf[id];
@@ -35,8 +47,10 @@ P.battle = function (id) {
   // a battle's map need only hold what it has: the rest is empty (a test bench map has no woods, roads or farms)
   // (4d) a battle may take its order of battle from an oob pack (made from a CSV by tools/oob.js): oob: '<id>'
   const O = B.oob ? P.oobs[B.oob] : null; if (B.oob && !O) throw new Error(`battle "${id}" names order of battle "${B.oob}", which is not loaded`);
+  // (4c) and its ground from a terrain pack: terrain: '<id>' (the battle's own map keys come on top)
+  const TW = B.terrain ? P.terrain(B.terrain) : null; if (B.terrain && !TW) throw new Error(`battle "${id}" names terrain "${B.terrain}", which is not loaded`);
   const W = Object.assign({ STREAMS: [], ENCLOSURES: [], VILLAGES: [], WOODS: [], ROADS: [], SUNKEN: [], BUILDINGS: [], HOUSES: [], LM: [], LABELS: [], EDGE_LABELS: [],
-    CHOKES: [], ROUTES: {}, OBJECTIVES: {}, STRONGPOINTS: [], RAW: [], QUALITY: {}, CALIBRE: {}, CORPS: {}, DIVISION: {}, FORCES: [], TRAITS: {} }, B.map,
+    CHOKES: [], ROUTES: {}, OBJECTIVES: {}, STRONGPOINTS: [], RAW: [], QUALITY: {}, CALIBRE: {}, CORPS: {}, DIVISION: {}, FORCES: [], TRAITS: {} }, TW || {}, B.map,
     O ? { RAW: O.RAW, CORPS: O.CORPS, DIVISION: O.DIVISION, QUALITY: O.QUALITY, CALIBRE: O.CALIBRE, TRAITS: O.TRAITS, FORCES: O.FORCES } : {});
   W.LEADERS = (B.leaders || []).map(pl => { const p = P.leader(pl.id) || {}; return Object.assign({ id: pl.id, side: pl.side, name: p.name }, p.traits || {}, { rank: p.rank }, pl.at ? { at: pl.at } : {}, pl.unit ? { unit: pl.unit } : {}, pl.corps ? { corps: pl.corps } : {}, p.habits || {}); });
   const R = { id, battle: B, era, nations, W, sides: B.sides, sideIds: B.sides.map(s => s.id), coalition: Object.fromEntries(B.sides.map(s => [s.id, s.coalition || s.id])) };
@@ -59,7 +73,7 @@ P.versions = function (id) {
 };
 P.fingerprint = function (id) {
   const R = P.battle(id);
-  return P.hash({ battle: R.battle, era: R.era, nations: R.nations, leaders: R.W.LEADERS, oob: R.battle.oob ? P.oobs[R.battle.oob] : null });
+  return P.hash({ battle: R.battle, era: R.era, nations: R.nations, leaders: R.W.LEADERS, oob: R.battle.oob ? P.oobs[R.battle.oob] : null, terrain: R.battle.terrain ? P.maps[R.battle.terrain] : null });
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = P;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

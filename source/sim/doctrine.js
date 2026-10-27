@@ -311,9 +311,11 @@ function defend(E, side, st, chief) {
       E.logEvent('orders', `${chief ? chief.name : 'The commander'} brings ${res.name} up behind ${pressed.name}.`, { side, hidden: true });
     }
   }
-  // retake a place the enemy took, once his attack there has slackened (none of his foot seen attacking near it); chance by aggression
+  // retake a place the enemy took from us (one we held at some time: not one that was his from the start), once his attack there has
+  // slackened (none of his foot seen attacking near it); chance by aggression
+  st.everHeld = st.everHeld || new Set(); for (const sp of E.sps) if (sp.holder === coal) st.everHeld.add(sp.id);
   if (chief && E.t - (st.retakeAt ?? -99) > RETAKE_EVERY && E.t < E.light.sunset) {
-    const lost = E.sps.filter(sp => sp.value && sp.holder && sp.holder !== coal && mine.some(u => hyp(u.x - sp.x, u.y - sp.y) < 1500));
+    const lost = E.sps.filter(sp => sp.value && sp.holder && sp.holder !== coal && st.everHeld.has(sp.id) && mine.some(u => hyp(u.x - sp.x, u.y - sp.y) < 1500));
     for (const sp of lost) {
       if (seen(E, side, 20, c => hyp(c.x - sp.x, c.y - sp.y) < 700 && c.moving && c.kind === 'inf').length) continue;
       const by = mine.filter(u => isFoot(E, u) && u.task.kind === 'hold' && u.coh > 65 && u.str > 1200 && hyp(u.x - sp.x, u.y - sp.y) < 1500).sort((a, b) => hyp(a.x - sp.x, a.y - sp.y) - hyp(b.x - sp.x, b.y - sp.y)).slice(0, 2);

@@ -77,6 +77,17 @@ broken('t-side-obj', B => { B.sides = B.sides.map(s => s.id === 'FR' ? { ...s, o
   ok(!R.check(Object.assign({}, r, { engine: '0.1' })).ok && R.check(Object.assign({}, r, { engine: '0.1' })).notes[0].includes('engine'), 'replay: another engine version is noted');
   ok(R.check(Object.assign({}, r, { fingerprint: '0' })).notes.some(x => /without a new version/.test(x)), 'replay: an edited pack with the same version is caught');
   ok(R.check({ kind: 'x' }).fatal, 'replay: not a replay'); }
+// (4c) the map pipeline: the spline passes through its spots; a grid is read as it should be; every committed spec is its pack's source
+{ const M = require('./map.js'), fs = require('fs');
+  const pts = [[0, 0, 100], [1000, 0, 110], [0, 1000, 95], [1000, 1000, 120], [500, 500, 130], [250, 800, 104]], f = M.tps(pts, 0);
+  ok(pts.every(p => Math.abs(f(p[0], p[1]) - p[2]) < 1e-6), 'map: the thin-plate spline passes through every spot height');
+  const g = M.ascGrid('ncols 2\nnrows 2\nxllcorner 4.0\nyllcorner 50.0\ncellsize 0.01\nNODATA_value -9999\n10 20\n30 40\n');
+  ok(Math.abs(g(50.01, 4.01) - 25) < 1e-9 && Math.abs(g(50.005, 4.005) - 30) < 1e-9 && Math.abs(g(50.015, 4.005) - 10) < 1e-9, 'map: an ESRI grid reads north row first, bilinear between cell centres');
+  for (const f of fs.readdirSync(path.join(__dirname, '..', 'packs', 'maps')).filter(f => f.endsWith('.map.json'))) {
+    const r = M.build(path.join(__dirname, '..', 'packs', 'maps', f));
+    ok(fs.existsSync(r.out) && fs.readFileSync(r.out, 'utf8') === r.js, `map: packs/maps/${r.id}.js is made from ${f} (run node tools/map.js build packs/maps/${f})`); }
+  const T = P.terrain('toy-ridge'), [x, y] = T.ll2m(...T.m2ll(1234, 5678));
+  ok(Math.abs(x - 1234) < 1e-6 && Math.abs(y - 5678) < 1e-6 && T.H.length === T.NX * T.NY, 'map: a terrain pack unpacks (heights, conversions)'); }
 console.log(`tools: ${n} checks passed`);
 // every bench case builds a battle pack that validates
 { const { benchBattle } = require('./bench.js'), fs = require('fs'), path = require('path');

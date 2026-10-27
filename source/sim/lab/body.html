@@ -1,0 +1,67 @@
+<div class="wrap">
+  <header>
+    <h1>Battle lab <small>engine __ENGINE__</small></h1>
+    <label class="muted" for="battle">Battle</label>
+    <select id="battle"></select>
+    <span class="chip" id="vchip"></span>
+    <span class="chip" id="fpchip"></span>
+    <span class="chip" id="valchip"></span>
+  </header>
+  <div class="main">
+    <div class="mapbox" id="mapbox">
+      <canvas id="map" aria-label="Battle map"></canvas>
+      <div class="maphud" id="maphud"></div>
+      <div class="hint" id="hint" hidden></div>
+    </div>
+    <aside>
+      <div class="tabs" role="tablist">
+        <button data-tab="fight" class="sel">Fight</button>
+        <button data-tab="many">Many battles</button>
+        <button data-tab="pack">Pack</button>
+      </div>
+      <div class="pane" id="tab-fight">
+        <div class="row">
+          <label>Seed <input type="number" id="seed" value="1" min="1"></label>
+          <label>Start <select id="start"></select></label>
+          <label>You command <select id="side"></select></label>
+        </div>
+        <div class="row">
+          <button class="primary" id="newb">New battle</button>
+          <button id="play">Play</button>
+          <button id="step">+10 min</button>
+          <button id="toend">To the end</button>
+          <label>Speed <select id="speed"><option value="2">2 min/s</option><option value="5">5 min/s</option><option value="10" selected>10 min/s</option><option value="30">30 min/s</option><option value="60">60 min/s</option></select></label>
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="umpire"> Umpire's view (see everything)</label>
+        </div>
+        <div class="clock" id="clock">--:--<small id="clocknote"></small></div>
+        <div class="bars" id="bars"></div>
+        <div id="selcard"></div>
+        <h3>What happened</h3>
+        <div class="log" id="log"></div>
+      </div>
+      <div class="pane" id="tab-many" hidden>
+        <p class="muted" style="margin:0">Fights the battle many times from consecutive seeds, the way its targets say (or with the generic commanders on every side), and judges the results against the battle's targets.</p>
+        <div class="row">
+          <label>Battles <input type="number" id="n" value="20" min="1" max="500"></label>
+          <label>First seed <input type="number" id="seed0" value="1000" min="1"></label>
+          <label>Commanders <select id="runner"><option value="targets">as the targets say</option><option value="doctrine">generic, every side</option></select></label>
+        </div>
+        <div class="row"><button class="primary" id="runmany">Fight them</button><button id="stopmany" disabled>Stop</button><span class="muted num" id="manyprog"></span></div>
+        <div id="manyout"></div>
+      </div>
+      <div class="pane" id="tab-pack" hidden>
+        <h3>Versions</h3>
+        <table id="versions"></table>
+        <h3>Validation</h3>
+        <div id="valout"></div>
+        <h3>Replay</h3>
+        <p class="muted" style="margin:0">This battle's settings and your orders, with the versions it was fought with. Copy it to keep it; paste one to fight it again.</p>
+        <div class="row"><button id="repcopy">Copy this battle</button><button id="repload">Fight the pasted one</button></div>
+        <textarea id="reptext" spellcheck="false" placeholder="a replay (JSON)"></textarea>
+        <div id="repnote" class="muted"></div>
+      </div>
+    </aside>
+  </div>
+</div>

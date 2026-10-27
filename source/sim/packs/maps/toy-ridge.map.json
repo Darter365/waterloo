@@ -1,0 +1,17 @@
+{
+ "id": "toy-ridge",
+ "origin": [
+  49.5,
+  3
+ ],
+ "size": [
+  4000,
+  8000
+ ],
+ "cell": 50,
+ "heights": {
+  "spots": "toy-ridge.heights.csv"
+ },
+ "features": "toy-ridge.geojson",
+ "source": "invented for the test battle: spot heights every 400 m, features drawn by hand"
+}

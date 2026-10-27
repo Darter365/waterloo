@@ -1,0 +1,217 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "road",
+    "kind": "chaussee",
+    "name": "the high road"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      3.027644,
+      49.5
+     ],
+     [
+      3.027644,
+      49.476175
+     ],
+     [
+      3.027644,
+      49.472579
+     ],
+     [
+      3.027644,
+      49.428077
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "road",
+    "kind": "lane",
+    "name": "the ridge lane"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      3.004147,
+      49.475906
+     ],
+     [
+      3.027644,
+      49.476175
+     ],
+     [
+      3.04423,
+      49.476175
+     ],
+     [
+      3.055287,
+      49.476445
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "wood",
+    "name": "the wood of Bray"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       3.004838,
+       49.474827
+      ],
+      [
+       3.015204,
+       49.474827
+      ],
+      [
+       3.015895,
+       49.470781
+      ],
+      [
+       3.005529,
+       49.470332
+      ],
+      [
+       3.004838,
+       49.474827
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "building",
+    "name": "Haute Ferme",
+    "w": 60,
+    "h": 45,
+    "rot": 0
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     3.027644,
+     49.472579
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "enclosure",
+    "kind": "wall",
+    "name": "Haute Ferme orchard wall",
+    "w": 140,
+    "h": 90,
+    "rot": 0
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     3.027644,
+     49.47213
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "village",
+    "name": "SAINT-AIL",
+    "r": 220
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     3.04423,
+     49.476175
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "landmark",
+    "name": "Haute Ferme"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     3.027644,
+     49.472579
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "landmark",
+    "name": "Saint-Ail"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     3.04423,
+     49.476175
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "landmark",
+    "name": "the wood of Bray"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     3.009675,
+     49.473029
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "landmark",
+    "name": "the Saint-Ail crossroads"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     3.027644,
+     49.476175
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "layer": "landmark",
+    "name": "the Red rise"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     3.027644,
+     49.46224
+    ]
+   }
+  }
+ ]
+}

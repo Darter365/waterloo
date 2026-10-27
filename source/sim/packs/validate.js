@@ -213,6 +213,7 @@ function validate(id) {
   for (const [pk, plan] of Object.entries(B.plans || {})) { if (plan.id !== pk) E(`plan ${pk}: its id must be "${pk}"`); if (PL) PL.check(plan, W, B, E); }
   for (const s of sides) for (const k of Object.keys(s.objectives || {})) if (!(W.OBJECTIVES || {})[k]) E(`side ${s.id}: objective "${k}" is not on the map`);
   for (const s of sides) if (s.posture && !['attack', 'defend'].includes(s.posture)) E(`side ${s.id}: posture must be attack or defend`);
+  for (const s of sides) if (s.colour != null && !/^#[0-9a-f]{6}$/i.test(s.colour)) E(`side ${s.id}: colour must be #rrggbb (the colour maps draw it in)`);
   const allUnits = new Set((W.RAW || []).map(r => r[0]).concat(...(W.FORCES || []).map(f => f.units.map(u => u[0]))));
   for (const s of sides) if (s.crest) { // a first line behind a crest (doctrine.js)
     for (const part of s.crest.from || []) { if (part.road && !(W.ROADS || []).some(r => r.name === part.road)) E(`side ${s.id}: crest road "${part.road}" is not on the map`); if (part.objective && !((W.OBJECTIVES || {})[part.objective] || {}).line) E(`side ${s.id}: crest objective "${part.objective}" is not a line`); }
