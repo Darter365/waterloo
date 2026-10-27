@@ -14,7 +14,7 @@ function aarReset() { AAR.gen++; AAR.jobs = []; AAR.done = {}; AAR.total = 0; AA
 function aarWorkers() {
   if (AAR.workers.length || AAR.noWorker) return;
   try {
-    const src = ['data', 'engine', 'ai', 'command', 'orders', 'script', 'replay'].map(n => document.getElementById('src-' + n).textContent).join('\n;\n');
+    const src = [...document.querySelectorAll('script[id^="src-"]')].map(el => el.textContent).join('\n;\n'); // packs, then the engine, in page order
     const body = src + `
 ;self.onmessage = e => { const d = e.data; try { const r = WReplay.run(d.opts, d.log, d.opt); self.postMessage({ id: d.id, gen: d.gen, s: WReplay.summary(r.E, d.opt.keepSamples ? r.samples : null) }); } catch (err) { self.postMessage({ id: d.id, gen: d.gen, err: String(err && err.message || err) }); } };`;
     const url = URL.createObjectURL(new Blob([body], { type: 'text/javascript' }));

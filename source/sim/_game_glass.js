@@ -20,7 +20,7 @@ function glassTap(x, y) {
 }
 function glassLook(w) {
   const C = SIM.command, B = C.B.napoleon, nap = SIM.leaders.napoleon, o = [nap.x, nap.y];
-  const dist = Math.hypot(w[0] - o[0], w[1] - o[1]), R = Math.max(250, Math.min(700, dist * 0.18)), step = R / 22, seeing = WEngine.bgVis(SIM.t) * WCommand.CK.TELESCOPE;
+  const dist = Math.hypot(w[0] - o[0], w[1] - o[1]), R = Math.max(250, Math.min(700, dist * 0.18)), step = R / 22, seeing = SIM.bgVis(SIM.t) * WCommand.CK.TELESCOPE;
   const cells = [];
   for (let gy = -R; gy <= R; gy += step) for (let gx = -R; gx <= R; gx += step) {
     if (gx * gx + gy * gy > R * R) continue;

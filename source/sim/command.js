@@ -84,10 +84,10 @@ function install(E, opts = {}) {
     if (L.side === 'FR' && L.unit && E.byId[L.unit] && !E.byId[L.unit].onMap && !E.byId[L.unit].gone && E.byId[L.unit].group === 'frArrive') return E.retreatExit();
     if (L.x != null) return [L.x, L.y];
     // Prussian commanders ride with their leading formation; before it arrives, off the east edge
-    const corps = id === 'blucher' ? 'bulow' : id;
+    const corps = L.corps || id; // the corps he rides with (a placement's corps, else his own)
     const mine = E.units.filter(u => u.corps === corps && u.onMap && !u.gone && u.str > 0);
     if (mine.length) { let best = mine[0]; for (const u of mine) if (u.x < best.x) best = u; return [best.x + 150, best.y]; }
-    const r = E.routes[corps === 'pirch' ? 'bulow' : corps]; return r ? [r[0][0], r[0][1]] : null;
+    const r = E.routes[E.routeOf[corps] || corps]; return r ? [r[0][0], r[0][1]] : null;
   }
   C.posOf = posOf;
   const PERIOD = { "the Lion's Mound site": 'the crest west of the crossroads' }; // the mound was raised in the 1820s: dispatches name what was there in 1815
@@ -103,7 +103,7 @@ function install(E, opts = {}) {
 
   /* ---------- belief records ---------- */
   function makeBelief(id, side) { return { id, side, c: new Map(), own: new Map(), friends: {}, places: {}, sound: {}, soundSlow: {}, soundAlertAt: {}, pending: [], plumes: {}, lastPlaceSeen: {}, intercepts: [], firstSeen: {}, news: {} }; }
-  for (const side of ['FR', 'AL', 'PR']) for (const id of COMMANDERS[side]) C.B[id] = makeBelief(id, side);
+  for (const side of E.sideIds) for (const id of COMMANDERS[side] || []) C.B[id] = makeBelief(id, side);
   // everyone starts knowing the morning's positions roughly: own units exactly, the enemy line as seen at dawn
   for (const id of Object.keys(C.B)) {
     const B = C.B[id];

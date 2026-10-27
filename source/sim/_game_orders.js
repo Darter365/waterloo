@@ -136,7 +136,7 @@ function drawGlyph(g, gm, st) {
   else if (gm.from && gm.kind !== 'hold') line(gm.from, gm.kind !== 'look');
   // where you expect them to end up (moves only): a dashed outline at the objective, confirmed when they report there
   if (st.ghost && gm.from && (gm.kind === 'move') && gm.recs.length) {
-    const width = Math.min(1600, gm.recs.reduce((a, r) => { const u = SIM.byId[r.uid]; return a + (u ? WEngine.footprint(Object.assign({}, u, { form: 'line', str: r.str })).F : 300); }, 0) * 0.8);
+    const width = Math.min(1600, gm.recs.reduce((a, r) => { const u = SIM.byId[r.uid]; return a + (u ? SIM.footprint(Object.assign({}, u, { form: 'line', str: r.str })).F : 300); }, 0) * 0.8);
     const an = T.line ? Math.atan2(T.line[1][1] - T.line[0][1], T.line[1][0] - T.line[0][0]) * 180 / Math.PI : Math.atan2(T.pt[1] - gm.from[1], T.pt[0] - gm.from[0]) * 180 / Math.PI + 90, pts = quadAt(T.pt[0], T.pt[1], an, width, 60);
     g.save(); polyFill(g, pts); g.globalAlpha = 0.18 * st.alpha; g.fillStyle = col; g.fill(); g.globalAlpha = st.alpha; g.setLineDash([4, 3]); g.strokeStyle = col; g.lineWidth = 1.6; g.stroke(); g.restore();
   }

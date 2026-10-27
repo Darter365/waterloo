@@ -653,9 +653,8 @@ function make(opts = {}) {
 function addUnit(E, spec) {
   // create a unit after start (uses the engine's internal factory via detach-like path)
   const u = Object.assign({ q: 1, coh: 80, cohMax: 100, fatigue: 25, ammo: 50, rounds: 120, wind: 100, status: 'steady', lying: false, onMap: true, gone: false, formTo: null, formTimer: 0, task: { kind: 'hold' }, path: null, killed: 0, wounded: 0, captured: 0, stragglers: 0, hitTick: { mus: 0, art: 0, flank: 0, cav: 0 }, firedTick: false, lastHit: -99, lastFired: -99, howitzers: 0, silencedUntil: 0, isGuard: true, minCoh: 80 }, spec);
-  u.str0 = u.str; u.guns0 = u.str; const fp = WEngineFoot(u); u.F = fp.F; u.D = fp.D; E.units.push(u); E.byId[u.id] = u; return u;
+  u.str0 = u.str; u.guns0 = u.str; const fp = E.footprint(u); u.F = fp.F; u.D = fp.D; E.units.push(u); E.byId[u.id] = u; return u;
 }
-function WEngineFoot(u) { const eng = (root.WEngine || require('./engine.js')); return eng.footprint(u); }
 
 const api = { make, apply, unitControl };
 root.WAI = api;

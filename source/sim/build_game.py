@@ -43,9 +43,14 @@ game = '\n'.join([
     '/* ================= obstacles ================= */', L(581, 588),
     L(598, 615), view, L(637, 766), live, L(1027, 1075),
     R('_shared_draw.js'), R('_interact.js'), R('_game.js'), R('_game_orders.js'), R('_game_disp.js'), R('_game_letters.js'), R('_game_staff.js'), R('_game_pencil.js'), R('_game_alarm.js'), R('_game_mapstyle.js'), R('_game_glass.js'), R('_game_aar.js'), R('_game_review.js'), R('_game_end.js'), R('_game_boot.js'), '})();'])
-srcs = ['data.js', 'engine.js', 'ai.js', 'command.js', 'orders.js', 'script.js', 'replay.js']
-# each engine script carries an id so the after-action report's re-run worker can be built from the same source (step 6)
-html = head + '\n' + R('_game_body.html') + '\n' + ''.join(f'<script id="src-{f[:-3]}">\n' + R(f) + '\n</script>\n' for f in srcs) + '<script>\n' + game + '\n</script>\n'
+# the packs first (registry, then eras, nations, leaders, battles: the order packs/all.js loads them in node), then the engine
+PACKS = ['packs/registry.js', 'packs/eras/napoleonic.js', 'packs/nations/napoleonic.js', 'packs/leaders/napoleonic.js', 'packs/battles/waterloo.js']
+srcs = PACKS + ['data.js', 'engine.js', 'ai.js', 'command.js', 'orders.js', 'script.js', 'replay.js']
+sid = lambda f: 'src-' + f[:-3].replace('/', '-')
+# each engine script carries an id so the after-action report's re-run worker can be built from the same source (step 6);
+# the worker takes every script whose id starts "src-", in page order
+html = head + '\n' + R('_game_body.html') + '\n' + ''.join(f'<script id="{sid(f)}">\n' + R(f) + '\n</script>\n' for f in srcs) + '<script>\n' + game + '\n</script>\n'
 assert '</script' not in ''.join(R(f) for f in srcs) + game
+assert open(os.path.join(D, 'packs', 'all.js')).read().count('require(') == len(PACKS), 'packs/all.js and PACKS disagree'
 out = os.path.join(D, 'game.html'); open(out, 'w', encoding='utf-8').write(html)
 print('wrote', out, len(html) // 1024, 'KB')

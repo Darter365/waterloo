@@ -9,3 +9,4 @@ sim/tmp/
 offline/site/
 __pycache__/
 node_modules/
+sim/p?_*.json

@@ -2,51 +2,16 @@
    Mechanics follow the "Waterloo Game: Simulation Rules" doc; every coefficient marked (est.) lives in K. */
 (function (root) {
 'use strict';
-const W = root.WData || (typeof require === 'function' ? require('./data.js') : null);
+const Packs = root.WPacks || (typeof require === 'function' ? require('./packs/all.js') : null);
+/* (phase 1) Everything below is built once per battle from its resolved pack: the battle's map and order of battle (W), its era's
+   numbers (ERA) and its nations' drill (NATIONS). Nothing in it names a battle except where the lint allow-list records it. */
+function buildWorld(BATTLE) {
+const W = BATTLE.W, ERA = BATTLE.era, NATIONS = BATTLE.nations, SIDES = BATTLE.sides, SIDE_IDS = BATTLE.sideIds, COAL = BATTLE.coalition, LIGHT = BATTLE.battle.light;
+const ROUTE_OF = BATTLE.battle.routeOf || {}; // a corps that marches by another's road (Waterloo: Pirch's II Corps follows Bülow's)
 const { NX, NY, CELL, WM, HM, ll2m, m2ll, H } = W;
 
-/* ---------------- calibration constants (est.) ---------------- */
-const K = {
-  FIRE: 1.0,            // musketry multiplier on the hit table
-  ARTY: 1.1,            // artillery multiplier (calibrated from 1.0)
-  COH_CAS: 2.0,         // cohesion lost per 1% of the unit lost in a tick (calibrated from 3)
-  // walled farms (5c, all est.; set so two brigades thrown at Hougoumont no longer always carry it within the hour, while La Haye Sainte still falls about 18:30):
-  WALL_REFORM: 40,      // cohesion a garrison re-forms to when driven back into a walled section (was 25-30)
-  WALL_COHF: 0.5,       // cohesion lost per casualty behind walls, as a share of the open-ground rate (was 0.65)
-  WALL_HOLD: 25,        // walls hold while the defenders' cohesion is at least this
-  GATE_HOLD: 40,        // a broken gate lets the attackers in only if the defenders are below this; otherwise the party is shut in and killed
-  WALL_FIRE: 0.7,       // musketry against men behind walls and loopholes, on top of the section's cover
-  WALL_MELEE: 0.3,      // the defenders' share of the close-quarter losses at a wall (the attackers' is unchanged)
-  SEC_FIRE_PER_M: 1.0,  // muskets that can bear on a farm section: this many per metre of its perimeter
-  WALL_SHOCK: 0.5,      // cohesion the defenders lose for each assault they beat off, as a share of the open-ground rate
-  NOAMMO_MELEE: 1,      // wall bonus in the melee test when the defenders have no cartridges (2 = no change; release 1: 1, they can no longer hold the loopholes)
-  // (6) skirmishing round a held farm (est.; 0 = off): enemy foot within SKIRM_R of a garrisoned farm keep skirmishers at it, and the garrison
-  // answers from the loopholes even when no assault is going in. SKIRM_FULL men within range is full pressure.
-  RIFLE_NEAR: 0.25, RIFLE_FAR: 0.35, RIFLE_FAR_T: 1050, // the hidden roll for La Haye Sainte's rifle-ammunition wagon: near, far (reachable from this minute), else lost (est.; 5e: 0.4, 0.3, 16:00)
-  SKIRM_AMMO: 1.7,      // the garrison's cartridges spent per man per 2-minute tick at full pressure (release 1; 0 = off)
-  SKIRM_R: 450, SKIRM_FULL: 3000,
-  SKIRM_HOLD: 150, SKIRM_LINGER: 0.4, // minutes the skirmishers stay round the farm after the last column has gone back, and their pressure then
-  SKIRM_SHARE: 0.1,     // share of the besiegers out as skirmishers
-  SKIRM_P: 0.01,        // hit chance of a skirmish shot at that range (about the musketry table's value at 250 m)
-  // release 1 (was off in 5e): with the skirmish fire below draining La Haye Sainte's cartridges, the walls can now hold as they did in 1815
-  WALL_FLOOR: 30,       // fire alone cannot take a walled garrison that still has cartridges below this cohesion (0 = off)
-  SHELTER: 1,           // a garrison shelled in an orchard or wood with no enemy close takes cover in its buildings (0 = off)
-  COH_ART: 1.3,         // artillery shock multiplier
-  COH_FLANK: 2.0,       // fire from flank/rear
-  NOREPLY: 0.5,         // under fire, unable to reply, per tick
-  FLANK_THREAT: 5,      // enemy on flank/rear within 500 m, not faced, per tick
-  CONTAGION: 4,         // break of a neighbour
-  RECOVER: 1.5,         // per tick out of fire
-  CAP_LOSS: 0.3,        // permanent max-cohesion loss per point below 50
-  SHOCK_REPULSE: 0.8, SHOCK_WIN: 1.3, SHOCK_SIGMA: 0.3,
-  CAV_BREAK_TEST: 1.0,  // scales the infantry morale test against cavalry
-  MORALE_BROKEN: 0.08,  // army morale per 1% of army strength broken (release 2: 0.08, was 0.5; the losses that broke a brigade now count through MORALE_CAS)
-  MORALE_CAS: 0.6,      // (8) army morale per 1% of the army's starting foot and horse killed, wounded or taken (release 2, est.; 0 = off)
-  SMOKE_MUSKET: 0.00035, SMOKE_GUN: 0.03, SMOKE_DECAY: 0.87, SMOKE_DECAY_HUMID: 0.93, SMOKE_VIS: 0.8,
-  KW_RATIO: 0.25,       // share of hits that are deaths (1 in 4)
-  UNDER_FIRE_RECOVER: 0.5,
-  BLIND: 0.4,           // area fire at ground the gunners cannot see behind a crest (overshoot and ricochet) (calibration addition; release 1: 0.4, was 0.2, bringing Wellington's losses to the 1815 range)
-};
+/* ---------------- calibration constants (est.): the era's, in its pack ---------------- */
+const K = ERA.K;
 
 /* ---------------- RNG with logged draws ---------------- */
 function makeRng(seed) {
@@ -155,8 +120,8 @@ function astar(E, type, sx, sy, tx, ty) {
 }
 
 /* ---------------- formations ---------------- */
-const RANKS = u => (u.nat === 'GB' || u.nat === 'KGL') ? 2 : 3;
-function nBn(u) { return Math.max(1, Math.round(u.str / (u.side === 'FR' ? 520 : u.side === 'PR' ? 700 : 560))); }
+const RANKS = u => (NATIONS[u.nat] ? NATIONS[u.nat].ranks : 3); // men deep in line, by army (nation pack)
+function nBn(u) { return Math.max(1, Math.round(u.str / (NATIONS[u.nat] ? NATIONS[u.nat].battalion : 560))); } // battalions in a brigade, by army's battalion size
 function footprint(u) {
   if (u.type === 'gar') { const s = u.spSec; return { F: s ? s.r * 1.4 : 60, D: s ? s.r * 1.4 : 60 }; }
   if (u.type === 'art') {
@@ -180,22 +145,24 @@ function footprint(u) {
     default: return { F: n * 70, D: 60 }; // battalion columns at deploying interval
   }
 }
-const FIRE_FRAC = { line: 1, twoLines: 0.5, columns: 0.18, attack: 0.15, mass: 0.12, square: 0.25, road: 0.03, garrison: 1 };
-const DENSITY = { line: 1, twoLines: 0.8, columns: 2.5, attack: 2.5, mass: 3.5, square: 3, road: 3, garrison: 1, battery: 0.6, park: 1, limbered: 1.5 };
-const MASSF = { line: 1.0, twoLines: 0.95, columns: 1.1, attack: 1.2, mass: 1.4, square: 0.5, road: 0.4, garrison: 1 };
+const FIRE_FRAC = ERA.fireShare, DENSITY = ERA.density, MASSF = ERA.mass; // the era's formation tables
 function fireFrac(u) { if (u.form === 'line' && RANKS(u) === 3) return 2 / 3; if (u.form === 'twoLines') return RANKS(u) === 3 ? 1 / 3 : 0.5; return FIRE_FRAC[u.form] ?? 0.2; }
 const FORM_TICKS = (u, to) => { if (to === 'square') return u.coh >= 50 ? 1 : 2; if (u.form === 'square') return 1; if (to === 'mass' || u.form === 'mass') return 3; if (to === 'road' || u.form === 'road') return 2; return 2; };
 
 /* ---------------- light and visibility ---------------- */
-const SUNSET = 20 * 60 + 20, DARK = 21 * 60 + 10, END = 21 * 60 + 30;
-function bgVis(t) { const pts = [[300, 3000], [540, 6000], [720, 8000], [960, 6000], [SUNSET, 5000], [DARK, 1000], [END, 600]]; for (let i = 1; i < pts.length; i++) if (t <= pts[i][0]) { const [a, va] = pts[i - 1], [b, vb] = pts[i]; return va + (vb - va) * (t - a) / (b - a); } return 600; }
+const SUNSET = LIGHT.sunset, DARK = LIGHT.dark, END = LIGHT.end; // the battle's light (battle pack)
+function bgVis(t) { const pts = LIGHT.vis; for (let i = 1; i < pts.length; i++) if (t <= pts[i][0]) { const [a, va] = pts[i - 1], [b, vb] = pts[i]; return va + (vb - va) * (t - a) / (b - a); } return LIGHT.visAfter; }
 const duskFire = t => t <= SUNSET ? 1 : t >= DARK ? 0.5 : 1 - 0.5 * (t - SUNSET) / (DARK - SUNSET);
 const K_CURV = 0.87 / (2 * 6371000);
-const HIT = [[0, 0.15], [30, 0.15], [50, 0.08], [100, 0.05], [150, 0.03], [200, 0.015], [300, 0.005], [301, 0]];
+const HIT = ERA.hit;
 function hitChance(r) { for (let i = 1; i < HIT.length; i++) if (r <= HIT[i][0]) { const [a, pa] = HIT[i - 1], [b, pb] = HIT[i]; return pa + (pb - pa) * (r - a) / (b - a); } return 0; }
-function roundshot(r, cal) { const b = r < 600 ? 0.35 : r < 1000 ? 0.2 : r < 1600 ? 0.08 : 0; return b * (cal >= 12 ? 1 : cal >= 9 ? 0.8 : 0.7); }
-const CREW = 12; // gunners per gun, est.
-function canister(r, cal) { const lim = cal >= 12 ? 580 : 420; if (r > lim) return 0; const b = r <= 200 ? 4 : r <= 300 ? 4 - 1.5 * (r - 200) / 100 : 2.5 - 1.5 * (r - 300) / 200; return Math.max(0.6, b) * (cal >= 12 ? 1 : 0.6); }
+const stepBy = (tab, v, dflt) => { for (const [lim, val] of tab) if (v >= lim) return val; return dflt; }; // the first row whose threshold v reaches
+const bandBelow = (tab, r) => { for (const [lim, val] of tab) if (r < lim) return val; return 0; }; // the first band r is below
+const curveAt = (pts, r) => { if (r <= pts[0][0]) return pts[0][1]; let i = 1; while (i < pts.length - 1 && r > pts[i][0]) i++; const [a, pa] = pts[i - 1], [b, pb] = pts[i]; return pa + (pb - pa) * (r - a) / (b - a); };
+const RS = ERA.roundshot, CN = ERA.canister;
+function roundshot(r, cal) { const b = bandBelow(RS.bands, r); return b * stepBy(RS.calibre, cal, RS.calibreElse); }
+const CREW = ERA.crew; // gunners per gun (era pack)
+function canister(r, cal) { const lim = stepBy(CN.reach, cal, CN.reachElse); if (r > lim) return 0; const b = curveAt(CN.curve, r); return Math.max(CN.floor, b) * stepBy(CN.calibre, cal, CN.calibreElse); }
 
 /* ================= engine ================= */
 function create(opts = {}) {
@@ -204,12 +171,13 @@ function create(opts = {}) {
   const scenario = opts.scenario || '1100', history = opts.history || 'uncertain';
   const E = {
     seed, rnd, scenario, history, K: Object.assign({}, K, opts.K || {}), t: scenario === '0500' ? 300 : 660, tick: 0,
-    units: [], byId: {}, sps: [], spById: {}, leaders: {}, log: [], causes: [], orders: [], contacts: { FR: {}, AL: {}, PR: {} },
-    morale: { FR: 80, AL: 70, PR: 75 }, armyStr0: { FR: 0, AL: 0, PR: 0 }, lossAcc: { FR: 0, AL: 0, PR: 0 }, wet: 0.6, wet0: 0.6, smoke: null, wind: { dir: 270, speed: 1.0 }, gustT: 0,
+    units: [], byId: {}, sps: [], spById: {}, leaders: {}, log: [], causes: [], orders: [], contacts: Object.fromEntries(SIDE_IDS.map(s => [s, {}])),
+    morale: Object.fromEntries(SIDES.map(s => [s.id, s.morale0])), armyStr0: Object.fromEntries(SIDE_IDS.map(s => [s, 0])), lossAcc: Object.fromEntries(SIDE_IDS.map(s => [s, 0])), wet: 0.6, wet0: 0.6, smoke: null, wind: { dir: 270, speed: 1.0 }, gustT: 0,
     pathCost: {}, losCache: new Map(), metrics: { lhsFall: null, hougFall: null, bulowAttack: null, zietenPapelotte: null, plancenoitLost: null, plancenoitRetaken: null, guardAttack: null, guardRepulsed: null, frBreak: null, alBreak: null, prEngaged: null },
     flags: {}, over: false, result: null, ai: null, ruleHooks: [], history_: [], spTaken: {},
   };
   E.fmtT = fmtT; E.W = W; E.T = T; E.TT = TT; E.hAt = hAt; E.ll2m = ll2m; E.m2ll = m2ll;
+  E.battleId = BATTLE.id; E.sideIds = SIDE_IDS; E.sides = SIDES; E.coalition = COAL; E.footprint = footprint; E.bgVis = bgVis; E.nations = NATIONS; E.era = ERA;
   const log = (cat, text, extra = {}) => { const e = { t: E.t, cat, text, ...extra }; E.log.push(e); return e; };
   E.logEvent = log;
 
@@ -294,7 +262,7 @@ function create(opts = {}) {
     if (o.own) ob.own = true;
     E.objectives[k] = ob;
   }
-  E.routes = {}; for (const [k, r] of Object.entries(W.ROUTES)) E.routes[k] = r.map(p => ll2m(p[0], p[1]));
+  E.routes = {}; for (const [k, r] of Object.entries(W.ROUTES)) E.routes[k] = r.map(p => ll2m(p[0], p[1])); E.routeOf = ROUTE_OF;
   E.chokes = W.CHOKES.map(c => { const [x, y] = ll2m(c.at[0], c.at[1]); return { ...c, x, y, used: 0, queue: [] }; });
 
   /* ----- units ----- */
@@ -347,8 +315,8 @@ function create(opts = {}) {
   for (const u of E.units) if (u.side === 'FR') { u.deploy = [u.x, u.y]; u.deployForm = u.form; u.deployFacing = u.facing; }
   // off-map forces
   E.offmap = [];
-  const addOff = (arr, group) => { for (const r of arr) { const [id, side, name, parent, nat, type, str, route, q, arrive] = r; const u = makeUnit({ id, side, name, parent, nat, type, str, x: -9999, y: -9999, facing: 270, form: type === 'art' ? 'limbered' : 'road', q, onMap: false, corps: route, group, baseArrive: arrive, cal: type === 'art' ? 6 : 0 }); u.coh = clamp(75 + (q - 0.75) * 30, 72, 90) - 5; u.fatigue = side === 'PR' ? 30 : 20; if (side === 'PR' && (route === 'pirch' || route === 'zieten')) u.ammo = r.ammo || 40; E.offmap.push(u); } };
-  addOff(W.PRUSSIANS, 'prussians'); addOff(W.HAL_FORCE, 'hal'); addOff(W.GROUCHY_FORCE, 'grouchy');
+  const addOff = (arr, group, expected) => { for (const r of arr) { const [id, side, name, parent, nat, type, str, route, q, arrive] = r; const u = makeUnit({ id, side, name, parent, nat, type, str, x: -9999, y: -9999, facing: 270, form: type === 'art' ? 'limbered' : 'road', q, onMap: false, corps: route, group, baseArrive: arrive, cal: type === 'art' ? 6 : 0 }); u.coh = clamp(75 + (q - 0.75) * 30, 72, 90) - 5; u.fatigue = side === 'PR' ? 30 : 20; if (side === 'PR' && (route === 'pirch' || route === 'zieten')) u.ammo = r.ammo || 40; u.expected = expected; E.offmap.push(u); } }; // expected: the force marches to the field on its own (it counts in its army's strength at the start)
+  addOff(W.PRUSSIANS, 'prussians', true); addOff(W.HAL_FORCE, 'hal', false); addOff(W.GROUCHY_FORCE, 'grouchy', false);
   if (scenario === '0500') dawn();
   /* (6) the 05:00 start. Est. throughout: the sources agree that the rain stopped about 06:00, that Napoleon at 05:00 set the attack for
      09:00, that many French units had bivouacked well south of La Belle Alliance and that some were still not in place at 09:00; they
@@ -373,14 +341,14 @@ function create(opts = {}) {
     for (const [t0, ids] of COME) ids.forEach((id, k) => {
       const u = E.byId[id]; if (!u) return;
       u.onMap = false; u.x = -9999; u.y = -9999; u.form = u.type === 'art' ? 'limbered' : 'road'; const fp = footprint(u); u.F = fp.F; u.D = fp.D;
-      u.group = 'frArrive'; u.route = 'frArrive'; u.arriveAt = t0 + k * 10; u.baseArrive = u.arriveAt;
+      u.group = 'frArrive'; u.route = 'frArrive'; u.arriveAt = t0 + k * 10; u.baseArrive = u.arriveAt; u.expected = true;
       // they halt about 700 m behind their place in the line, off the road, and wait for orders
       u.marchThen = { kind: 'move', dest: [u.deploy[0], u.deploy[1] + 700], then: 'hold' };
       E.offmap.push(u);
     });
   }
-  for (const s of ['FR', 'AL']) E.armyStr0[s] = E.units.filter(u => u.side === s && (u.onMap || u.group === 'frArrive') && u.type !== 'art').reduce((a, u) => a + u.str, 0);
-  E.armyStr0.PR = E.units.filter(u => u.side === 'PR' && u.type !== 'art').reduce((a, u) => a + u.str, 0);
+  // each army's foot and horse at the start: on the field, or marching to it on their own (forces that come only if sent for, like Grouchy's, do not count)
+  for (const s of SIDE_IDS) E.armyStr0[s] = E.units.filter(u => u.side === s && (u.onMap || u.expected) && u.type !== 'art').reduce((a, u) => a + u.str, 0);
 
   /* ----- leaders ----- */
   for (const L of W.LEADERS) { const l = { ...L, alive: true, wounded: false, orig: L.name }; if (L.at) { const [x, y] = ll2m(L.at[0], L.at[1]); l.x = x; l.y = y; } E.leaders[L.id] = l; if (L.unit && E.byId[L.unit]) E.byId[L.unit].leader = L.id; }
@@ -398,7 +366,7 @@ function create(opts = {}) {
   function near(x, y, r, filter) { const out = []; const c0 = Math.floor((x - r) / BK), c1 = Math.floor((x + r) / BK), r0 = Math.floor((y - r) / BK), r1 = Math.floor((y + r) / BK); for (let c = c0; c <= c1; c++) for (let rr = r0; rr <= r1; rr++) { const b = buckets.get(c + ',' + rr); if (!b) continue; for (const u of b) if (hyp(u.x - x, u.y - y) <= r && (!filter || filter(u))) out.push(u); } return out; }
   E.near = near; E.rebuildIndex = rebuildIndex;
   const enemyOf = s => s === 'FR' ? ['AL', 'PR'] : ['FR'];
-  const isEnemy = (a, b) => (a.side === 'FR') !== (b.side === 'FR');
+  const isEnemy = (a, b) => COAL[a.side] !== COAL[b.side]; // armies of one coalition do not fight each other
   E.isEnemy = isEnemy; E.enemyOf = enemyOf;
   const alive = u => u.onMap && !u.gone && u.str > 0;
   const formed = u => alive(u) && u.status !== 'broken';
@@ -455,7 +423,7 @@ function create(opts = {}) {
     if (E.tick % 5 === 0) sighting();
     if (E.command) E.command.tick();
     keyPoints();
-    for (const s of ['FR', 'AL', 'PR']) E.morale[s] = clamp(E.morale[s], 0, 100); // (7) events after the morale step could leave it outside 0-100 for a tick
+    for (const s of SIDE_IDS) E.morale[s] = clamp(E.morale[s], 0, 100); // (7) events after the morale step could leave it outside 0-100 for a tick
     endCheck();
     E.t += 2; E.tick++;
     if (E.tick % 15 === 0) E.history_.push(snapshotLite());
@@ -466,7 +434,7 @@ function create(opts = {}) {
   function arrivals() {
     for (const u of E.offmap) {
       if (u.onMap || u.gone || u.arriveAt == null || E.t < u.arriveAt) continue;
-      const route = E.routes[u.route || (u.corps === 'bulow' || u.corps === 'pirch' ? 'bulow' : u.corps)];
+      const route = E.routes[u.route || ROUTE_OF[u.corps] || u.corps];
       if (!route) continue;
       // choke point: the Lasne crossing limits throughput
       u.onMap = true; const [sx, sy] = route[0];
@@ -753,7 +721,7 @@ function create(opts = {}) {
     if (gar) { const sp = E.spById[gar.spId]; const sec = sp && sp.secs.find(s => s.held && (s.held === 'FR') !== (u.side === 'FR') && !s.burnt); if (sec) { u.task.sp = sp.id; return { sp, sec, unit: gar, range: Math.max(10, hyp(u.x - sec.x, u.y - sec.y) - sec.r - reachD(u)) }; } }
     return null;
   }
-  const sideKey = u => u.side === 'PR' ? 'AL' : u.side; // Prussians and Anglo-allies share control of places
+  const sideKey = u => COAL[u.side]; // armies of one coalition share control of places
   function shock(a, tgt) {
     const K_ = E.K, d = tgt.unit;
     if (!d) { // empty section: walk in
@@ -966,7 +934,7 @@ function create(opts = {}) {
       u.coh -= loss; u.lastHit = E.tick; u.hitBy = d.srcs;
       // (5e, est.) a garrison caught by a cannonade in an orchard or wood, with no enemy foot or horse within 400 m, takes cover in its stone buildings
       if (E.K.SHELTER && u.spSec && u.spId && u.spSec.cover > 0.3 && d.art > d.mus) {
-        const sp = E.spById[u.spId], side = u.side === 'PR' ? 'AL' : u.side, inner = sp.secs.find(s => s.held === side && !s.burnt && s.cover <= 0.3);
+        const sp = E.spById[u.spId], side = COAL[u.side], inner = sp.secs.find(s => s.held === side && !s.burnt && s.cover <= 0.3);
         if (inner && inner !== u.spSec && !near(u.x, u.y, 400, e => isEnemy(u, e) && formed(e) && (e.type === 'inf' || e.type === 'cav')).length) {
           const was = u.spSec.name; for (const s2 of sp.secs) { if (s2 === inner) break; if (s2.held === side) s2.held = null; }
           u.spSec = inner; u.x = inner.x; u.y = inner.y;
@@ -1055,9 +1023,9 @@ function create(opts = {}) {
       if ((u.q <= 0.72) && u.coh < 40 && E.tick - u.lastHit < 3 && rnd('raw unit leaves') < 0.02) { u.gone = true; u.left = E.t; log('event', `${u.name} leaves the field.`, { side: u.side, unit: u.id, important: true }); E.morale[u.side] -= 1; }
     }
     // (8) the army feels its losses: men killed, wounded or taken since the last tick, as a share of its strength at the start
-    for (const s of ['FR', 'AL', 'PR']) { if (E.K.MORALE_CAS && E.lossAcc[s]) E.morale[s] -= E.K.MORALE_CAS * E.lossAcc[s] / Math.max(1, E.armyStr0[s]) * 100; E.lossAcc[s] = 0; }
+    for (const s of SIDE_IDS) { if (E.K.MORALE_CAS && E.lossAcc[s]) E.morale[s] -= E.K.MORALE_CAS * E.lossAcc[s] / Math.max(1, E.armyStr0[s]) * 100; E.lossAcc[s] = 0; }
     // army break: every unit tests each tick
-    for (const s of ['FR', 'AL', 'PR']) {
+    for (const s of SIDE_IDS) {
       E.morale[s] = clamp(E.morale[s], 0, 100);
       if (E.morale[s] < 20) {
         if (!E.flags[s + 'Broken']) { E.flags[s + 'Broken'] = E.t; if (s === 'FR') E.metrics.frBreak = E.t; if (s === 'AL') E.metrics.alBreak = E.t; log('army', `The ${s === 'FR' ? 'French' : s === 'AL' ? 'Anglo-allied' : 'Prussian'} army is breaking.`, { side: s, important: true }); }
@@ -1194,7 +1162,13 @@ function create(opts = {}) {
   return E;
 }
 
-const api = { create, K, fmtT, T, TT, footprint, hitChance, bgVis, LOW };
+return { create, K, fmtT, T, TT, footprint, hitChance, bgVis, LOW };
+}
+const worlds = {};
+function world(id) { id = id || root.WBATTLE || 'waterloo'; return worlds[id] || (worlds[id] = buildWorld(Packs.battle(id))); }
+// the default world is the current battle's (the game page sets WBATTLE); a battle can also be named in create({ battle })
+const api = { create: (opts = {}) => world(opts.battle).create(opts), world, fmtT: t => world().fmtT(t), footprint: u => world().footprint(u), hitChance: r => world().hitChance(r), bgVis: t => world().bgVis(t) };
+for (const k of ['K', 'T', 'TT', 'LOW']) Object.defineProperty(api, k, { get: () => world()[k], enumerable: true });
 root.WEngine = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
