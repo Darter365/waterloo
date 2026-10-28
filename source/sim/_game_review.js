@@ -7,15 +7,14 @@ const REVIEW = { db: null, saved: null };
 (async () => { try { if (window.claude && window.claude.use) REVIEW.db = await window.claude.use('db'); } catch (e) { REVIEW.db = null; } if (G && G.phase === 'over') renderReview(); })();
 function autoFlags() {
   const R = SIM.result, M = SIM.metrics, f = [], C = SIM.command;
-  const range = { FR: [20000, 27000, 'French'], AL: [13000, 17000, 'Anglo-allied'], PR: [5000, 8000, 'Prussian'] };
+  const range = GB.lossRange || {};
   for (const [k, [lo, hi, n]] of Object.entries(range)) { const v = R.cas[k].kw; if (v > hi * 1.6 || (v < lo * 0.3 && R.t > 18 * 60)) f.push({ id: 'cas' + k, text: `${n} killed and wounded: ${fmt(v)}, against ${fmt(lo)}–${fmt(hi)} in 1815.` }); }
   const flips = {}; for (const l of SIM.log) if (l.cat === 'place' && l.sp) flips[l.sp] = (flips[l.sp] || 0) + 1;
   for (const [sp, n] of Object.entries(flips)) if (n >= 7) f.push({ id: 'flip' + sp, text: `${capF(SIM.spById[sp].name)} changed hands ${n} times.` });
   for (const u of SIM.units) if (u.str0 > 400 && (u.killed + u.wounded) / u.str0 > 0.8) f.push({ id: 'gone' + u.id, text: `${u.name} lost ${Math.round(100 * (u.killed + u.wounded) / u.str0)}% of its men killed and wounded.` });
-  for (const o of C.orders) if (o.from === 'napoleon' && o.receivedAt != null && o.actedAt == null && o.status !== 'waiting' && o.status !== 'cancelled' && o.to !== 'grouchy' && o.to !== 'hq' && SIM.t - o.receivedAt > 60) f.push({ id: 'stuck' + o.id, text: `Your order of ${hm(o.issuedAt)} to ${SHORT[o.to] || o.to} arrived at ${hm(o.receivedAt)} and was never acted on (${o.status}).` });
-  if (M.bulowAttack != null && M.bulowAttack < 14 * 60) f.push({ id: 'bulowEarly', text: `Bülow attacked at ${hm(M.bulowAttack)}, far earlier than about 16:30 in 1815.` });
-  if (M.frBreak != null && M.frBreak < 17 * 60) f.push({ id: 'frEarly', text: `The French army broke at ${hm(M.frBreak)}.` });
-  if (M.hougFall != null) f.push({ id: 'houg', text: `Hougoumont fell at ${hm(M.hougFall)}; it held all day in 1815.`, note: true });
+  for (const o of C.orders) if (o.from === CHIEF && o.receivedAt != null && o.actedAt == null && o.status !== 'waiting' && o.status !== 'cancelled' && RKIND(o.to) !== 'offmap' && RKIND(o.to) !== 'hq' && SIM.t - o.receivedAt > 60) f.push({ id: 'stuck' + o.id, text: `Your order of ${hm(o.issuedAt)} to ${SHORT[o.to] || o.to} arrived at ${hm(o.receivedAt)} and was never acted on (${o.status}).` });
+  // (phase 5) the battle's own checks: a turning point that came, or came before a time, against the record
+  for (const c of GB.review || []) { const v = M[c.metric]; if (v != null && (c.before == null || v < tmin(c.before))) f.push(Object.assign({ id: c.id, text: c.text.replace('{t}', hm(v)) }, c.note ? { note: true } : {})); }
   if (AAR.done.base && AAR.done.base.s && (AAR.done.base.s.grade !== R.grade || JSON.stringify(AAR.done.base.s.cas) !== JSON.stringify(R.cas))) f.push({ id: 'replay', text: 'Fought again from your orders with nothing changed, the battle did not come out the same.' });
   return f;
 }
@@ -37,7 +36,7 @@ function renderReview() {
 }
 function reviewRecord() {
   const ev = reviewEvents(), mine = G.review || { flagged: {}, notes: '' };
-  return { kind: 'waterloo-review', version: 'release 3', savedAt: new Date().toISOString(), seed: G.opts.seed, opts: G.opts,
+  return { kind: 'waterloo-review', version: 'release 3', battle: GAME_ID, savedAt: new Date().toISOString(), seed: G.opts.seed, opts: G.opts,
     result: { grade: SIM.result.grade, why: SIM.result.why, t: SIM.result.t, cas: SIM.result.cas, withdrawn: SIM.result.withdrawn || null }, metrics: SIM.metrics,
     orders: G.orderLog, refoughtFrom: G.refoughtFrom || null, toEnd: G.toEnd ? { mode: G.toEnd, from: G.toEndFrom } : null,
     umpireFlags: (G.reviewFlags || []).map(x => x.text), playerFlags: Object.keys(mine.flagged).filter(k => mine.flagged[k]).map(i => ({ t: ev[i].t, text: ev[i].text })),
@@ -48,7 +47,7 @@ document.addEventListener('input', e => { if (e.target.id === 'rv-notes' && G &&
 document.addEventListener('click', async e => {
   const b = e.target.closest('button'); if (!b || !G || !SIM) return;
   if (b.id === 'rv-copy') {
-    const txt = 'Waterloo umpire’s review (paste this to Claude):\n' + JSON.stringify(reviewRecord());
+    const txt = `${GAMEB.battle.name} umpire’s review (paste this to Claude):\n` + JSON.stringify(reviewRecord());
     let ok = false; try { await navigator.clipboard.writeText(txt); ok = true; } catch (err) { ok = false; }
     const out = $('rv-out'); if (!ok) { out.hidden = false; out.value = txt; out.focus(); out.select(); }
     $('rv-msg').textContent = ok ? 'Copied. Paste it into a conversation with Claude.' : 'Your browser would not copy it: the text is selected below, copy it by hand.';

@@ -118,7 +118,7 @@ P.register('battle', 'ligny', { version: '0.1', oob: 'ligny', terrain: 'ligny',
     { id: 'napoleon', side: 'FR', at: [50.48551, 4.55522] }, { id: 'vandamme', side: 'FR', unit: 'vernier' }, { id: 'girard', side: 'FR', unit: 'piat' },
     { id: 'gerard', side: 'FR', unit: 'rome' }, { id: 'grouchy', side: 'FR', at: [50.4985, 4.6080] }, { id: 'pajol', side: 'FR', unit: 'stlaurent' },
     { id: 'exelmans', side: 'FR', unit: 'burthe' }, { id: 'milhaud', side: 'FR', unit: 'dubois' }, { id: 'drouot', side: 'FR', unit: 'ogGren' },
-    { id: 'duhesme', side: 'FR', unit: 'yg1' },
+    { id: 'duhesme', side: 'FR', unit: 'yg1' }, { id: 'lobau', side: 'FR', unit: 'bellair' }, // Lobau rides with his corps, coming up from Charleroi
     { id: 'blucher', side: 'PR', at: [50.5240, 4.5670] }, { id: 'zieten', side: 'PR', at: [50.5170, 4.5620] }, { id: 'pirch', side: 'PR', unit: 'p7a' },
     { id: 'thielmann', side: 'PR', at: [50.5300, 4.6025] },
   ],
@@ -141,8 +141,103 @@ P.register('battle', 'ligny', { version: '0.1', oob: 'ligny', terrain: 'ligny',
   // the historical battle (ai.js): the Prussians are commanded by the generic doctrine with the habits above, and Blücher's counter-strokes
   // from the record below; the French by Napoleon's orders
   commanders: { generic: ['PR'] },
-  // (phase 3c) plans: what the record says the commanders did, as rules (plans.js), straight out as orders (via 'order': the order builder
-  // and Napoleon's staff are Waterloo's still). The accounts give the times things happened; an order takes about half an hour to write,
+  /* (phase 5, stage 2) the command layer for Ligny played as Napoleon (command.js, orders.js): his corps commanders, where he can stand,
+     what he can order. Est. where the accounts say nothing. Grouchy is on the field here, commanding the cavalry of the right wing (Pajol's
+     and Exelmans' corps); Ney is at Quatre Bras with the left wing, so there is no field commander between Napoleon and his corps. */
+  command: {
+    side: 'FR', chief: 'napoleon',
+    commanders: { FR: ['napoleon', 'vandamme', 'gerard', 'grouchy', 'drouot', 'milhaud', 'lobau'], PR: ['blucher', 'zieten', 'pirch', 'thielmann'] },
+    corpsCmd: { vandamme: 'vandamme', gerard: 'gerard', pajol: 'grouchy', exelmans: 'grouchy', guard: 'drouot', guardcav: 'drouot', milhaud: 'milhaud', lobau: 'lobau', derlon: 'derlon',
+      zieten: 'zieten', pirch: 'pirch', thielmann: 'thielmann' },
+    defaultCmd: { FR: 'napoleon', PR: 'blucher' },
+    up: { zieten: 'blucher', pirch: 'blucher', thielmann: 'blucher' }, // the corps commanders' sightings reach Blücher at the Bussy mill
+    eyes: ['napoleon', 'vandamme', 'gerard', 'grouchy', 'drouot', 'blucher', 'zieten', 'pirch', 'thielmann'],
+    reporters: ['vandamme', 'gerard', 'grouchy', 'drouot', 'milhaud', 'lobau'],
+    reserve: ['drouot', 'milhaud'], // in sight of headquarters: they write when something happens
+    askInfantry: ['vandamme', 'gerard'],
+    // Napoleon watched from the Naveau mill north of Fleurus (the accounts); the rise south of Ligny, where the Guard's guns stood, is under fire
+    posts: {
+      naveau: { name: 'the Naveau mill', at: [50.48551, 4.55522] },
+      fleurus: { name: 'Fleurus', at: [50.4835, 4.5480], note: 'the rear' },
+      rise: { name: 'the rise south of Ligny', at: [50.5045, 4.5715], note: 'under fire', forward: true },
+    },
+    post0: 'naveau', morningPost: 'naveau',
+    arriving: ['lobau', 'derlon'], // a corps still on its road: the rider meets its commander where the road comes on
+    // unidentified troops well south of the brook can only be French, well north of it only Prussian (est. boundaries, m from the map's top)
+    guess: [{ own: true, as: 'FR', y0: 5000 }, { own: false, as: 'PR', y1: 3500 }],
+    toward: { any: [{ y0: 3300 }], facing: { PR: [100, 260] } }, // Prussians coming south over the brook
+    intel: { places: [['stamand', 'FR'], ['ligny', 'FR']] },
+    corpsName: { zieten: "Zieten's I Corps", pirch: "Pirch's II Corps", thielmann: "Thielmann's III Corps", vandamme: "Vandamme's III Corps", gerard: "Gérard's IV Corps",
+      pajol: "Pajol's cavalry", exelmans: "Exelmans' cavalry", grouchy: "Grouchy's cavalry", guard: 'the Guard', guardcav: 'the Guard heavy cavalry', milhaud: "Milhaud's cuirassiers",
+      lobau: "Lobau's VI Corps", derlon: "d'Erlon's I Corps" },
+    recipients: {
+      vandamme: { name: 'Vandamme (III Corps)', kind: 'corps' }, gerard: { name: 'Gérard (IV Corps)', kind: 'corps' }, grouchy: { name: 'Grouchy (the cavalry of the right)', kind: 'cavalry' },
+      milhaud: { name: 'Milhaud (IV Cavalry Corps)', kind: 'cavalry' }, drouot: { name: 'Drouot (the Guard)', kind: 'corps' }, lobau: { name: 'Lobau (VI Corps)', kind: 'corps' },
+      hq: { name: 'your own headquarters', kind: 'hq' }, army: { name: 'the whole army', kind: 'army' },
+    },
+    retreatTo: ['vandamme', 'gerard', 'grouchy', 'milhaud', 'drouot', 'lobau'],
+    retreat: { on: 'Charleroi', by: 'the Fleurus road', at: 'Fleurus', rearguards: { drouot: 'the Guard', lobau: 'Lobau' } },
+    guardAttack: ['ogGren', 'ogChas', 'mgGren', 'mgChas'], // the Guard going in: the prestige attack
+  },
+  // (phase 5, stage 2) the game page for Ligny: the briefing, what the panels list, the 1815 figures beside the result (est. where marked)
+  game: {
+    title: 'Napoleon at Ligny', date: '16 juin 1815',
+    page: { h1: 'Ligny <span>· Napoleon’s command</span>', lead: 'You are the Emperor on the afternoon of 16 June 1815. You see the field from your post and learn the rest from riders. Every order you give is written, carried across the field and passed down before a single brigade moves.',
+      cartouche: 'Bataille de Ligny', mapLabel: "Napoleon's staff map of the Ligny battlefield: his own corps where they last reported, and the enemy where he was last seen." },
+    help: {
+      ney: '<b>Grouchy.</b> Here Grouchy commands the cavalry of the right wing, Pajol’s and Exelmans’ corps, facing Thielmann on the Prussian left. Ney is away at Quatre Bras with the left wing: there is no field commander between you and your corps.',
+      post: '<b>Your post.</b> You start at the Naveau mill above Fleurus, from where you see the whole valley of the Ligny. Fleurus is behind it; the rise south of Ligny is closer to the fighting but under fire. Your staff can also send an aide to look at a place for you.',
+      fight: '<b>Fighting it out, and retreating.</b> “To the end…” beside Ride on runs the clock to nightfall with no more stops: Napoleon’s own orders from that hour, or no more orders at all. To break off, write to <i>The whole army (general retreat)</i>: each corps commander gets a letter and marches off toward Charleroi by Fleurus, with the Guard or Lobau as rearguard. The battle is then judged on what you bring away.',
+      limits: '<b>Limits.</b> Not in the game: Ney’s battle at Quatre Bras, d’Erlon’s corps beyond its march and recall as they happened, and the Prussian retreat in the night. The roads and some of the places on the map are estimates. The engine is calibrated against history with Napoleon’s own orders, and at Ligny the French losses still run high and Ligny falls too early; it is not a prediction.',
+      offline: null },
+    helpSwap: [['bombard Hougoumont, then attack it', 'bombard Saint-Amand, then attack it']],
+    intro: 'Blücher’s army holds the villages along the Ligny brook, from Wagnelée to Balâtre, with its reserves on the open slopes behind. Ney is at Quatre Bras with the left wing. The battle begins at 14:00 and ends with the dark, or when an army breaks.',
+    starts: { '1400': { label: '14:00, as in 1815: a hot day, the ground dry', begin: 'Begin at 14:00',
+      brief: '<p><b>The situation at 14:00.</b> Your army faces north across the Ligny brook: Vandamme’s III Corps, with Girard’s division, before Saint-Amand on the left; Gérard’s IV Corps before Ligny in the centre; Grouchy with Pajol’s and Exelmans’ cavalry on the right, watching Tongrinne and Boignée. The Guard and Milhaud’s cuirassiers are in reserve near Fleurus.</p><p>Blücher holds every village along the brook, Saint-Amand and Ligny strongly. Zieten’s and Pirch’s corps stand on the slopes between Brye and the Bussy mill, in full view; Thielmann’s corps holds the left, from Sombreffe to Balâtre. You have about 60,000 men against 80,000.</p><p>Ney has been told to take Quatre Bras and turn on the Prussian right. Lobau’s VI Corps is coming up from Charleroi and will not be here before evening.</p><p>Your headquarters is at the Naveau mill outside Fleurus, from where you see the whole valley. Nothing moves until you order it. Write your first orders, then press Continue.</p>' } },
+    corps: ['vandamme', 'gerard', 'grouchy', 'drouot', 'milhaud', 'lobau'],
+    corpsTitle: { vandamme: 'Vandamme · III Corps', gerard: 'Gérard · IV Corps', grouchy: 'Grouchy · the cavalry of the right', drouot: 'Drouot · the Guard', milhaud: 'Milhaud · IV Cavalry Corps', lobau: 'Lobau · VI Corps' },
+    corpsOf: { vandamme: "Vandamme's III Corps", gerard: "Gérard's IV Corps", grouchy: "Grouchy's cavalry", drouot: 'the Guard', milhaud: "Milhaud's cuirassiers", lobau: "Lobau's VI Corps" },
+    short: { army: 'The whole army', vandamme: 'Vandamme', gerard: 'Gérard', grouchy: 'Grouchy', drouot: 'Drouot', milhaud: 'Milhaud', lobau: 'Lobau', hq: 'Headquarters' },
+    orderTo: ['vandamme', 'gerard', 'grouchy', 'milhaud', 'drouot', 'lobau', 'hq', 'army'],
+    placeGroups: [['The brook villages', ['wagnelee', 'hameau', 'lahaye', 'stamand', 'ligny', 'potriaux', 'tongrenelle', 'boignee', 'balatre']],
+      ['Behind the brook', ['brye', 'bussy', 'heights', 'ligneLine', 'westLine', 'sombreffe', 'tongrinne', 'eastLine']],
+      ['Our side', ['batteryStAmand', 'batteryLigny', 'guardStaging', 'fleurusRoad', 'fleurus', 'naveau']]],
+    gunGroups: [['vandamme', 'Vandamme’s guns'], ['gerard', 'Gérard’s guns'], ['grouchy', 'Grouchy’s horse guns'], ['drouot', 'the Guard’s guns'], ['milhaud', 'Milhaud’s horse guns'], ['lobau', 'Lobau’s guns']],
+    sites: ['batteryStAmand', 'batteryLigny'],
+    places: ['wagnelee', 'hameau', 'lahaye', 'stamand', 'ligny', 'brye', 'potriaux', 'sombreffe', 'tongrenelle', 'tongrinne', 'boignee', 'balatre'],
+    condPlace: 'stamand', obDefaults: { corps: 'gerard', detachTo: 'drouot' },
+    history: [['Saint-Amand first taken', 'stAmandFall', '≈15:15'], ['Ligny first taken', 'lignyFall', 'entered ≈15:30, fought over'], ['Ligny taken for the last time', 'lignyLast', '≈19:45–20:30'], ['A column seen on the left (d’Erlon)', 'derlonSeen', '≈17:30'], ['The Guard attacks', 'guardAttack', '≈19:30'], ['Prussian army breaks', 'prBreak', 'not broken: drew off in the night'], ['French army breaks', 'frBreak', 'did not break']],
+    losses: [['French', 'FR', '8,500–12,000 (sources 7,000–13,000)'], ['Prussian', 'PR', 'about 16,000 (12,000–25,000), and about 8,000 gone in the night']],
+    lossRange: { FR: [8500, 12000, 'French'], PR: [12000, 25000, 'Prussian'] },
+    review: [{ id: 'stAmandEarly', metric: 'stAmandFall', before: '14:30', text: 'Saint-Amand fell at {t}, before the first attack went in on the day (about 15:00).' },
+      { id: 'lignyEarly', metric: 'lignyLast', before: '17:00', text: 'Ligny fell for the last time at {t}; it held until the Guard went in, about 20:00, on the day.', note: true }],
+    moments: [['stAmandFall', 'Saint-Amand falls'], ['lignyFall', 'Ligny falls'], ['lignyRetaken', 'the Prussians retake Ligny'], ['guardAttack', 'the Guard attacks'], ['prBreak', 'the Prussian army breaks'], ['frBreak', 'the French army breaks']],
+    views: [['Saint-Amand', 50.5070, 4.5470, 3.6], ['Ligny', 50.5110, 4.5745, 3.6], ['Brye & Bussy', 50.5225, 4.5610, 3.0], ['Sombreffe & Tongrinne', 50.5200, 4.6100, 2.6], ['Fleurus', 50.4880, 4.5520, 3.0], ['Whole field', 50.5110, 4.5800, 1.0]],
+    enemyDecisions: 'Blücher’s decisions',
+    hqLeaders: ['napoleon', 'blucher'],
+    groups: [{ t: 'III CORPS', side: 'FR', corps: 'vandamme', dy: 260 }, { t: 'IV CORPS', side: 'FR', corps: 'gerard', dy: 240 }, { t: 'GARDE', side: 'FR', corps: 'guard', dy: 220 },
+      { t: 'PAJOL', side: 'FR', corps: 'pajol', dy: 170 }, { t: 'EXELMANS', side: 'FR', corps: 'exelmans', dy: 170 }, { t: 'IV CAV', side: 'FR', corps: 'milhaud', dy: 170 }, { t: 'VI CORPS', side: 'FR', corps: 'lobau', dy: 200 },
+      { t: 'ZIETEN', side: 'PR', corps: 'zieten', dy: -260 }, { t: 'PIRCH', side: 'PR', corps: 'pirch', dy: -260 }, { t: 'THIELMANN', side: 'PR', corps: 'thielmann', dy: -260 }],
+    offGroups: [['derlon', 'd’Erlon · I Corps', 50.5100, 4.4900, 'FR'], ['lobau', 'Lobau · VI Corps', 50.4600, 4.5380, 'FR']],
+    keyPlaces: ['Ligny', 'Saint-Amand', 'Brye', 'Sombreffe'],
+    edgeLabels: [['Tilly · Wavre', 50.5460, 4.5720, 'n'], ['Charleroi 12 km', 50.4730, 4.5435, 's']],
+    waterLabels: [['le ruisseau de Ligny', 50.5090, 4.5900, 0]],
+    letters: { place: 'Au quartier impérial', date: 'le 16 juin 1815',
+      address: { vandamme: 'Monsieur le Comte Vandamme', gerard: 'Monsieur le Comte Gérard', grouchy: 'Monsieur le Maréchal Comte de Grouchy', drouot: 'Monsieur le Comte Drouot', milhaud: 'Monsieur le Comte Milhaud', lobau: 'Monsieur le Comte de Lobau', army: 'Messieurs les Commandants des corps d’armée' },
+      signed: { vandamme: 'Cte Vandamme', gerard: 'Cte Gérard', grouchy: 'Le Maréchal Cte de Grouchy', drouot: 'Cte Drouot', milhaud: 'Cte Milhaud', lobau: 'Cte de Lobau' } },
+    // the staff at Napoleon's side (the same officers as on the 18th), and what they may say from what headquarters knows (paraphrase, est.)
+    staff: { officers: { soult: 'Soult, major-général', drouot: 'Drouot, commanding the Guard', flahaut: 'Flahaut, aide-de-camp', labedoyere: 'La Bédoyère, aide-de-camp', gourgaud: 'Gourgaud, aide-de-camp' },
+      chief: 'soult', guard: 'drouot', road: 'the road to Charleroi',
+      remarks: [
+        { id: 'slopes', who: 'soult', when: { briefing: true }, text: 'Their reserves stand on the forward slopes behind the villages, Sire, in full view of our guns.' },
+        { id: 'stamand', who: 'gourgaud', when: { place: 'stamand', holder: 'FR' }, text: 'Saint-Amand is ours, Sire. Vandamme will be asking to push on to la Haye.' },
+        { id: 'ligny', who: 'soult', when: { place: 'ligny', holder: 'FR' }, text: 'Ligny is ours, Sire. Their centre behind it is open, if the Guard goes in now.' },
+        { id: 'guard', who: 'drouot', when: { attackWith: { to: 'drouot', ids: ['ogGren', 'ogChas', 'mgGren', 'mgChas'] } }, text: 'The Old and Middle Guard are going in, Sire. Only the Young Guard and the cavalry remain in hand.' },
+        'generic:quiet', 'generic:ack', 'generic:losses', 'generic:dusk', 'generic:retreat',
+        { id: 'idle', who: 'soult', when: { after: '14:45', noOrders: true }, text: 'Every hour we wait, Sire, is an hour more for the Prussians to come up, and an hour less of daylight to finish them.' } ] },
+  },
+  // (phase 3c) plans: what the record says the commanders did, as rules (plans.js), straight out as orders (via 'order': each rule names the
+  // brigades, as the record does; the lab and the game fight the same orders). The accounts give the times things happened; an order takes about half an hour to write,
   // ride and be acted on, so each rule is set about 30 min before the time it records (est. to the quarter hour where the accounts disagree)
   plans: {
     historical: { id: 'historical', side: 'FR', as: 'napoleon', via: 'order', rules: [
@@ -166,9 +261,6 @@ P.register('battle', 'ligny', { version: '0.1', oob: 'ligny', terrain: 'ligny',
         order: { to: 'vandamme', kind: 'attack', obj: 'lahaye', units: ['gengoult', 'dupeyroux'], form: 'attack', maxAttempts: 3, text: "Vandamme sends Habert's division to la Haye." } },
       { id: 'youngGuard', at: '17:30', when: { any: [{ place: 'stamand', holder: 'notOurs' }, { place: 'lahaye', holder: 'notOurs' }] },
         order: { to: 'duhesme', kind: 'attack', obj: 'stamand', units: ['yg1', 'yg2'], form: 'attack', maxAttempts: 3, text: 'The Young Guard goes to help Vandamme at Saint-Amand.' } },
-      // d'Erlon's column turns back on Ney's orders, leaving Durutte's division and Jacquinot's cavalry
-      { id: 'derlonRecalled', at: '18:30', order: { unitTo: 'schmitz', kind: 'retire', units: ['nogues', 'grenier', 'schmitz', 'aulard'], exit: [50.5085, 4.5085], writeMin: 0, rideMin: 0,
-        text: "Ney's orders reach d'Erlon: his corps turns back toward Frasnes, leaving Durutte's division and Jacquinot's cavalry." } },
       // the Guard's attack on Ligny, held back an hour by the alarm over d'Erlon's column: 60 guns open, then the Guard with Gérard's
       // divisions, Milhaud's cuirassiers and the Guard's heavy horse go in through the village in the storm
       { id: 'guardUp', at: '17:00', order: { to: 'drouot', kind: 'advance', obj: 'guardStaging', units: ['ogGren', 'ogChas', 'mgGren', 'mgChas'], form: 'columns', text: 'The Guard moves up toward Ligny.' } },
@@ -182,13 +274,20 @@ P.register('battle', 'ligny', { version: '0.1', oob: 'ligny', terrain: 'ligny',
         text: 'The Guard climbs out of Ligny onto the heights behind it.' } },
     ] },
     // Blücher's counter-strokes, as the record has them: II Corps on the right against the French left about 17:00, Thielmann's push down
-    // the Fleurus road about 18:00, and the last effort at Saint-Amand about 19:00 (installed with the historical plan: script.js)
+    // the Fleurus road about 18:00, and the last effort at Saint-Amand about 19:00 (installed with the historical plan: script.js; and in
+    // the game from the start, since the computer commands Blücher whatever the player does: replay.js)
     blucher: { id: 'blucher', side: 'PR', as: 'blucher', via: 'order', withHistorical: true, rules: [
       { id: 'tippelskirch', at: '16:15', order: { to: 'pirch', kind: 'attack', obj: 'hameau', units: ['p5a', 'p5b'], form: 'attack', maxAttempts: 3, text: "Blücher sends Tippelskirch's brigade round by Wagnelée against the French left." } },
       { id: 'brause', at: '16:30', order: { to: 'pirch', kind: 'attack', obj: 'lahaye', units: ['p7a', 'p7b'], form: 'attack', maxAttempts: 3, text: "Brause's brigade goes in at la Haye." } },
       { id: 'thielmann', at: '17:30', order: { to: 'thielmann', kind: 'attack', obj: 'fleurusRoad', units: ['t11'], form: 'attack', maxAttempts: 2, text: 'Thielmann sends Luck’s brigade down the Fleurus road.' } },
       { id: 'lastEffort', at: '18:30', when: { place: 'stamand', holder: 'notOurs' }, order: { to: 'zieten', kind: 'attack', obj: 'stamand', units: ['z1a', 'z1b', 'z2a', 'z2b'], form: 'attack', maxAttempts: 2,
         text: 'Blücher leads a last effort against Saint-Amand.' } },
+    ] },
+    // (stage 2) d'Erlon's recall was Ney's order from Quatre Bras, not Napoleon's: part of the battle whoever commands the French
+    // (always: installed with the recorded orders and in the game from the start). offField: no rider crosses this map with it
+    ney: { id: 'ney', side: 'FR', as: 'ney', via: 'order', always: true, rules: [
+      { id: 'derlonRecalled', at: '18:30', order: { unitTo: 'schmitz', kind: 'retire', units: ['nogues', 'grenier', 'schmitz', 'aulard'], exit: [50.5085, 4.5085], writeMin: 0, rideMin: 0, offField: true,
+        text: "Ney's orders reach d'Erlon: his corps turns back toward Frasnes, leaving Durutte's division and Jacquinot's cavalry." } },
     ] },
   },
   map: { STRONGPOINTS, OBJECTIVES, ROUTES },

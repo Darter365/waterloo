@@ -4,15 +4,20 @@
 (function (root) {
 'use strict';
 const req = n => (typeof require === 'function' ? require(n) : null);
-const En = () => root.WEngine || req('./engine.js'), AI = () => root.WAI || req('./ai.js'), Cmd = () => root.WCommand || req('./command.js'), Ord = () => root.WOrders || req('./orders.js'), Scr = () => root.WScript || req('./script.js');
+const En = () => root.WEngine || req('./engine.js'), AI = () => root.WAI || req('./ai.js'), Cmd = () => root.WCommand || req('./command.js'), Ord = () => root.WOrders || req('./orders.js'), Scr = () => root.WScript || req('./script.js'), Plans = () => root.WPlans || req('./plans.js');
 const clone = x => JSON.parse(JSON.stringify(x));
 const START = 660;
 
 // a battle set up exactly as the game sets one up
 function setup(o) {
-  const E = En().create({ seed: o.seed, history: o.history, scenario: o.scenario });
+  const E = En().create({ battle: o.battle, seed: o.seed, history: o.history, scenario: o.scenario }); // (phase 5) o.battle: the game page's battle (else the default)
   AI().make({ plan: 'script' }).init(E);
   Cmd().install(E, { staff: o.staff, silence: o.silence }); Ord().install(E);
+  // (phase 5, stage 2) what the computer does whatever the player does: orders that are part of the battle (always: Ligny's recall of
+  // d'Erlon) and the recorded orders of the side the player does not command (Ligny: Blücher's counter-strokes). Waterloo has none
+  const plans = Object.values(Packs().battle(E.battleId).battle.plans || {});
+  for (const p of plans) if (p.always) Plans().install(E, p);
+  for (const p of plans) if (p.withHistorical && !p.always && p.side !== E.command.side) Plans().install(E, p);
   E.command.morningLook();
   return E;
 }
@@ -34,7 +39,7 @@ function variant(log, v, start = START) {
 // what the after-action report keeps of a battle every ten minutes
 function sample(E) {
   const s = { t: E.t, ranks: {}, kw: {}, morale: Object.assign({}, E.morale) };
-  for (const side of ['FR', 'AL', 'PR']) { let r = 0, k = 0; for (const u of E.units) { if (u.side !== side) continue; k += u.killed + u.wounded; if (u.onMap && !u.gone && u.status !== 'broken' && u.type !== 'art') r += u.str; } s.ranks[side] = Math.round(r); s.kw[side] = Math.round(k); }
+  for (const side of E.sideIds) { let r = 0, k = 0; for (const u of E.units) { if (u.side !== side) continue; k += u.killed + u.wounded; if (u.onMap && !u.gone && u.status !== 'broken' && u.type !== 'art') r += u.str; } s.ranks[side] = Math.round(r); s.kw[side] = Math.round(k); }
   return s;
 }
 /* run: o = the game's settings {seed, history, scenario, staff, silence}; log = the order log; opt:
@@ -54,12 +59,17 @@ function run(o, log, opt = {}) {
   if (E.over) samples.push(sample(E));
   return { E, samples, made };
 }
-const GRADES = ['French catastrophe', 'Allied victory', 'Marginal Allied victory', 'Draw', 'Marginal French victory', 'French victory', 'Decisive French victory'];
+// the grades from worst to best for the attacker (Waterloo: the French against the Allies)
+function grades(E) {
+  const B = Packs().battle(E.battleId), V = B.battle.victory || {}, att = V.attacker || B.sideIds[0], attC = B.coalition[att], defC = Object.values(B.coalition).find(c => c !== attC);
+  const adj = c => (B.battle.coalitionAdjectives || {})[c] || c, a = adj(attC), d = adj(defC);
+  return [`${a} catastrophe`, `${d} victory`, `Marginal ${d} victory`, 'Draw', `Marginal ${a} victory`, `${a} victory`, `Decisive ${a} victory`];
+}
 // a short account of how a battle went, for comparing one run with another
 function summary(E, samples) {
   const R = E.result || { grade: 'unfinished', t: E.t, cas: null };
   const places = {}; for (const sp of E.sps) places[sp.id] = sp.holder || null;
-  return { grade: R.grade, gradeN: GRADES.indexOf(R.grade), why: R.why, t: R.t, cas: R.cas, metrics: Object.assign({}, E.metrics), morale: Object.assign({}, E.morale), crest: !!E.flags.crestFR, places, samples: samples || [] };
+  return { grade: R.grade, gradeN: grades(E).indexOf(R.grade), why: R.why, t: R.t, cas: R.cas, metrics: Object.assign({}, E.metrics), morale: Object.assign({}, E.morale), crest: !!E.flags.crestFR, places, samples: samples || [] };
 }
 
 /* (phase 4e) a replay as a file: the battle, the settings and the order log, with the versions they were fought with. check() says
@@ -83,6 +93,6 @@ function check(r) {
   return { ok: !notes.length, fatal: false, notes };
 }
 
-root.WReplay = { setup, apply, variant, run, summary, sample, record, check, GRADES, START };
+root.WReplay = { setup, apply, variant, run, summary, sample, record, check, grades, START };
 if (typeof module !== 'undefined' && module.exports) module.exports = root.WReplay;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

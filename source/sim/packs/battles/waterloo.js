@@ -625,6 +625,160 @@ P.register('battle', 'waterloo', { version: '1.1', // (4e) versions start at pha
     detach: [{ from: 'aGuard', id: 'aGuard12', guns: 24, name: "The Guard's 12-pounders", parent: 'Guard artillery', dx: -150, form: 'park', q: 1.15, corps: 'guard', cal: 12, coh: 82 }] },
   // a corps that marches by another's road: Pirch's II Corps followed Bülow's IV Corps through Lasne
   routeOf: { pirch: 'bulow' },
+  /* (phase 5, stage 2) the game page for this battle: the briefing, what the panels list, the 1815 figures beside the result. Release 3's
+     values, moved here unchanged from the game's code (Ligny has its own). */
+  game: {
+    title: 'Napoleon at Waterloo', date: '18 juin 1815',
+    intro: 'Wellington’s army stands on the ridge of Mont-Saint-Jean, astride the Brussels road. Grouchy is away to the east with a third of your army, following the Prussians. The battle begins at 11:00 and ends with the dark, or when an army breaks.',
+    starts: {
+      '1100': { label: '11:00, as in 1815: the ground soaked, drying through the day', begin: 'Begin at 11:00', brief: '<p><b>The situation at 11:00.</b> Your army is drawn up astride the Brussels road at La Belle Alliance: Reille’s II Corps west of the road facing Hougoumont, d’Erlon’s I Corps east of it, and Lobau’s VI Corps, the Guard and the cuirassiers in reserve behind.</p>\n  <p>Wellington holds the ridge of Mont-Saint-Jean. He has men in Hougoumont and La Haye Sainte and the sandpit beside it, and on his left in Papelotte, La Haye, Smohain and the château of Frischermont. Much of his army is out of sight behind the crest; what you and your staff saw of it this morning is on your map.</p>\n  <p>Grouchy, with about 33,000 men, was sent after the Prussians yesterday. His last dispatch said they seemed to be falling back on Wavre. A rider needs three hours or more to find him.</p>\n  <p>Marshal Ney commands the front line and will act on his own judgement until you give him a sector and a goal. Your headquarters is at Rossomme.</p>\n  <p>The night’s rain has soaked the ground. Guns and cavalry move heavily, charges lose their weight, and roundshot buries itself instead of bounding. It will dry through the day.</p>\n  <p class="small">Nothing moves until you order it. Write your first orders, then press Continue.</p>' },
+      '0500': { label: '05:00, dawn: the army still coming up, the ground soaked', begin: 'Begin at 11:00', brief: '<p><b>Dawn, 05:00.</b> It has rained all night and is raining still. You are at Le Caillou, where you slept. D’Erlon’s I Corps and Milhaud’s cuirassiers lie in the mud a few hundred metres behind the ground they will hold, where the vanguard halted last night; the Guard is round you at Le Caillou. Reille’s II Corps, Kellermann’s cuirassiers and Lobau’s VI Corps spent the night back toward Genappe and are coming up the high road: the first of them about 06:15, the last about 10:00.</p>\n  <p>Wellington’s army lies on the ridge of Mont-Saint-Jean, where its fires burned all night. He holds Hougoumont and La Haye Sainte.</p>\n  <p>Grouchy, with about 33,000 men, was sent after the Prussians yesterday. A rider needs three hours or more to find him. Where the Prussians are this morning you do not know.</p>\n  <p>The ground is soaked: guns and cavalry can barely move off the roads, charges lose their weight and roundshot buries itself. On the day Drouot advised waiting for it to dry, and the attack went in at 11:30. Attack sooner and you may beat Wellington before the Prussians come; wait and the ground firms.</p>\n  <p class="small">To put a corps on its ground, order it to <i>advance to their places in the line of battle</i>; each brigade goes to its own place in the 11:00 line. A corps still on the road acts on an order only with the brigades that have arrived. Nothing moves until you order it. (The bivouacs and the times the corps come up are estimates: the accounts agree only that much of the army lay well south of La Belle Alliance and that some of it was not in place at 09:00.)</p>' },
+      dry: { label: '11:00, but dry: what if it had not rained?', begin: 'Begin at 11:00', brief: '<p><b>The situation at 11:00.</b> Your army is drawn up astride the Brussels road at La Belle Alliance: Reille’s II Corps west of the road facing Hougoumont, d’Erlon’s I Corps east of it, and Lobau’s VI Corps, the Guard and the cuirassiers in reserve behind.</p>\n  <p>Wellington holds the ridge of Mont-Saint-Jean. He has men in Hougoumont and La Haye Sainte and the sandpit beside it, and on his left in Papelotte, La Haye, Smohain and the château of Frischermont. Much of his army is out of sight behind the crest; what you and your staff saw of it this morning is on your map.</p>\n  <p>Grouchy, with about 33,000 men, was sent after the Prussians yesterday. His last dispatch said they seemed to be falling back on Wavre. A rider needs three hours or more to find him.</p>\n  <p>Marshal Ney commands the front line and will act on his own judgement until you give him a sector and a goal. Your headquarters is at Rossomme.</p>\n  <p>The ground is firm: guns and horses move freely and roundshot bounds through the ranks.</p>\n  <p class="small">Nothing moves until you order it. Write your first orders, then press Continue.</p>' } },
+    corps: ['reille', 'derlon', 'lobau', 'drouot', 'milhaud', 'kellermann'],
+    corpsTitle: { reille: 'Reille · II Corps', derlon: 'd’Erlon · I Corps', lobau: 'Lobau · VI Corps', drouot: 'Drouot · the Guard', milhaud: 'Milhaud · IV Cavalry Corps', kellermann: 'Kellermann · III Cavalry Corps' },
+    corpsOf: { reille: "Reille's II Corps", derlon: "d'Erlon's I Corps", lobau: "Lobau's VI Corps", drouot: 'the Guard', milhaud: "Milhaud's cuirassiers", kellermann: "Kellermann's cuirassiers" },
+    short: { army: 'The whole army', reille: 'Reille', derlon: 'd’Erlon', lobau: 'Lobau', drouot: 'Drouot', milhaud: 'Milhaud', kellermann: 'Kellermann', ney: 'Ney', grandBattery: 'Grand battery', grouchy: 'Grouchy', hq: 'Headquarters' },
+    orderTo: ['ney', 'reille', 'derlon', 'lobau', 'drouot', 'milhaud', 'kellermann', 'grandBattery', 'grouchy', 'hq', 'army'],
+    placeGroups: [['Farms and villages', ['hougoumont', 'lhs', 'papelotte', 'lahaye', 'smohain', 'frischermont', 'plancenoit']],
+      ['The allied ridge', ['ridgeWest', 'ridgeRightCentre', 'ridgeCentre', 'ridgeEast', 'ridgeLeft', 'msj']],
+      ['Our side and the east', ['depOwn', 'ba', 'rossomme', 'eastFlank', 'boisDeParis', 'lasne']]],
+    placeOnlyAt: { depOwn: '0500' }, // a place offered only at that start
+    gunGroups: [['grandBattery', 'the grand battery'], ['reille', 'Reille’s guns'], ['derlon', 'd’Erlon’s guns'], ['lobau', 'Lobau’s guns'], ['drouot', 'the Guard’s guns'], ['milhaud', 'Milhaud’s horse guns'], ['kellermann', 'Kellermann’s horse guns']],
+    sites: ['batterySiteA', 'batterySiteB', 'cavGunSite', 'lhsGunSite'],
+    places: ['hougoumont', 'lhs', 'papelotte', 'lahaye', 'smohain', 'frischermont', 'plancenoit'],
+    condPlace: 'lhs',
+    history: [['La Haye Sainte falls', 'lhsFall', '≈18:30'], ['Hougoumont falls', 'hougFall', 'held all day'], ['Bülow attacks', 'bulowAttack', '≈16:30'], ['Ney sends the cavalry', 'neyCav', '≈16:00'], ['Zieten reaches Papelotte', 'zietenPapelotte', '≈19:00'], ['Plancenoit falls to the Prussians', 'plancenoitLost', '≈18:00'], ['Guard attack goes in', 'guardAttack', '≈19:30'], ['"La Garde recule"', 'guardRepulsed', '≈19:45'], ['French army breaks', 'frBreak', '≈20:15']],
+    losses: [['French', 'FR', '20,000–27,000'], ['Anglo-allied', 'AL', '13,000–17,000'], ['Prussian', 'PR', '5,000–8,000']],
+    lossRange: { FR: [20000, 27000, 'French'], AL: [13000, 17000, 'Anglo-allied'], PR: [5000, 8000, 'Prussian'] },
+    review: [{ id: 'bulowEarly', metric: 'bulowAttack', before: '14:00', text: 'Bülow attacked at {t}, far earlier than about 16:30 in 1815.' },
+      { id: 'frEarly', metric: 'frBreak', before: '17:00', text: 'The French army broke at {t}.' },
+      { id: 'houg', metric: 'hougFall', text: 'Hougoumont fell at {t}; it held all day in 1815.', note: true }],
+    moments: [['lhsFall', 'La Haye Sainte falls'], ['hougFall', 'Hougoumont falls'], ['plancenoitLost', 'Plancenoit lost to the Prussians'], ['neyCav', 'Ney’s cavalry goes in'], ['guardAttack', 'the Guard attacks'], ['frBreak', 'the French army breaks'], ['alBreak', 'Wellington’s army breaks']],
+    views: [['Hougoumont', 50.6712, 4.3950, 4.2], ['La Haye Sainte', 50.6790, 4.4120, 4.4], ['La Belle Alliance', 50.6690, 4.4150, 3.6],
+      ['Allied centre', 50.6810, 4.4120, 2.8], ['Papelotte & Smohain', 50.6800, 4.4390, 3.4], ['Plancenoit', 50.6610, 4.4330, 3.6],
+      ['Bois de Paris & Lasne', 50.6760, 4.4650, 2.2], ['Whole field', 50.6745, 4.4250, 1.0]],
+    enemyDecisions: 'Wellington’s and Blücher’s decisions',
+    eastWord: 'beyond Frischermont', // troops seen in the east (the command block's intel.east)
+    namedLabel: 'You learn it is Bülow', fieldSeen: { text: 'Marshal Ney is leading', label: 'You see Ney take the cavalry forward' },
+    turnOrders: '^(Ney|With La Haye|Kellermann)', // the field commanders' own strokes, shown among the turning points
+    hqLeaders: ['napoleon', 'wellington'],
+    groups: [
+      { t: 'I CORPS', side: 'FR', corps: 'derlon', dy: 260 }, { t: 'II CORPS', side: 'FR', corps: 'reille', dy: 240 }, { t: 'VI CORPS', side: 'FR', corps: 'lobau', dy: 200 },
+      { t: 'GARDE', side: 'FR', corps: 'guard', dy: 220 }, { t: 'III CAV', side: 'FR', corps: 'kellermann', dy: 170 }, { t: 'IV CAV', side: 'FR', corps: 'milhaud', dy: 170 },
+      { t: 'BÜLOW', side: 'PR', corps: 'bulow', dx: 300 }, { t: 'PIRCH', side: 'PR', corps: 'pirch', dx: 300 }, { t: 'ZIETEN', side: 'PR', corps: 'zieten', dy: -250 },
+      { t: 'COOKE', side: 'AL', ids: ['byng', 'maitland'], dy: -190 }, { t: 'ALTEN', side: 'AL', ids: ['chalkett', 'kielm', 'ompteda'], dy: -380 }, { t: 'PICTON', side: 'AL', ids: ['kempt', 'pack', 'best', 'vincke'], dy: -420 },
+      { t: 'CLINTON', side: 'AL', ids: ['adam', 'duplat', 'hhalkett'], dy: -240 }, { t: 'BRUNSWICK', side: 'AL', ids: ['bruAv', 'bruButlar', 'bruSpecht'], dy: -200 }],
+    offGroups: [['bulow', 'Bülow · IV Corps', 50.6933, 4.5040, 'PR'], ['pirch', 'Pirch I · II Corps', 50.6790, 4.5040, 'PR'], ['zieten', 'Zieten · I Corps', 50.7083, 4.4860, 'PR'], ['hal', 'Prince Frederik (Hal)', 50.6900, 4.3590, 'AL'], ['grouchy', 'Grouchy', 50.6550, 4.5040, 'FR']],
+    keyPlaces: ['Hougoumont', 'La Haye Sainte', 'Papelotte', 'La Belle Alliance', 'Frischermont', 'Le Caillou'],
+    waterLabels: [['la Lasne', 50.6790, 4.4890, 800], ['ruisseau de Smohain', 50.6885, 4.4610, 400]],
+    trees: [[50.6801611, 4.4116889]], // Wellington's elm
+    // the field commander's sectors as the order form names them; the rearguards a general retreat may leave; what the end box says
+    obDefaults: { corps: 'derlon', detachTo: 'drouot' }, // the order form's first choices for support and detach
+    sectorNames: { left: 'the left: Reille and Kellermann', centre: 'the centre: d’Erlon and Milhaud', right: 'the right: d’Erlon and Lobau', whole: 'the whole front' }, sector0: 'centre',
+    rearguards: [['drouot', 'the Guard, in squares across the road at Rossomme'], ['lobau', 'Lobau’s VI Corps, across the road at Rossomme']],
+    retreatNote: 'One letter to each corps commander, each carried by its own rider. Each corps makes for the high road and marches off the field toward Charleroi as its letter arrives; the rearguard stands until the rest are past (two hours at most), then follows. The battle is judged on what you bring away.',
+    retreatDay: 'On the day there was no ordered retreat: the army broke and fled.',
+    fieldNote: { free: ['whole', 'centre', 'left'], text: ' <b>Free hand:</b> if he thinks the enemy is giving way he may take the reserve cavalry forward on his own, as he did at four o’clock on the day. An order from you to hold keeps a corps out of his reach; giving him only the right of the line takes the cavalry out of his sector.',
+      holdNote: { kinds: ['cavalry'], to: ['drouot', 'derlon', 'reille'] }, goal: 'ridgeCentre',
+      end: 'A letter gives him the whole front, with orders to take the crossroads. He throws in fresh brigades from Reille’s, d’Erlon’s and the cavalry corps as he sees fit; the Guard and Lobau stay as they are.' },
+    offmapNote: { grouchy: 'Off the map, toward Wavre.', ride: 'A rider needs about three hours to find Grouchy, sometimes far longer, and his answer as long to come back.' },
+    formNote: { derlon: 'Left to himself, d’Erlon forms his divisions in massed columns, as he did on the day.' },
+    letters: { place: 'Au quartier impérial', date: 'le 18 juin 1815',
+      address: { reille: 'Monsieur le Comte Reille', derlon: 'Monsieur le Comte d’Erlon', lobau: 'Monsieur le Comte de Lobau', drouot: 'Monsieur le Comte Drouot',
+        milhaud: 'Monsieur le Comte Milhaud', kellermann: 'Monsieur le Comte Kellermann', ney: 'Monsieur le Maréchal Prince de la Moskowa',
+        grouchy: 'Monsieur le Maréchal Comte de Grouchy', grandBattery: 'Monsieur le Général Desales', army: 'Messieurs les Commandants des corps d’armée' },
+      signed: { reille: 'Cte Reille', derlon: 'Drouet, Cte d’Erlon', lobau: 'Cte de Lobau', drouot: 'Cte Drouot', milhaud: 'Cte Milhaud', kellermann: 'Cte Kellermann', ney: 'Le Maréchal Prince de la Moskowa', grouchy: 'Le Maréchal Cte de Grouchy' } },
+    // the staff at Napoleon's side, and what they may say from what headquarters knows (the words are paraphrase; release 3's remarks)
+    staff: { officers: { soult: 'Soult, major-général', drouot: 'Drouot, commanding the Guard', flahaut: 'Flahaut, aide-de-camp', labedoyere: 'La Bédoyère, aide-de-camp', gourgaud: 'Gourgaud, aide-de-camp' },
+      chief: 'soult', guard: 'drouot', road: 'the road to Charleroi',
+      remarks: [
+        // the morning: Soult wanted part of Grouchy's force called in (the exchange is in the standard accounts; the words here are paraphrase)
+        { id: 'grouchy0', who: 'soult', when: { briefing: true, notSentTo: 'grouchy' }, text: 'Sire, I would send at once for part of Marshal Grouchy’s force. The English will not be beaten in an hour, and the Prussians beaten at Ligny are not destroyed.' },
+        { id: 'ground', who: 'drouot', when: { start: '0500', before: '09:00' }, text: 'The ground will not bear the guns yet, Sire. Give it two or three hours and the roundshot will bound again instead of burying itself.' },
+        { id: 'hqfar', who: 'labedoyere', when: { start: '0500', after: '11:00', post: 'caillou' }, text: 'We see nothing of the field from Le Caillou, Sire. From Rossomme the whole of it would be in front of you.' },
+        // the east: before the troops there are named, some of the staff hope they are Grouchy's
+        { id: 'east', who: 'gourgaud', when: { intel: 'eastSeen', notIntel: 'bulowNamed' }, text: 'Troops in the east, Sire, beyond Frischermont toward Saint-Lambert. Some of us think it is Grouchy coming up.' },
+        { id: 'eastLobau', who: 'soult', when: { intel: 'eastSeen', noOrderTo: 'lobau', since: 'eastSeen' }, again: 60, text: 'If those are Prussians, Sire, Lobau should be facing them before they reach Plancenoit.' },
+        { id: 'bulow', who: 'soult', when: { intel: 'bulowNamed', notSentTo: 'grouchy', since: 'bulowNamed' }, text: 'Bülow, Sire: a whole corps, thirty thousand men. Grouchy must be told to come to us now.' },
+        'generic:quiet', 'generic:ack',
+        // the cavalry going up without infantry (Napoleon's own words on the day were near this)
+        { id: 'neyCav', who: 'flahaut', when: { seen: 'Marshal Ney is leading', within: 60 }, text: 'Ney has taken the cavalry up an hour too soon, Sire. Without infantry behind them they cannot hold the plateau.' },
+        // places changing hands
+        { id: 'lhs', who: 'soult', when: { place: 'lhs', holder: 'FR' }, text: 'La Haye Sainte is ours, Sire. Ney will be asking for infantry to push on from it.' },
+        { id: 'plancenoit', who: 'drouot', when: { place: 'plancenoit', holderNot: 'FR', after: '13:01' }, text: 'The Prussians are in Plancenoit, Sire, behind our right. The Young Guard could take it back.' },
+        { id: 'houg', who: 'gourgaud', when: { place: 'hougoumont', holder: 'FR' }, text: 'Hougoumont has fallen, Sire. Reille’s left is free.' },
+        // the Guard going in
+        { id: 'guard', who: 'drouot', when: { attackWith: { to: 'drouot', ids: ['g1gren', 'g2gren', 'g3gren', 'g4gren', 'g1chas', 'g2chas', 'g3chas', 'g4chas'] } }, text: 'With the Middle Guard gone forward, Sire, the Old Guard battalions are all that stand between the army and the road.' },
+        'generic:losses', 'generic:dusk', 'generic:retreat',
+        // a quiet morning
+        { id: 'idle', who: 'soult', when: { after: '12:30', noOrders: true }, text: 'The men have stood in the mud since dawn, Sire. Wellington will not come off his ridge to attack us.' }] },
+  },
+  /* (phase 5) the command layer for this battle (command.js, orders.js): who commands whom, who reports and writes, where headquarters can
+     stand, what the player can order and to whom. Release 3's values, moved here unchanged from the code (Ligny has its own). */
+  command: {
+    side: 'FR', chief: 'napoleon',
+    commanders: { FR: ['napoleon', 'ney', 'derlon', 'reille', 'lobau', 'drouot', 'milhaud', 'kellermann'], AL: ['wellington'], PR: ['blucher', 'bulow', 'pirch', 'zieten'] },
+    corpsCmd: { derlon: 'derlon', reille: 'reille', lobau: 'lobau', milhaud: 'milhaud', kellermann: 'kellermann', guard: 'drouot', guardcav: 'drouot', grouchy: 'napoleon', wellington: 'wellington', bulow: 'bulow', pirch: 'pirch', zieten: 'zieten', hal: 'wellington' },
+    horseCmd: { aHMil: 'milhaud', aHKel: 'kellermann', aHGC: 'drouot', aHJac: 'derlon', aHPire: 'reille', aHDS: 'lobau' }, // horse batteries with the corps they ride with
+    defaultCmd: { FR: 'napoleon', AL: 'wellington', PR: 'bulow' },
+    up: { bulow: 'blucher', pirch: 'blucher' }, // sightings passed on up the chain beyond the corps commander
+    eyes: ['napoleon', 'ney', 'derlon', 'reille', 'lobau', 'drouot', 'wellington', 'blucher', 'bulow', 'zieten'], // commanders who look about them with a glass
+    // the field commander: Ney, commanding the front; he hears from these corps, writes as their commander, and can be given a sector
+    front: { cmd: 'ney', corps: ['derlon', 'reille', 'milhaud', 'kellermann'], sector0: 'whole', foot: 'derlon', // foot: his own infantry, for support and rallying
+      sectors: { left: ['reille', 'kellermann'], centre: ['derlon', 'milhaud'], right: ['derlon', 'lobau'], whole: ['reille', 'derlon', 'milhaud', 'kellermann'] },
+      cavGroup: { dubois: "Milhaud's cuirassiers", travers: "Milhaud's cuirassiers", farine: "Milhaud's cuirassiers", vial: "Milhaud's cuirassiers", gchev: 'the Guard light cavalry', glanc: 'the Guard light cavalry', picquet: "Kellermann's cavalry", guiton: "Kellermann's cavalry", blanchard: "Kellermann's cavalry", donop: "Kellermann's cavalry", guyot: 'the Guard heavy cavalry' },
+      says: {
+        cavalry: ['Marshal Ney is leading {list} forward onto the plateau, without Your Majesty\'s order.', 'At {at} I took the cuirassiers forward: I saw the enemy falling back over the crest.'],
+        cavalry2: ['{List} are following Ney onto the plateau, without Your Majesty\'s order.', 'At {at} I called up more cavalry to finish the work on the plateau.'],
+        exploit: ['With La Haye Sainte taken, Ney is running guns up beside it and sending {list} against the enemy\'s centre.', 'At {at}, with La Haye Sainte ours, I sent what infantry I could find against the enemy\'s centre and ran guns up beside the farm. Give me fresh infantry and the centre is ours.'] } },
+    reporters: ['derlon', 'reille', 'lobau', 'drouot', 'milhaud', 'kellermann', 'ney'],
+    reserve: ['drouot', 'milhaud', 'kellermann'], // in sight of headquarters: they write when something happens
+    askInfantry: ['ney', 'derlon'], // ask for fresh infantry when every brigade of theirs is spent
+    posts: {
+      caillou: { name: 'Le Caillou', at: [50.6461, 4.4207], note: 'the rear' },
+      rossomme: { name: 'Rossomme', at: [50.65675, 4.41333] },
+      ba: { name: 'La Belle Alliance', at: [50.6680, 4.4140] },
+      knoll: { name: 'the knoll toward La Haye Sainte', at: [50.6735, 4.4128], note: 'under fire', forward: true },
+    },
+    post0: 'rossomme', postAt: { '0500': 'caillou' }, morningPost: 'ba', // (6) at 05:00 he is still at Le Caillou, where he spent the night
+    arriving: ['frArrive'], // a commander whose corps is still coming up this road: the rider meets him where it enters the field
+    // unidentified troops on the enemy's side of the valley, west of Frischermont, can only be the enemy's (est. boundary): x0/x1, y0/y1 exclusive
+    guess: [{ own: true, as: 'FR', y0: 3300, x1: 7500 }, { own: false, as: 'AL', y1: 3700, x1: 7500 }],
+    // enemy bodies coming toward us: where they must be, and the bearings they must be facing, by army
+    toward: { any: [{ y0: 3300 }, { x0: 7000 }], facing: { PR: [180, 340], AL: [100, 260] } },
+    // the flank where only the Prussians (or Grouchy) can be: firing from beyond this share of the map's width is news
+    flank: { side: 'PR', x: 0.6 },
+    crest: { objective: 'ridgeCentre', flag: 'crestFR', on: 'Our infantry stand on the crest of the enemy\'s ridge, {where}!', off: 'The enemy has cleared his crest again.' },
+    sideWord: { AL: 'British' }, // a captured courier's army, as the log names it
+    period: { "the Lion's Mound site": 'the crest west of the crossroads' }, // the mound was raised in the 1820s: dispatches name what was there in 1815
+    // what the game's staff and after-action report watch for: troops first seen beyond this point in the east, the enemy corps whose name
+    // matters, and when Napoleon first believes each of these places is held by that army
+    intel: { east: [50.68, 4.445], named: 'bulow', places: [['lhs', 'FR'], ['hougoumont', 'FR'], ['plancenoit', 'AL']] },
+    corpsName: { bulow: "Bülow's IV Corps", pirch: "Pirch's II Corps", zieten: "Zieten's I Corps", wellington: "Wellington's army", hal: "Prince Frederik's corps from Hal",
+      derlon: "d'Erlon's I Corps", reille: "Reille's II Corps", lobau: "Lobau's VI Corps", guard: 'the Guard', guardcav: 'the Guard cavalry', milhaud: "Milhaud's cuirassiers", kellermann: "Kellermann's cuirassiers", grouchy: "Grouchy's wing" },
+    // the orders the player can give, and to whom (kinds: corps, cavalry, battery, marshal, offmap, hq, army)
+    recipients: {
+      reille: { name: 'Reille (II Corps)', kind: 'corps' }, derlon: { name: "d'Erlon (I Corps)", kind: 'corps' }, lobau: { name: 'Lobau (VI Corps)', kind: 'corps' },
+      milhaud: { name: 'Milhaud (IV Cavalry Corps)', kind: 'cavalry' }, kellermann: { name: 'Kellermann (III Cavalry Corps)', kind: 'cavalry' },
+      drouot: { name: 'Drouot (the Guard)', kind: 'corps' }, grandBattery: { name: 'the grand battery', kind: 'battery' },
+      ney: { name: 'Marshal Ney', kind: 'marshal' }, grouchy: { name: 'Marshal Grouchy (off the map)', kind: 'offmap' }, hq: { name: 'your own headquarters', kind: 'hq' },
+      army: { name: 'the whole army', kind: 'army' },
+    },
+    retreatTo: ['reille', 'derlon', 'lobau', 'drouot', 'milhaud', 'kellermann'], // a general retreat: one letter to each corps commander
+    retreat: { on: 'Charleroi', by: 'the high road', at: 'Rossomme', rearguards: { drouot: 'the Guard', lobau: 'Lobau' } },
+    prefForm: { derlon: 'mass' }, // d'Erlon's own choice of formation when left to him (est., after 18 June)
+    battery: { units: ['aQuiot', 'aIres', 'aDonz', 'aMarc', 'aDur', 'aGuard12'], cmd: 'derlon' }, // the grand battery answers to I Corps' gunners
+    guardAttack: ['g3gren', 'g4gren', 'g3chas', 'g4chas'], // the Guard going in: the prestige attack
+    // a commander off the map: Grouchy, with the right wing, beyond the east edge; the ride to find him and his march to the guns
+    // (at: where his riders leave the map, as shares of its width and height plus metres; ride and march: min, lo-mode-hi; blocked: the chance
+    // his road to the field is barred; force: his units off the map; toGuns: his own choice in the army's timetable)
+    offmap: { grouchy: { at: { x: 1, dx: -20, y: 0.82 }, ride: [170, 210, 420], march: [240, 300, 420], blocked: 0.3, force: 'grouchy', toGuns: 'grouchy',
+      leader: { name: 'Grouchy', agg: 0.4, ini: 0.3, obe: 0.9, skill: 0.6, exp: 0.4, rank: 2 },
+      says: { already: 'I am already marching toward Your Majesty, as Gérard urged.', coming: "I have Your Majesty's order and am marching on Maransart by the Dyle bridges.",
+        barred: "I have Your Majesty's order. I am trying to force the Dyle crossings, but the Prussians hold them.", stays: "I have Your Majesty's dispatch. I continue on Wavre after the Prussians, as my instructions of this morning direct.",
+        logComing: "Grouchy receives the Emperor's order and turns west; he will reach the field around {t}.", logBarred: 'Grouchy turns west, but the Prussian rearguard holds the Dyle crossings: he never arrives.',
+        logStays: 'Grouchy reads the order as confirming his march on Wavre.' } } },
+  },
   // (phase 3c) plans: what the record says the commanders did, as rules (plans.js). 'historical' is Napoleon's orders on 18 June, given
   // through the order builder as a player would give them and timed by what Napoleon himself believes rather than by the true state of
   // the battle. Times follow the standard accounts; where they disagree, the usual middle reading. (Before phase 3c this was script.js.)

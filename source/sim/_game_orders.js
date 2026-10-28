@@ -1,18 +1,18 @@
 /* ================= your orders on the map: the one being written, and every one you have sent ================= */
 // Everything here is drawn from what Napoleon knows: where his brigades last reported, and what his corps commanders have told him.
 const TASKMATCH = { attack: ['attack', 'cavRaid', 'charge', 'garrison', 'garrisonGo'], advance: ['move', 'march'], withdraw: ['move', 'march'], bombard: ['bombard'], screen: ['screen'], retreat: ['retire', 'rearguard'], support: ['support', 'attack'], hold: ['hold'], rally: ['rally'], detach: ['move'] };
-const SHORT = { army: 'The whole army', reille: 'Reille', derlon: 'd’Erlon', lobau: 'Lobau', drouot: 'Drouot', milhaud: 'Milhaud', kellermann: 'Kellermann', ney: 'Ney', grandBattery: 'Grand battery', grouchy: 'Grouchy', hq: 'Headquarters' };
+const SHORT = GB.short; // (phase 5) the battle's short names for the recipients
 const DOING = { retreat: 'going back', attack: 'attacking', advance: 'on the move', withdraw: 'on the move', detach: 'on the move', bombard: 'firing', screen: 'out screening', support: 'supporting', hold: 'holding', rally: 're-forming' };
 const STAGES = [['writing', 'Being written'], ['sent', 'Sent'], ['ack', 'Acknowledged'], ['under', 'Under way'], ['done', 'Done']];
 
 /* ----- which brigades an order concerns, as Napoleon knows them ----- */
-function ownRecs(f) { const B = SIM.command.B.napoleon; return [...B.own.values()].filter(o => !o.gone && SIM.byId[o.uid] && f(SIM.byId[o.uid], o)); }
+function ownRecs(f) { const B = SIM.command.B[CHIEF]; return [...B.own.values()].filter(o => !o.gone && SIM.byId[o.uid] && f(SIM.byId[o.uid], o)); }
 function orderRecs(o) {
   const s = o.spec, to = o.to || s.to, a = s.action;
   if (Array.isArray(s.with) && s.with.length) return ownRecs(u => s.with.includes(u.id));
-  if (to === 'hq' || to === 'grouchy') return [];
-  if (to === 'grandBattery') return ownRecs(u => u.type === 'art' && (GB_IDS.includes(u.id) || u.gbattery));
-  const mine = u => to === 'ney' ? FRONT.includes(cmdOf(u)) : cmdOf(u) === to;
+  if (RKIND(to) === 'hq' || RKIND(to) === 'offmap') return [];
+  if (to === BATTERY) return ownRecs(u => u.type === 'art' && (GB_IDS.includes(u.id) || u.gbattery));
+  const mine = u => to === FC ? FRONT.includes(cmdOf(u)) : cmdOf(u) === to;
   if (a === 'bombard') return ownRecs(u => mine(u) && u.type === 'art');
   if (a === 'screen') return ownRecs(u => mine(u) && u.type === 'cav');
   if (a === 'attack' || a === 'advance' || a === 'withdraw' || a === 'support') {
@@ -28,7 +28,7 @@ const centreOf = recs => recs.length ? [recs.reduce((a, o) => a + o.x, 0) / recs
 /* ----- where an order sends them ----- */
 function objGeom(spec) {
   const C = SIM.command, o = spec.objective;
-  if (spec.action === 'moveHQ') return { pt: SIM.ll2m(...WCommand.POSTS[spec.post].at), r: 90 };
+  if (spec.action === 'moveHQ') return { pt: SIM.ll2m(...SIM.command.POSTS[spec.post].at), r: 90 };
   if (spec.action === 'sector') { if (!spec.goal) return null; const ob = SIM.objectives[spec.goal]; if (!ob) return null; return ob.line && !ob.sp ? { line: ob.line, pt: C.centre(ob) } : { pt: C.centre(ob), r: ob.sp ? 160 : 220 }; }
   if (spec.action === 'support') { const p = believedCentre(o && o.corps); return p ? { pt: p, r: 260 } : null; }
   if (!o) return null; if (o.point) return { pt: o.point, r: 140 };
@@ -36,7 +36,7 @@ function objGeom(spec) {
   return null;
 }
 function orderGeom(o) {
-  const s = o.spec, a = s.action, nap = SIM.leaders.napoleon, recs = orderRecs(o);
+  const s = o.spec, a = s.action, nap = SIM.leaders[CHIEF], recs = orderRecs(o);
   let to = objGeom(s), from = null, froms = null, kind = a === 'attack' ? 'attack' : 'move';
   if (a === 'moveHQ' || a === 'observe') { from = [nap.x, nap.y]; kind = a === 'observe' ? 'look' : 'hq'; }
   else if (a === 'bombard') { froms = recs.map(r => [r.x, r.y]); kind = 'fire'; }
@@ -50,7 +50,7 @@ function orderGeom(o) {
 /* ----- how far an order has got, as far as Napoleon knows ----- */
 const PH_RANK = { torn: -1, writing: 0, sent: 1, ack: 2, under: 3, done: 4 };
 function orderPhase(o) {
-  const raw = rawPhase(o); if (!G || o.from !== 'napoleon' || raw.k === 'torn' || raw.k === 'writing') return raw;
+  const raw = rawPhase(o); if (!G || o.from !== CHIEF || raw.k === 'torn' || raw.k === 'writing') return raw;
   const L = G.latch[o.id] || (G.latch[o.id] = {});
   if (raw.k === 'under' && L.under == null) L.under = raw.at;
   if (raw.k === 'done' && !L.done) { L.done = { at: raw.at, txt: raw.txt }; if (L.under == null) L.under = raw.at; }
@@ -59,7 +59,7 @@ function orderPhase(o) {
   return raw;
 }
 function rawPhase(o) {
-  const C = SIM.command, B = C.B.napoleon, s = o.spec, t = SIM.t;
+  const C = SIM.command, B = C.B[CHIEF], s = o.spec, t = SIM.t;
   if (o.status === 'cancelled') return { k: 'torn', txt: 'torn up' };
   if (o.status === 'queued') return { k: 'writing', txt: 'waiting until headquarters is set up' };
   if (o.to === 'hq') {
@@ -67,10 +67,10 @@ function rawPhase(o) {
     return o.status === 'done' ? { k: 'done', txt: 'the aide is back' } : { k: 'under', at: o.issuedAt, txt: `the aide rode out at ${hm(o.issuedAt)}` };
   }
   if (t < o.writtenAt) return { k: 'writing', at: o.writtenAt, txt: `being written, ready about ${hm(o.writtenAt)}` };
-  if (o.to === 'grouchy') { const r = C.inbox.find(m => m.from === 'grouchy' && m.writtenAt >= o.sentAt); return r ? { k: 'ack', at: r.t, txt: `answered ${hm(r.writtenAt)}` } : { k: 'sent', at: o.sentAt, txt: `sent ${hm(o.sentAt)} · no answer yet` }; }
+  if (RKIND(o.to) === 'offmap') { const r = C.inbox.find(m => m.from === o.to && m.writtenAt >= o.sentAt); return r ? { k: 'ack', at: r.t, txt: `answered ${hm(r.writtenAt)}` } : { k: 'sent', at: o.sentAt, txt: `sent ${hm(o.sentAt)} · no answer yet` }; }
   const recs = orderRecs(o), geo = objGeom(s);
   // done: the farm is ours, or the brigades are reported where they were sent
-  if (s.action === 'attack' && s.objective && s.objective.place) { const ob = SIM.objectives[s.objective.place]; if (ob && ob.sp) { const pb = B.places[ob.sp]; if (pb && pb.holder === 'FR' && pb.t > o.sentAt) return { k: 'done', at: pb.t, txt: `${ob.name} taken (${pb.src.replace(/, \d\d:\d\d$/, '')}, ${hm(pb.t)})` }; } }
+  if (s.action === 'attack' && s.objective && s.objective.place) { const ob = SIM.objectives[s.objective.place]; if (ob && ob.sp) { const pb = B.places[ob.sp]; if (pb && pb.holder === US && pb.t > o.sentAt) return { k: 'done', at: pb.t, txt: `${ob.name} taken (${pb.src.replace(/, \d\d:\d\d$/, '')}, ${hm(pb.t)})` }; } }
   if ((s.action === 'advance' || s.action === 'withdraw') && geo && recs.length) {
     const there = recs.filter(r => r.t > o.sentAt && Math.hypot(r.x - geo.pt[0], r.y - geo.pt[1]) < (geo.r || 200) + 250);
     if (there.length >= Math.max(1, Math.ceil(recs.length / 2))) return { k: 'done', at: Math.max(...there.map(r => r.t)), txt: `reported there ${hm(Math.max(...there.map(r => r.t)))}` };
@@ -89,9 +89,9 @@ function rawPhase(o) {
 const letterOf = o => { const C = SIM.command, head = o.carrier ? C.orders.find(x => x.id === o.carrier) : o; return head && head.seq && head.seq.ids ? head.seq.ids.map(id => C.orders.find(x => x.id === id)).filter(Boolean) : [o]; };
 function liveOrders() {
   const C = SIM.command, latest = {};
-  for (const o of C.orders) { if (o.from !== 'napoleon' || o.status === 'cancelled' || o.carrier) continue; latest[o.to] = o; }
+  for (const o of C.orders) { if (o.from !== CHIEF || o.status === 'cancelled' || o.carrier) continue; latest[o.to] = o; }
   const out = [];
-  for (const head of Object.values(latest)) for (const o of letterOf(head)) { if (o.to === 'grouchy') continue; const ph = orderPhase(o); if (ph.k !== 'done' || SIM.t - (ph.at ?? 0) < 30 || o.id === G.selOrder) out.push(o); }
+  for (const head of Object.values(latest)) for (const o of letterOf(head)) { if (RKIND(o.to) === 'offmap') continue; const ph = orderPhase(o); if (ph.k !== 'done' || SIM.t - (ph.at ?? 0) < 30 || o.id === G.selOrder) out.push(o); }
   return out;
 }
 
@@ -174,10 +174,10 @@ function drawOrders(g) {
 // which of your brigades to pick out on the map (everyone else is dimmed)
 function updateFocus() {
   let ids = null;
-  if (G && G.phase === 'play' && OB && OB.touched && OB.to !== 'hq' && OB.to !== 'grouchy' && OB.to !== 'army') {
+  if (G && G.phase === 'play' && OB && OB.touched && !['hq', 'offmap', 'army'].includes(RKIND(OB.to))) {
     const spec = specFromOB(); ids = new Set((OB.withMode === 'these' && OB.withIds.size ? ownRecs(u => OB.withIds.has(u.id)) : spec.action === 'detach' ? ownRecs(u => OB.withIds.has(u.id) || cmdOf(u) === OB.to) : orderRecs({ spec, to: OB.to })).map(r => r.uid));
     for (const st of OB.seq) for (const r of orderRecs({ spec: st, to: OB.to })) ids.add(r.uid); // every step of the letter
-  } else if (G && G.selOrder) { const o = SIM.command.orders.find(x => x.id === G.selOrder); if (o && o.to !== 'hq' && o.to !== 'grouchy') ids = new Set(orderRecs(o).map(r => r.uid)); }
+  } else if (G && G.selOrder) { const o = SIM.command.orders.find(x => x.id === G.selOrder); if (o && RKIND(o.to) !== 'hq' && RKIND(o.to) !== 'offmap') ids = new Set(orderRecs(o).map(r => r.uid)); }
   else if (G && G.focusCorps) ids = new Set(ownRecs(u => cmdOf(u) === G.focusCorps).map(r => r.uid));
   let col = null;
   if (!ids && G && G.dispSel) { const r = dispRefs(); if (r && r.own && r.own.length) { ids = new Set(r.own); col = PAL.flag; } }
@@ -206,7 +206,7 @@ function stepper(o, ph) {
   return `<div class="stepper">${STAGES.filter(([key]) => !(key === 'writing' && k > 0)).map(([key, lab]) => { const i = order.indexOf(key); return `<span class="${i < k ? 'on' : i === k ? 'cur' : ''}">${lab}${(i <= k && when[key]) ? ' ' + when[key] : ''}</span>`; }).join('<i>›</i>')}</div>`;
 }
 function renderOrders() {
-  const C = SIM.command, mine = C.orders.filter(o => o.from === 'napoleon').slice().reverse();
+  const C = SIM.command, mine = C.orders.filter(o => o.from === CHIEF).slice().reverse();
   $('orders').innerHTML = mine.map(o => { const ph = orderPhase(o); return `<li class="st-${o.status}${o.id === G.selOrder ? ' sel' : ''}" data-oid="${o.id}" tabindex="0"><time>${hm(o.issuedAt)}</time><div>${o.seq ? `<span class="stepno">Step ${o.seq.index + 1} of ${o.seq.n}</span>` : ''}<b>${esc(capF(C.describe(o)))}</b>${stepper(o, ph)}<p class="small">${capF(ph.txt)} · clarity ${o.clarity.toFixed(2)}${o.status === 'writing' && SIM.t < o.writtenAt ? ` <button class="tear" data-tear="${o.id}">Tear it up</button>` : ''}</p></div></li>`; }).join('') || '<li class="none">No orders yet.</li>';
   updateFocus(); renderTimeline();
 }
@@ -231,28 +231,28 @@ $('ob').addEventListener('mouseleave', () => { if (G.hoverWid) { G.hoverWid = nu
 // and the 10-20 minutes a corps commander needs to pass an order down. A condition you cannot time (a farm changing hands,
 // a step being done) leaves the bar open-ended.
 function rideTimes(to) {
-  const CK = WCommand.CK, nap = SIM.leaders.napoleon, W = SIM.wet, p = believedCentre(to), d = p ? Math.hypot(p[0] - nap.x, p[1] - nap.y) : 2500;
+  const CK = WCommand.CK, nap = SIM.leaders[CHIEF], W = SIM.wet, p = believedCentre(to), d = p ? Math.hypot(p[0] - nap.x, p[1] - nap.y) : 2500;
   return [d / CK.RIDER_ROAD, d * 1.25 / (CK.RIDER_CROSS * (1 - 0.4 * W))];
 }
 function fireStartGuess(by, target, draftStarts) {
   // your latest bombardment order for those guns on that target: when the reports say they opened, or else when they should
-  for (const o of SIM.command.orders.slice().reverse()) if (o.from === 'napoleon' && o.status !== 'cancelled' && o.to === by && o.spec.action === 'bombard' && (!target || (o.spec.objective && o.spec.objective.place === target))) {
+  for (const o of SIM.command.orders.slice().reverse()) if (o.from === CHIEF && o.status !== 'cancelled' && o.to === by && o.spec.action === 'bombard' && (!target || (o.spec.objective && o.spec.objective.place === target))) {
     const ph = orderPhase(o); if (ph.k === 'under' || ph.k === 'done') { const a = ph.underAt ?? ph.at; return [a, a]; }
     const e = expectOrder(o); return e.open ? null : e.guns || e.act;
   }
   if (draftStarts) for (const d of draftStarts) if (d.spec.to === by && d.spec.action === 'bombard' && (!target || (d.spec.objective && d.spec.objective.place === target)) && !d.open) return d.guns || d.act;
   // any target will do: as early as the first report that has them firing
-  if (!target) { const recs = ownRecs(u => u.type === 'art' && (by === 'grandBattery' ? (GB_IDS.includes(u.id) || u.gbattery) : cmdOf(u) === by && !u.gbattery)).filter(r => r.task === 'bombard'); if (recs.length) { const t = Math.min(...recs.map(r => r.tState)); return [t, t]; } }
+  if (!target) { const recs = ownRecs(u => u.type === 'art' && (by === BATTERY ? (GB_IDS.includes(u.id) || u.gbattery) : cmdOf(u) === by && !u.gbattery)).filter(r => r.task === 'bombard'); if (recs.length) { const t = Math.min(...recs.map(r => r.tState)); return [t, t]; } }
   return null;
 }
 function expectSpec(spec, t0, written, n, prevStarts, draftStarts) {
-  const CK = WCommand.CK, to = spec.to, direct = to === 'ney' || to === 'grandBattery', pass = direct ? CK.INTERP_DIRECT : CK.INTERP;
+  const CK = WCommand.CK, to = spec.to, direct = RKIND(to) === 'marshal' || RKIND(to) === 'battery', pass = direct ? CK.INTERP_DIRECT : CK.INTERP;
   if (!written) { const w = CK.WRITE[G.opts.staff], f = (spec.urgent ? 0.5 : 1) * (SIM.command.hq.wounded ? 1.5 : 1) * (1 + 0.3 * ((n || 1) - 1)); written = [t0 + w[0] * f, t0 + w[1] * f]; }
   const ride = rideTimes(to), arrive = [written[0] + ride[0], written[1] + ride[1]], begin = [arrive[0] + pass[0], arrive[1] + pass[1]];
   let act = begin.slice(), open = false;
   for (const c of spec.conditions || []) {
     if (c.type === 'time') act = [Math.max(act[0], c.after), Math.max(act[1], c.after)];
-    else if (c.type === 'bombard') { const fs = fireStartGuess(c.by || 'grandBattery', c.target || null, draftStarts); if (!fs) open = true; else act = [Math.max(act[0], fs[0] + c.minutes), Math.max(act[1], fs[1] + c.minutes)]; }
+    else if (c.type === 'bombard') { const fs = fireStartGuess(c.by || GUN_GROUPS[0][0], c.target || null, draftStarts); if (!fs) open = true; else act = [Math.max(act[0], fs[0] + c.minutes), Math.max(act[1], fs[1] + c.minutes)]; }
     else if (c.type === 'after') { const ps0 = c.order ? refStart(c.order) : prevStarts && prevStarts[c.step], ps = ps0 && !c.order && ps0.guns ? Object.assign({}, ps0, { act: ps0.guns }) : ps0; if (!ps || ps.open || c.when === 'done') open = true; else act = [Math.max(act[0], ps.act[0] + (c.minutes || 0)), Math.max(act[1], ps.act[1] + (c.minutes || 0))]; }
     else if (c.type === 'place') open = true;
   }
@@ -285,7 +285,7 @@ function renderTimeline() {
   const box = $('otl'); if (!box || !SIM || !G) return;
   const rows = [];
   for (const o of liveOrders()) { if (o.to === 'hq') continue; rows.push({ o, ex: expectOrder(o), ph: orderPhase(o) }); }
-  if (OB && OB.touched && G.phase === 'play' && OB.to !== 'hq' && OB.to !== 'grouchy' && OB.to !== 'army') { const d = expectDraftSteps(); if (d) d.forEach((ex, i) => rows.push({ draft: true, i, n: d.length, ex })); }
+  if (OB && OB.touched && G.phase === 'play' && !['hq', 'offmap', 'army'].includes(RKIND(OB.to))) { const d = expectDraftSteps(); if (d) d.forEach((ex, i) => rows.push({ draft: true, i, n: d.length, ex })); }
   if (!rows.length) { box.innerHTML = ''; return; }
   const now = SIM.t, tMin = Math.floor(Math.min(now - 15, ...rows.map(r => r.ex.t0)) / 10) * 10;
   let tMax = Math.max(now + 60, ...rows.map(r => r.ex.act[1] + 15)); tMax = Math.min(tMax, tMin + 300);

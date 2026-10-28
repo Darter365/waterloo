@@ -223,7 +223,11 @@ function validate(id) {
   }
   // (phase 3c) plans: every place, unit, corps and rule a plan names exists; side objectives name objectives on the map
   const PL = root.WPlans || (typeof require === 'function' ? require('../plans.js') : null);
-  for (const [pk, plan] of Object.entries(B.plans || {})) { if (plan.id !== pk) E(`plan ${pk}: its id must be "${pk}"`); if (PL) PL.check(plan, W, B, E); }
+  for (const [pk, plan] of Object.entries(B.plans || {})) { if (plan.id !== pk) E(`plan ${pk}: its id must be "${pk}"`); if (PL) PL.check(plan, W, B, E);
+    // (phase 5, stage 2) a plan installed whoever commands (always), or with the other side's recorded orders (withHistorical), goes straight out
+    // as orders: a 'builder' plan takes the command layer's one script slot, which belongs to the player's side
+    if ((plan.always || plan.withHistorical) && plan.via === 'builder') E(`plan ${pk}: an always or withHistorical plan must go out as orders (via 'order'), not through the order builder`);
+    if (pk === 'historical' && (plan.always || plan.withHistorical)) E(`plan ${pk}: the historical plan is the one the player replaces; it cannot be always or withHistorical`); }
   for (const s of sides) for (const k of Object.keys(s.objectives || {})) if (!(W.OBJECTIVES || {})[k]) E(`side ${s.id}: objective "${k}" is not on the map`);
   for (const s of sides) if (s.posture && !['attack', 'defend'].includes(s.posture)) E(`side ${s.id}: posture must be attack or defend`);
   for (const s of sides) if (s.colour != null && !/^#[0-9a-f]{6}$/i.test(s.colour)) E(`side ${s.id}: colour must be #rrggbb (the colour maps draw it in)`);
@@ -248,6 +252,35 @@ function validate(id) {
     for (const g of (s.initiative || {}).escalate || []) { needPlace(s, 'initiative', g.place); needUnits(s, 'initiative', g.units); for (const l of [g.leader, g.to]) if (!(B.leaders || []).some(x => x.id === l)) E(`side ${s.id}: initiative leader "${l}" is not placed in the battle`); }
     if (s.liaison) { if (!(B.leaders || []).some(l => l.id === s.liaison.to)) E(`side ${s.id}: liaison to "${s.liaison.to}", who is not placed in the battle`); needPlace(s, 'liaison', s.liaison.place); }
     if ((s.feeds || s.sectors || s.counter || s.reoccupy || s.stepBack || s.liaison) && !s.crest && (s.sectors || s.counter || s.stepBack || s.liaison)) E(`side ${s.id}: sectors, counter, stepBack and liaison work from its crest line: give the side a crest`);
+  }
+  const isPlacedL = id => (B.leaders || []).some(l => l.id === id);
+  // (phase 5) the command layer (command.js, orders.js) and the game page: every commander, post, unit, place and metric they name exists
+  const XC = B.command, GG = B.game;
+  if (XC) {
+    const placedOrOff = id => isPlacedL(id) || (XC.offmap || {})[id];
+    if (!sideIds.has(XC.side)) E(`command: side "${XC.side}" is not one of the battle's sides`);
+    if (!isPlacedL(XC.chief)) E(`command: chief "${XC.chief}" is not placed in the battle`);
+    for (const [k, R] of Object.entries(XC.recipients || {})) { if (!['corps', 'cavalry', 'battery', 'marshal', 'offmap', 'hq', 'army'].includes(R.kind)) E(`command: recipient ${k} has kind "${R.kind}"`); if (['corps', 'cavalry', 'marshal'].includes(R.kind) && !isPlacedL(k)) E(`command: recipient "${k}" is not a leader placed in the battle`); if (R.kind === 'offmap' && !(XC.offmap || {})[k]) E(`command: recipient "${k}" is off the map but has no offmap entry`); if (R.kind === 'battery' && !XC.battery) E(`command: recipient "${k}" is a battery but the command block has none`); }
+    for (const id of [].concat(XC.reporters || [], XC.eyes || [], XC.askInfantry || [], ...Object.values(XC.commanders || {}))) if (!placedOrOff(id)) E(`command: commander "${id}" is not placed in the battle`);
+    for (const id of XC.retreatTo || []) if (!(XC.recipients || {})[id]) E(`command: retreatTo "${id}" is not a recipient`);
+    for (const id of [].concat(XC.guardAttack || [], (XC.battery || {}).units || [])) if (!allUnits.has(id) && !((B.setup || {}).detach || []).some(d => d.id === id)) E(`command: unit "${id}" is not in the order of battle`);
+    for (const [k, p] of Object.entries(XC.posts || {})) where(`command post ${k}`, p.at);
+    if (!(XC.posts || {})[XC.post0]) E(`command: post0 "${XC.post0}" is not one of its posts`);
+    for (const [sp] of (XC.intel || {}).places || []) if (!spIds.has(sp)) E(`command: intel place "${sp}" is not a strongpoint`);
+    if (XC.front) for (const c of [].concat(XC.front.corps || [], ...Object.values(XC.front.sectors || {}))) if (!isPlacedL(c)) E(`command: front corps commander "${c}" is not placed in the battle`);
+  }
+  if (GG) {
+    if (!XC) E('game: a battle with a game page needs a command block');
+    const RC = (XC || {}).recipients || {}, MET = new Set([...(B.metrics || []).map(m => m.id), 'guardAttack', ...sides.map(x => x.id.toLowerCase() + 'Break'), ...[...JSON.stringify(B.sides || []).matchAll(/"metric":"(\w+)"/g)].map(m => m[1])]); // (and the metrics the sides' habits record)
+    for (const id of [].concat(GG.corps || [], GG.orderTo || [])) if (!RC[id]) E(`game: "${id}" is not one of the command block's recipients`);
+    for (const k of Object.keys(GG.starts || {})) if (!(B.starts || {})[k]) E(`game: start "${k}" is not one of the battle's starts`);
+    for (const [, keys] of GG.placeGroups || []) for (const k of keys) if (!(W.OBJECTIVES || {})[k]) E(`game: place "${k}" is not an objective on the map`);
+    for (const k of [].concat(GG.places || [])) if (!spIds.has(k)) E(`game: place "${k}" is not a strongpoint`);
+    for (const k of GG.sites || []) if (!(W.OBJECTIVES || {})[k]) E(`game: battery site "${k}" is not an objective on the map`);
+    for (const [, k] of [].concat(GG.history || [], (GG.moments || []).map(([m, l]) => [l, m]))) if (!MET.has(k)) E(`game: metric "${k}" is not one the battle records`);
+    for (const c of GG.review || []) if (!MET.has(c.metric)) E(`game: review metric "${c.metric}" is not one the battle records`);
+    for (const [, k] of GG.losses || []) if (!sideIds.has(k)) E(`game: losses side "${k}" is not one of the battle's sides`);
+    for (const r of (GG.staff || {}).remarks || []) if (typeof r !== 'string' && !((GG.staff || {}).officers || {})[r.who]) E(`game: staff remark ${r.id} is said by "${r.who}", who is not one of the officers`);
   }
   // (3d) an army marching onto the field and a detached force that may march to the guns (doctrine.js: approachInit ... toGunsTick)
   const corpsIds = new Set(Object.values(W.CORPS || {}).concat(...(W.FORCES || []).map(f => f.units.map(u => u[7]))));

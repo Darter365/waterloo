@@ -28,7 +28,7 @@ function chaosPlayer(seed) {
         if (action === 'support') s.objective = { corps: pick(['reille', 'derlon', 'lobau', 'drouot', 'milhaud', 'kellermann']) };
         if (action === 'sector') { s.sector = pick(['left', 'centre', 'right', 'whole', 'none']); if (r() < 0.6) s.goal = pick(PLACES.filter(p => p !== 'depOwn')); }
         if (action === 'moveHQ') s.post = pick(['caillou', 'rossomme', 'ba', 'knoll']);
-        if (action === 'detach') { const us = E.units.filter(u => u.side === 'FR' && E.formed(u) && require('./command.js').cmdOf(u) === to); if (!us.length) continue; s.with = [pick(us).id]; s.detachTo = pick(['reille', 'derlon', 'lobau', 'drouot', 'milhaud', 'kellermann'].filter(x => x !== to)); }
+        if (action === 'detach') { const us = E.units.filter(u => u.side === 'FR' && E.formed(u) && E.command.cmdOf(u) === to); if (!us.length) continue; s.with = [pick(us).id]; s.detachTo = pick(['reille', 'derlon', 'lobau', 'drouot', 'milhaud', 'kellermann'].filter(x => x !== to)); }
         if (r() < 0.3) s.manner.losses = pick(['light', 'normal', 'heavy', 'any']);
         if (r() < 0.2) s.manner.formation = pick(['attack', 'mass', 'line', 'columns']);
         if (r() < 0.15) s.urgent = true;

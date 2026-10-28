@@ -4,7 +4,7 @@ function refsWorthShowing(r) { return !!(r && ((r.tids && r.tids.length) || (r.o
 function dispItem() { return G && G.dispSel ? SIM.command.inbox.find(x => x.id === G.dispSel.id) || null : null; }
 function dispRefs() { const m = dispItem(); if (!m) return null; return G.dispSel.line != null && m.lineRefs ? m.lineRefs[G.dispSel.line] : m.refs; }
 function refPoints(r, m) {
-  const B = SIM.command.B.napoleon, pts = [];
+  const B = SIM.command.B[CHIEF], pts = [];
   for (const id of r.tids || []) { const c = B.c.get(id); if (c) pts.push([c.x, c.y]); }
   for (const id of r.own || []) { const o = B.own.get(id); if (o && !o.gone) pts.push([o.x, o.y]); }
   for (const id of r.sp || []) { const sp = SIM.spById[id]; if (sp) pts.push([sp.x, sp.y]); }
@@ -25,7 +25,7 @@ function showDispatch(id, line) {
 function ringAt(g, x, y, r, col, w, alpha) { g.save(); g.globalAlpha = alpha ?? 1; g.strokeStyle = PAL.paper; g.lineWidth = w + 3; g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke(); g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke(); g.restore(); }
 function drawDispatch(g) {
   const m = dispItem(), r = dispRefs(); if (!m || !r || viewMode === 'truth') return;
-  const B = SIM.command.B.napoleon, col = PAL.flag, s = view.s, pts = [];
+  const B = SIM.command.B[CHIEF], col = PAL.flag, s = view.s, pts = [];
   // sounds: the bearing they were heard on, from where headquarters stood
   if (r.dirs && r.dirs.length && m.hq) {
     const [hx, hy] = P(m.hq[0], m.hq[1]), R = 3000 * s;
@@ -47,7 +47,7 @@ function drawDispatch(g) {
   // your own brigades it was about (when it is a few, ring them as well as picking them out)
   if ((r.own || []).length && r.own.length <= 6) for (const id of r.own) { const h = unitHits.find(h => h.u && h.u.o && h.u.o.uid === id); if (!h || !h.pts) continue; const cx = h.pts.reduce((a, p) => a + p[0], 0) / 4, cy = h.pts.reduce((a, p) => a + p[1], 0) / 4, rr = Math.max(...h.pts.map(p => Math.hypot(p[0] - cx, p[1] - cy))) + 8; ringAt(g, cx, cy, Math.max(12, rr), col, 2.6); }
   // farms that changed hands
-  for (const id of r.sp || []) { const sp = SIM.spById[id]; if (!sp) continue; const [x, y] = P(sp.x, sp.y); ringAt(g, x, y, Math.max(16, 120 * s), col, 3); const pb = B.places[id]; label(`${sp.name}: ${pb && pb.holder === 'FR' ? 'ours' : pb && pb.holder ? 'the enemy’s' : 'empty'}`, x, y - Math.max(16, 120 * s) - 10, 'unit', 'c', col, 0, true, 1.1); }
+  for (const id of r.sp || []) { const sp = SIM.spById[id]; if (!sp) continue; const [x, y] = P(sp.x, sp.y); ringAt(g, x, y, Math.max(16, 120 * s), col, 3); const pb = B.places[id]; label(`${sp.name}: ${pb && pb.holder === US ? 'ours' : pb && pb.holder ? 'the enemy’s' : 'empty'}`, x, y - Math.max(16, 120 * s) - 10, 'unit', 'c', col, 0, true, 1.1); }
   if (!(r.tids || []).length && !(r.sp || []).length && !(r.own || []).length && !(r.dirs || []).length && r.at) { const [x, y] = P(r.at[0], r.at[1]); ringAt(g, x, y, 18, col, 3); }
   // a caption at the top of the picture
   const all = refPoints(r, m).map(p => P(p[0], p[1])); if (all.length) { const top = all.reduce((a, p) => p[1] < a[1] ? p : a, all[0]); label(m.title, top[0], Math.max(20, top[1] - 34), 'unit', 'c', col, 0, true, 1.2); }
@@ -55,7 +55,7 @@ function drawDispatch(g) {
 // an enemy body you clicked: if its corps is known, ring every body of that corps
 function drawEnemyFocus(g) {
   if (!G || !G.focusEnemy || viewMode === 'truth') return;
-  const B = SIM.command.B.napoleon, s = view.s, F = G.focusEnemy;
+  const B = SIM.command.B[CHIEF], s = view.s, F = G.focusEnemy;
   const list = F.corps ? [...B.c.values()].filter(c => c.corps === F.corps && SIM.t - c.t < 200) : [B.c.get(F.tid)].filter(Boolean);
   for (const c of list) { const [x, y] = P(c.x, c.y), [W, D] = contactBox(c); ringAt(g, x, y, Math.max(11, Math.max(W, D) * s / 2 + 8), SIDECOL(c.side), 2.4, 0.9); }
   if (F.corps && list.length) { const cx = list.reduce((a, c) => a + c.x, 0) / list.length, cy = Math.min(...list.map(c => c.y)); const [x, y] = P(cx, cy); label(WCommand.CORPSNAME[F.corps] || F.corps, x, y - 26, 'group', 'c', SIDECOL(list[0].side), 0, true, 1); }

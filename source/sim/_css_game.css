@@ -202,8 +202,8 @@
 .aarsvg .os{fill:var(--m-paper);stroke:var(--m-order);stroke-width:1.4}
 .aarsvg .oa{fill:var(--m-order)}
 .aarsvg .ol{font-size:10.5px}
-.aarsvg .tr.h-FR{fill:var(--m-fr)}.aarsvg .tr.h-AL{fill:var(--m-al)}.aarsvg .tr.h-no{fill:color-mix(in srgb,var(--m-ink) 25%,transparent)}
-.aarsvg .kn{opacity:.45}.aarsvg .kn.h-FR{fill:var(--m-fr)}.aarsvg .kn.h-AL{fill:var(--m-al)}.aarsvg .kn.h-no{fill:color-mix(in srgb,var(--m-ink) 25%,transparent)}
+.aarsvg .tr.h-FR{fill:var(--m-fr)}.aarsvg .tr.h-AL{fill:var(--m-al)}.aarsvg .tr.h-PR{fill:var(--m-pr)}.aarsvg .tr.h-no{fill:color-mix(in srgb,var(--m-ink) 25%,transparent)}
+.aarsvg .kn{opacity:.45}.aarsvg .kn.h-FR{fill:var(--m-fr)}.aarsvg .kn.h-AL{fill:var(--m-al)}.aarsvg .kn.h-PR{fill:var(--m-pr)}.aarsvg .kn.h-no{fill:color-mix(in srgb,var(--m-ink) 25%,transparent)}
 .aarsvg .lag{stroke:var(--m-flag);stroke-width:1.4;stroke-dasharray:3 2}
 .aarsvg .tp circle{fill:var(--m-ink);stroke:var(--m-paper);stroke-width:1}
 .aarsvg .tp.FR circle{fill:var(--m-fr)}.aarsvg .tp.AL circle{fill:var(--m-al)}.aarsvg .tp.PR circle{fill:var(--m-pr)}

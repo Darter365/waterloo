@@ -19,7 +19,7 @@ function glassTap(x, y) {
   const w = screenToWorld(x, y); glassLook(w); return true;
 }
 function glassLook(w) {
-  const C = SIM.command, B = C.B.napoleon, nap = SIM.leaders.napoleon, o = [nap.x, nap.y];
+  const C = SIM.command, B = C.B[CHIEF], nap = SIM.leaders[CHIEF], o = [nap.x, nap.y];
   const dist = Math.hypot(w[0] - o[0], w[1] - o[1]), R = Math.max(250, Math.min(700, dist * 0.18)), step = R / 22, seeing = SIM.bgVis(SIM.t) * WCommand.CK.TELESCOPE;
   const cells = [];
   for (let gy = -R; gy <= R; gy += step) for (let gx = -R; gx <= R; gx += step) {
@@ -34,13 +34,13 @@ function glassLook(w) {
   canvas.classList.remove('tool'); setHint(null);
   // the words: where you are looking, what you see there, and what you cannot
   const hid = cells.filter(c => c.why).length / cells.length, why = k => cells.filter(c => c.why === k).length / cells.length;
-  const dir = compWord(bearing(w[0] - o[0], w[1] - o[1])), from = WCommand.POSTS[C.hq.post] ? WCommand.POSTS[C.hq.post].name : 'where you stand';
+  const dir = compWord(bearing(w[0] - o[0], w[1] - o[1])), from = SIM.command.POSTS[C.hq.post] ? SIM.command.POSTS[C.hq.post].name : 'where you stand';
   const what = c => { const n = Math.max(100, Math.round(c.str / 100) * 100), k = c.kind === 'art' ? `${c.guns || ''} guns`.trim() : c.kind === 'cav' ? 'cavalry' : c.kind === 'inf' ? 'infantry' : 'troops', s = c.side === 'FR' ? 'French ' : c.nat ? (NAT_WORD[c.nat] || '') + ' ' : c.side === 'PR' ? 'Prussian ' : c.side === 'AL' ? 'allied ' : '';
     return `${c.kind === 'art' ? '' : 'about ' + fmt(n) + ' '}${s}${k}${c.form && FORM[c.form] && c.kind !== 'art' ? ', ' + FORM[c.form] : ''}${c.status === 'broken' ? ', in flight' : c.status === 'disordered' ? ', in disorder' : ''}${c.moving ? ', on the move' : ''}${c.garrison ? ' in the buildings' : ''}`; };
   let txt = `<b>Through the glass from ${esc(from)}</b>, looking ${dir}, ${dist >= 1000 ? (dist / 1000).toFixed(1) + ' km' : Math.round(dist / 50) * 50 + ' m'}, toward ${esc(place(w[0], w[1]))}.`;
   const lines = seen.map(what).concat(own.length ? [`${own.length} of your own brigade${own.length > 1 ? 's' : ''}`] : []);
   txt += lines.length ? ` You make out ${esc(lines.slice(0, 4).join('; '))}${lines.length > 4 ? `; and ${lines.length - 4} more bodies` : ''}.` : ' Nothing of the enemy shows there.';
-  const older = [...B.c.values()].filter(c => c.side !== 'FR' && !(c.src === 'own eyes' && SIM.t - c.t <= 20) && Math.hypot(c.x - w[0], c.y - w[1]) <= R).length;
+  const older = [...B.c.values()].filter(c => c.side !== SIDE && !(c.src === 'own eyes' && SIM.t - c.t <= 20) && Math.hypot(c.x - w[0], c.y - w[1]) <= R).length;
   if (older) txt += ` Your map shows ${older} bod${older > 1 ? 'ies' : 'y'} of the enemy here from older reports, which you cannot confirm from where you stand.`;
   if (hid > 0.12) txt += ` Shaded: ${[why('ground') > 0.05 ? 'ground the lie of the land hides from you' : '', why('smoke') > 0.05 ? 'smoke' : '', why('far') > 0.05 ? 'too far for today’s light' : ''].filter(Boolean).join(', ')} (${Math.round(hid * 100)}% of the view); whatever is there, you cannot see it.`;
   const cap = $('glasscap'); cap.innerHTML = `<p>${txt}</p><button type="button" id="glassoff">Lower the glass</button>`; cap.hidden = false;

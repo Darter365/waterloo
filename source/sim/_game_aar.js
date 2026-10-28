@@ -4,7 +4,8 @@
 // The engine is deterministic, so a re-run with nothing changed must reproduce your battle exactly; the first job checks that.
 const AAR = { jobs: [], done: {}, workers: [], idle: [], running: 0, gen: 0, total: 0, noWorker: false, luck: false };
 const AAR_EVERY = 10; // minutes between the strength samples drawn on the chart
-const MOMENTS = [['lhsFall', 'La Haye Sainte falls'], ['hougFall', 'Hougoumont falls'], ['plancenoitLost', 'Plancenoit lost to the Prussians'], ['neyCav', 'Ney’s cavalry goes in'], ['guardAttack', 'the Guard attacks'], ['frBreak', 'the French army breaks'], ['alBreak', 'Wellington’s army breaks']];
+const MOMENTS = GB.moments; // (phase 5) the battle's turning points worth comparing between runs
+const SIDES = GAMEB.sideIds, ENEMIES = SIDES.filter(s => GAMEB.coalition[s] !== US), SIDENAME = Object.fromEntries(GB.losses.map(([n, k]) => [k, n]));
 
 /* ----- live record kept while you play ----- */
 function sampleLive(force) { if (!G || !SIM) return; if (force || SIM.t >= (G.nextSample ?? -1)) { (G.samples || (G.samples = [])).push(WReplay.sample(SIM)); G.nextSample = SIM.t + AAR_EVERY; } }
@@ -22,7 +23,7 @@ function aarWorkers() {
     for (let i = 0; i < n; i++) { const w = new Worker(url); w.onmessage = ev => aarResult(w, ev.data); w.onerror = ev => { ev.preventDefault(); aarResult(w, { id: w.job, gen: w.gen, err: 'worker error' }); }; AAR.workers.push(w); AAR.idle.push(w); }
   } catch (err) { AAR.noWorker = true; }
 }
-const aarOpts = () => ({ seed: G.opts.seed, history: G.opts.history, scenario: G.opts.scenario, staff: G.opts.staff, silence: G.opts.silence });
+const aarOpts = () => ({ battle: GAME_ID, seed: G.opts.seed, history: G.opts.history, scenario: G.opts.scenario, staff: G.opts.staff, silence: G.opts.silence });
 function aarQueue(id, label, opt) { if (AAR.done[id] || AAR.jobs.some(j => j.id === id)) return; AAR.jobs.push({ id, label, opt }); AAR.total++; aarPump(); }
 function aarPump() {
   if (AAR.noWorker) { // no workers in this browser: one re-run at a time on the page itself, with a pause between them
@@ -65,16 +66,16 @@ function liveEntries() {
   const torn = new Set(G.orderLog.filter(e => e.k === 'cancel' && (e.step || 0) === 0).map(e => e.ref));
   return G.orderLog.filter(e => e.k !== 'cancel' && !torn.has(e.i));
 }
-function placeName(s) { const ob = s.objective || {}; if (ob.place && SIM.objectives[ob.place]) return SIM.objectives[ob.place].name; if (ob.point) return place(ob.point[0], ob.point[1]); if (ob.corps) return CORPS_OF[ob.corps] || WCommand.CORPSNAME[ob.corps] || ob.corps; if (s.action === 'moveHQ') return WCommand.POSTS[s.post].name; if (s.action === 'detach') return SHORT[s.detachTo] || s.detachTo; if (s.action === 'sector' && s.goal && SIM.objectives[s.goal]) return 'to take ' + SIM.objectives[s.goal].name; return ''; }
-function shortSpec(s) { const p = placeName(s), a = s.action === 'moveHQ' ? 'move to' : s.action === 'sector' ? (s.sector === 'none' ? 'hand the front back' : `take command of the ${s.sector === 'whole' ? 'whole front' : s.sector + ' of the line'}`) : WOrders.ACTIONS[s.action] || s.action; return `${a}${p ? ' ' + p : ''}`; }
-function entryLabel(e) { if (e.k === 'hist') return `Napoleon’s own orders from ${hm(e.t)}`; const list = e.k === 'seq' ? e.specs : [e.spec], to = list[0].to; return `${to === 'hq' ? 'Headquarters' : to === 'grandBattery' ? 'the grand battery' : SHORT[to] || to}: ${list.map(shortSpec).join(', then ')} (${hm(e.t)})`; }
+function placeName(s) { const ob = s.objective || {}; if (ob.place && SIM.objectives[ob.place]) return SIM.objectives[ob.place].name; if (ob.point) return place(ob.point[0], ob.point[1]); if (ob.corps) return CORPS_OF[ob.corps] || SIM.command.CORPSNAME[ob.corps] || ob.corps; if (s.action === 'moveHQ') return SIM.command.POSTS[s.post].name; if (s.action === 'detach') return SHORT[s.detachTo] || s.detachTo; if (s.action === 'sector' && s.goal && SIM.objectives[s.goal]) return 'to take ' + SIM.objectives[s.goal].name; return ''; }
+function shortSpec(s) { const p = placeName(s), a = s.action === 'moveHQ' ? 'move to' : s.action === 'sector' ? (s.sector === 'none' ? 'hand the front back' : `take command of the ${s.sector === 'whole' ? 'whole front' : s.sector + ' of the line'}`) : SIM.command.ACTIONS[s.action] || s.action; return `${a}${p ? ' ' + p : ''}`; }
+function entryLabel(e) { if (e.k === 'hist') return `Napoleon’s own orders from ${hm(e.t)}`; const list = e.k === 'seq' ? e.specs : [e.spec], to = list[0].to; return `${RKIND(to) === 'hq' ? 'Headquarters' : RKIND(to) === 'battery' ? SIM.command.RECIPIENTS[to].name : SHORT[to] || to}: ${list.map(shortSpec).join(', then ')} (${hm(e.t)})`; }
 const soonLabel = e => e.k === 'hist' ? `Napoleon’s own orders, handed over 30 minutes sooner (${hm(e.t - 30)})` : capF(entryLabel(e)) + ', sent 30 minutes sooner';
 function entryOrders(e) { if (e.k === 'hist') return SIM.command.orders.filter(o => o.byScript && o.issuedAt >= e.t); return (G.made && G.made[e.i] || []).map(id => SIM.command.orders.find(o => o.id === id)).filter(Boolean); }
 
 /* ----- comparing a re-run with your battle ----- */
-const enemyKw = s => s.cas ? s.cas.AL.kw + s.cas.PR.kw : 0;
+const enemyKw = s => s.cas ? ENEMIES.reduce((a, k) => a + s.cas[k].kw, 0) : 0;
 function impact(a, b) {
-  const dG = b.gradeN - a.gradeN, dF = b.cas.FR.kw - a.cas.FR.kw, dE = enemyKw(b) - enemyKw(a);
+  const dG = b.gradeN - a.gradeN, dF = b.cas[SIDE].kw - a.cas[SIDE].kw, dE = enemyKw(b) - enemyKw(a);
   return { dG, dF, dE, score: Math.abs(dG) * 10000 + Math.abs(dE - dF) };
 }
 const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '±') + fmt(Math.abs(Math.round(n / 100) * 100));
@@ -91,11 +92,11 @@ function gradeCell(s, base) {
 /* ----- rendering ----- */
 function renderAarHead() {
   const R = SIM.result, cas = R.cas;
-  $('aar-sum').innerHTML = `<b>${esc(R.grade)}</b> at ${hm(R.t)} (${esc(R.why)}). Seed ${G.opts.seed}. Killed and wounded: French ${fmt(cas.FR.kw)}, Anglo-allied ${fmt(cas.AL.kw)}, Prussian ${fmt(cas.PR.kw)}. You gave ${liveEntries().filter(e => e.k !== 'hist').length} order${liveEntries().filter(e => e.k !== 'hist').length === 1 ? '' : 's'}${G.toEnd ? `; from ${hm(G.toEndFrom)} you fought it out to the end with ${END_WORD[G.toEnd]}` : ''}${G.refoughtFrom ? `; this battle was fought again from ${hm(G.refoughtFrom)} with your earlier orders replayed` : ''}.`;
+  $('aar-sum').innerHTML = `<b>${esc(R.grade)}</b> at ${hm(R.t)} (${esc(R.why)}). Seed ${G.opts.seed}. Killed and wounded: ${SIDES.map(k => `${SIDENAME[k] || k} ${fmt(cas[k].kw)}`).join(', ')}. You gave ${liveEntries().filter(e => e.k !== 'hist').length} order${liveEntries().filter(e => e.k !== 'hist').length === 1 ? '' : 's'}${G.toEnd ? `; from ${hm(G.toEndFrom)} you fought it out to the end with ${END_WORD[G.toEnd]}` : ''}${G.refoughtFrom ? `; this battle was fought again from ${hm(G.refoughtFrom)} with your earlier orders replayed` : ''}.`;
 }
 // the day at a glance: strength in the ranks, your orders, the farms as they were and as you knew them, and the turning points
 function renderAarChart() {
-  const box = $('aar-chart'), C = SIM.command, B = C.B.napoleon, t0 = G.t0, t1 = Math.max(SIM.t, t0 + 60);
+  const box = $('aar-chart'), C = SIM.command, B = C.B[CHIEF], t0 = G.t0, t1 = Math.max(SIM.t, t0 + 60);
   const Wd = Math.max(720, Math.min(1400, box.clientWidth || 900)), L = 150, Rm = 18, x = t => L + (Math.max(t0, Math.min(t1, t)) - t0) / (t1 - t0) * (Wd - L - Rm);
   const entries = liveEntries(), farms = farmLanes(), turns = turningPoints();
   const H1 = 120, rowO = 18, rowF = 24, top = 14;
@@ -104,11 +105,12 @@ function renderAarChart() {
   // hour lines
   for (let t = Math.ceil(t0 / 60) * 60; t <= t1; t += 60) s += `<line class="hr" x1="${x(t)}" x2="${x(t)}" y1="${top}" y2="${H - 8}"/><text class="hrl" x="${x(t)}" y="${top - 3}">${SIM.fmtT(t)}</text>`;
   // 1. men in the ranks
-  const smp = G.samples || [], maxR = Math.max(1, ...smp.flatMap(p => [p.ranks.FR, p.ranks.AL, p.ranks.PR]));
+  const smp = G.samples || [], maxR = Math.max(1, ...smp.flatMap(p => SIDES.map(k => p.ranks[k] || 0)));
   const yR = v => top + H1 - v / maxR * (H1 - 8);
   s += `<text class="sec" x="6" y="${top + 12}">Men in the ranks</text><text class="sub" x="6" y="${top + 26}">not broken, not guns</text>`;
-  for (const [side, cls, name] of [['FR', 'fr', 'French'], ['AL', 'al', 'Anglo-allied'], ['PR', 'pr', 'Prussian']]) {
-    const pts = smp.filter(p => p.ranks[side] > 0 || side !== 'PR').map(p => `${x(p.t).toFixed(1)},${yR(p.ranks[side]).toFixed(1)}`);
+  for (const [side, cls, name] of SIDES.map(k => [k, k.toLowerCase(), SIDENAME[k] || k])) {
+    // an army that comes on later is drawn from when it does
+    const pts = smp.filter(p => p.ranks[side] > 0 || (smp[0] && smp[0].ranks[side] > 0)).map(p => `${x(p.t).toFixed(1)},${yR(p.ranks[side]).toFixed(1)}`);
     if (pts.length > 1) { s += `<polyline class="ln ${cls}" points="${pts.join(' ')}"><title>${name}</title></polyline>`; const last = smp[smp.length - 1]; s += `<text class="lnl ${cls}" x="${x(last.t) - 4}" y="${yR(last.ranks[side]) - 4}" text-anchor="end">${name} ${fmt(Math.round(last.ranks[side] / 1000))}k</text>`; }
   }
   s += `<line class="base" x1="${L}" x2="${Wd - Rm}" y1="${top + H1}" y2="${top + H1}"/>`;
@@ -117,8 +119,8 @@ function renderAarChart() {
   entries.forEach((e, k) => {
     const y = yO + k * rowO, os = entryOrders(e), head = os[0], last = os[os.length - 1], lab = entryLabel(e);
     const acted = os.map(o => o.actedAt).filter(v => v != null), sent = head && head.sentAt, end = acted.length ? Math.max(...acted) : null;
-    const fate = e.k === 'hist' ? `${os.length} of his orders given, ${acted.length} acted on` : !head ? 'refused' : head.status === 'cancelled' ? 'torn up' : head.status === 'lost' ? 'every rider lost' : head.to === 'hq' ? 'done at once' : head.to === 'grouchy' ? (head.receivedAt ? `reached Grouchy ${hm(head.receivedAt)}` : 'never reached Grouchy') : end != null ? `acted on ${acted.map(hm).join(', ')}` : head.receivedAt ? 'its conditions were never met' : 'still on the road';
-    const x0 = x(e.t), x1 = x(end ?? (head && head.to === 'hq' ? e.t + 2 : t1)), open = end == null && !(head && head.to === 'hq');
+    const fate = e.k === 'hist' ? `${os.length} of his orders given, ${acted.length} acted on` : !head ? 'refused' : head.status === 'cancelled' ? 'torn up' : head.status === 'lost' ? 'every rider lost' : RKIND(head.to) === 'hq' ? 'done at once' : RKIND(head.to) === 'offmap' ? (head.receivedAt ? `reached ${SIM.leaders[head.to] ? SIM.leaders[head.to].name : head.to} ${hm(head.receivedAt)}` : 'never reached Grouchy') : end != null ? `acted on ${acted.map(hm).join(', ')}` : head.receivedAt ? 'its conditions were never met' : 'still on the road';
+    const x0 = x(e.t), x1 = x(end ?? (head && RKIND(head.to) === 'hq' ? e.t + 2 : t1)), open = end == null && !(head && RKIND(head.to) === 'hq');
     s += `<g class="ord${open ? ' open' : ''}"><title>${esc(capF(lab))}: ${esc(fate)}</title><rect class="hit" x="${L}" y="${y - 12}" width="${Wd - L - Rm}" height="${rowO}"/>`;
     s += `<line class="ob" x1="${x0}" x2="${Math.max(x0 + 2, x1)}" y1="${y}" y2="${y}"/>`;
     if (sent && sent > e.t) s += `<circle class="os" cx="${x(sent)}" cy="${y}" r="2.6"/>`;
@@ -132,7 +134,7 @@ function renderAarChart() {
   s += `<text class="sec" x="6" y="${yF - 12}">Farms and villages</text><text class="sub" x="${L}" y="${yF - 12}">solid: who really held it · light: who you believed held it</text>`;
   farms.forEach((f, k) => {
     const y = yF + k * rowF; s += `<text class="rowl" x="6" y="${y + 6}">${esc(f.name)}</text>`;
-    const seg = (list, cls, dy, h) => list.forEach((p, i) => { const a = p.t, b = i + 1 < list.length ? list[i + 1].t : t1; if (b <= a) return; s += `<rect class="${cls} h-${p.h || 'no'}" x="${x(a)}" y="${y + dy}" width="${Math.max(1, x(b) - x(a))}" height="${h}"><title>${esc(f.name)}: ${p.h === 'FR' ? 'French' : p.h ? 'the enemy’s' : 'empty'} from ${hm(a)}${cls === 'kn' && p.src ? ' (' + esc(p.src) + ')' : ''}</title></rect>`; });
+    const seg = (list, cls, dy, h) => list.forEach((p, i) => { const a = p.t, b = i + 1 < list.length ? list[i + 1].t : t1; if (b <= a) return; s += `<rect class="${cls} h-${p.h || 'no'}" x="${x(a)}" y="${y + dy}" width="${Math.max(1, x(b) - x(a))}" height="${h}"><title>${esc(f.name)}: ${p.h === US ? (SIDENAME[SIDE] || 'ours') : p.h ? 'the enemy’s' : 'empty'} from ${hm(a)}${cls === 'kn' && p.src ? ' (' + esc(p.src) + ')' : ''}</title></rect>`; });
     seg(f.truth, 'tr', -4, 7); seg(f.knew, 'kn', 5, 5);
     for (const p of f.truth.slice(1)) { const k2 = f.knew.find(q => q.t >= p.t && q.h === p.h); if (k2 && k2.t > p.t) s += `<line class="lag" x1="${x(p.t)}" x2="${x(k2.t)}" y1="${y + 3}" y2="${y + 3}"><title>You heard ${Math.round(k2.t - p.t)} minutes later</title></line>`; }
   });
@@ -156,7 +158,7 @@ function farmLanes() {
   const out = [];
   for (const id of SPS) {
     const sp = SIM.spById[id], truth = [{ t: G.t0, h: sp.holder0 || null }];
-    for (const l of SIM.log) if (l.cat === 'place' && l.sp === id) truth.push({ t: l.t, h: / by the French/.test(l.text) ? 'FR' : / by the Allies/.test(l.text) ? 'AL' : null });
+    for (const l of SIM.log) if (l.cat === 'place' && l.sp === id) truth.push({ t: l.t, h: l.holder !== undefined ? l.holder || null : / by the French/.test(l.text) ? 'FR' : / by the Allies/.test(l.text) ? 'AL' : null });
     const knew = [{ t: G.t0, h: sp.holder0 || null }].concat(G.knew.filter(k => k.sp === id).map(k => ({ t: k.t, h: k.holder, src: k.src })));
     if (truth.length > 1 || knew.length > 1) out.push({ id, name: sp.name.replace(/^the /, 'The '), truth, knew });
   }
@@ -166,19 +168,19 @@ function turningPoints() {
   const C = SIM.command, I = C.intel || {}, M = SIM.metrics, out = [];
   for (const l of SIM.log) {
     if (l.cat === 'army' || l.cat === 'end') out.push({ t: l.t, label: l.text.replace(/\.$/, ''), side: l.side || '' });
-    else if (l.cat === 'orders' && l.important && /^(Ney|With La Haye|Kellermann)/.test(l.text)) out.push({ t: l.t, label: l.text.replace(/\.$/, ''), side: 'FR' });
+    else if (l.cat === 'orders' && l.important && GB.turnOrders && new RegExp(GB.turnOrders).test(l.text)) out.push({ t: l.t, label: l.text.replace(/\.$/, ''), side: SIDE }); // (Waterloo: Ney's and Kellermann's own strokes)
     else if (l.cat === 'place' && /crest/.test(l.text)) out.push({ t: l.t, label: l.text.replace(/\.$/, ''), side: l.side || '' });
   }
-  if (M.guardAttack != null) out.push({ t: M.guardAttack, label: 'The Guard goes in', side: 'FR' });
+  if (M.guardAttack != null) out.push({ t: M.guardAttack, label: 'The Guard goes in', side: SIDE });
   if (I.eastSeen != null) out.push({ t: I.eastSeen, label: 'You first see troops in the east', known: true });
-  if (I.bulowNamed != null) out.push({ t: I.bulowNamed, label: 'You learn it is Bülow', known: true });
-  const neySeen = C.inbox.find(m => (m.lines || [m.text || '']).some(x => /Marshal Ney is leading/.test(x))); if (neySeen) out.push({ t: neySeen.t, label: 'You see Ney take the cavalry forward', known: true });
+  if (I.bulowNamed != null && GB.namedLabel) out.push({ t: I.bulowNamed, label: GB.namedLabel, known: true });
+  const FS = GB.fieldSeen, neySeen = FS && C.inbox.find(m => (m.lines || [m.text || '']).some(x => x.includes(FS.text))); if (neySeen) out.push({ t: neySeen.t, label: FS.label, known: true });
   return out.filter(p => p.t != null).sort((a, b) => a.t - b.t).slice(0, 26);
 }
 // the what-if table, filled in as the re-runs come back
 function renderWhatIfs() {
   const tb = $('aar-table'); if (!tb) return;
-  const base = AAR.done.base && AAR.done.base.s, actual = { grade: SIM.result.grade, gradeN: WReplay.GRADES.indexOf(SIM.result.grade), cas: SIM.result.cas, metrics: SIM.metrics };
+  const base = AAR.done.base && AAR.done.base.s, actual = { grade: SIM.result.grade, gradeN: WReplay.grades(SIM).indexOf(SIM.result.grade), cas: SIM.result.cas, metrics: SIM.metrics };
   const nDone = Object.keys(AAR.done).length, pending = AAR.total - nDone;
   $('aar-prog').innerHTML = AAR.noWorker && !nDone ? 'Re-running the battle on this page (your browser has no background workers), one battle every few seconds…' : pending > 0 ? `<span class="spin" aria-hidden="true"></span> Fighting the battle again: ${nDone} of ${AAR.total} done…` : nDone ? `All ${nDone} re-runs done.` : '';
   // the re-run must reproduce your battle, or the what-ifs mean nothing
@@ -186,9 +188,9 @@ function renderWhatIfs() {
   if (base) { const same = base.grade === actual.grade && JSON.stringify(base.cas) === JSON.stringify(actual.cas); check = same ? '<p class="small ok">Check passed: fought again from your orders with nothing changed, the battle came out exactly as you fought it.</p>' : '<p class="small warn">Fought again from your orders with nothing changed, the battle did not come out exactly as you fought it, so the what-ifs below may mislead. Please tell me (Claude) the seed.</p>'; }
   const ref = base || actual;
   const row = (id, label, extra) => { const d = AAR.done[id]; if (!d) return `<tr class="wait"><td>${esc(label)}</td><td colspan="4" class="small">${AAR.jobs.some(j => j.id === id) || AAR.running ? 'waiting…' : '—'}</td></tr>`; if (d.err) return `<tr><td>${esc(label)}</td><td colspan="4" class="small warn">could not be re-run (${esc(d.err)})</td></tr>`; const s = d.s, im = impact(ref, s), md = momentsDiff(ref, s);
-    return `<tr class="${extra || ''}"><td>${esc(label)}</td><td>${gradeCell(s, ref)}</td><td class="num">${fmt(s.cas.FR.kw)}<span class="d">${id === 'base' ? '' : signed(im.dF)}</span></td><td class="num">${fmt(enemyKw(s))}<span class="d">${id === 'base' ? '' : signed(im.dE)}</span></td><td class="small">${md.length ? esc(md.join('; ')) : id === 'base' ? '' : 'no turning point moved by 20 minutes or more'}</td></tr>`; };
+    return `<tr class="${extra || ''}"><td>${esc(label)}</td><td>${gradeCell(s, ref)}</td><td class="num">${fmt(s.cas[SIDE].kw)}<span class="d">${id === 'base' ? '' : signed(im.dF)}</span></td><td class="num">${fmt(enemyKw(s))}<span class="d">${id === 'base' ? '' : signed(im.dE)}</span></td><td class="small">${md.length ? esc(md.join('; ')) : id === 'base' ? '' : 'no turning point moved by 20 minutes or more'}</td></tr>`; };
   let h = `<thead><tr><th>What changed</th><th>Result</th><th>French killed &amp; wounded</th><th>Enemy killed &amp; wounded</th><th>Turning points that moved (yours in brackets)</th></tr></thead><tbody>`;
-  h += `<tr class="you"><td><b>Your battle, as you fought it</b></td><td><b>${esc(actual.grade)}</b></td><td class="num">${fmt(actual.cas.FR.kw)}</td><td class="num">${fmt(enemyKw(actual))}</td><td></td></tr>`;
+  h += `<tr class="you"><td><b>Your battle, as you fought it</b></td><td><b>${esc(actual.grade)}</b></td><td class="num">${fmt(actual.cas[SIDE].kw)}</td><td class="num">${fmt(enemyKw(actual))}</td><td></td></tr>`;
   h += row('base', 'Fought again, nothing changed', 'chk');
   h += row('hist', 'Napoleon’s own orders on the same day', 'hist');
   const drops = liveEntries().map(e => ({ e, d: AAR.done['drop' + e.i] }));
@@ -211,7 +213,7 @@ function renderWhatIfs() {
     if (!helped && !hurt) head += '<p>No single order changed the result: leaving any one out gives the same result or close to it.</p>';
   }
   const hist = AAR.done.hist && AAR.done.hist.s;
-  if (hist) head = `<p><b>Against Napoleon on the day:</b> his own orders, fought on this same day with the same dice, end in ${esc(hist.grade.replace(/^./, c => c.toLowerCase()))} with French losses ${fmt(hist.cas.FR.kw)} (yours ${fmt(actual.cas.FR.kw)}) and the enemy’s ${fmt(enemyKw(hist))} (yours ${fmt(enemyKw(actual))}).</p>` + head;
+  if (hist) head = `<p><b>Against Napoleon on the day:</b> his own orders, fought on this same day with the same dice, end in ${esc(hist.grade.replace(/^./, c => c.toLowerCase()))} with French losses ${fmt(hist.cas[SIDE].kw)} (yours ${fmt(actual.cas[SIDE].kw)}) and the enemy’s ${fmt(enemyKw(hist))} (yours ${fmt(enemyKw(actual))}).</p>` + head;
   $('aar-head').innerHTML = head;
   renderLuck();
 }
@@ -221,10 +223,10 @@ function renderLuck() {
   const seeds = [1, 2, 3, 4, 5, 6, 7, 8].map(k => (G.opts.seed + k * 7919) >>> 0);
   if (!AAR.luck) { box.innerHTML = `<p class="small">Was it skill or the dice? Your orders were timed to your battle; on another day events come at other times. <button type="button" id="aar-luckgo">Fight your orders, and Napoleon’s, on 8 other days</button> (16 more battles, a minute or two).</p>`; return; }
   const chips = pre => seeds.map(sd => { const d = AAR.done[pre + sd]; return d && d.s ? `<span class="gchip g${d.s.gradeN}" title="seed ${sd}: ${esc(d.s.grade)}">${esc(shortGrade(d.s.grade))}</span>` : d && d.err ? '<span class="gchip">error</span>' : '<span class="gchip wait">…</span>'; }).join('');
-  const tally = pre => { const g = {}; for (const sd of seeds) { const d = AAR.done[pre + sd]; if (d && d.s) g[d.s.grade] = (g[d.s.grade] || 0) + 1; } return Object.entries(g).sort((a, b) => WReplay.GRADES.indexOf(b[0]) - WReplay.GRADES.indexOf(a[0])).map(([k, v]) => `${v} ${k.replace(/^./, c => c.toLowerCase())}`).join(', '); };
+  const tally = pre => { const g = {}; for (const sd of seeds) { const d = AAR.done[pre + sd]; if (d && d.s) g[d.s.grade] = (g[d.s.grade] || 0) + 1; } return Object.entries(g).sort((a, b) => WReplay.grades(SIM).indexOf(b[0]) - WReplay.grades(SIM).indexOf(a[0])).map(([k, v]) => `${v} ${k.replace(/^./, c => c.toLowerCase())}`).join(', '); };
   box.innerHTML = `<div class="luck"><div><b>Your orders</b><div class="chips">${chips('luckY')}</div><p class="small">${tally('luckY')}</p></div><div><b>Napoleon’s orders</b><div class="chips">${chips('luckH')}</div><p class="small">${tally('luckH')}</p></div></div>`;
 }
-const shortGrade = g => ({ 'French catastrophe': 'French rout', 'Allied victory': 'Allied win', 'Marginal Allied victory': 'Allied edge', 'Draw': 'Draw', 'Marginal French victory': 'French edge', 'French victory': 'French win', 'Decisive French victory': 'French triumph' }[g] || g);
+const shortGrade = g => g.replace(/^Decisive (.*) victory$/, '$1 triumph').replace(/^Marginal (.*) victory$/, '$1 edge').replace(/^(.*) victory$/, '$1 win').replace(/^(.*) catastrophe$/, '$1 rout');
 function startLuck() {
   if (AAR.luck) return; AAR.luck = true;
   const seeds = [1, 2, 3, 4, 5, 6, 7, 8].map(k => (G.opts.seed + k * 7919) >>> 0);

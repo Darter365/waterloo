@@ -96,7 +96,10 @@ function make(E, plan, opt = {}) {
 // a battle's plans: E.plans runs every plan installed (the generic commanders call E.plans.tick each tick); a 'builder' plan runs from
 // the command layer's script hook instead, as the player's orders do
 function install(E, plan, opt = {}) {
-  const p = make(E, plan, opt);
+  // (phase 5, stage 2) once only: the game installs the enemy's recorded orders at the start, and the hand-over to Napoleon's orders installs
+  // its side's plans and those that go with it (script.js)
+  const on = E.plansOn || (E.plansOn = {}); if (on[plan.id]) return on[plan.id];
+  const p = make(E, plan, opt); on[plan.id] = p.S;
   if (plan.via === 'builder') { E.command.script = p.tick; E.command.scriptState = p.S; return p.S; }
   if (!E.plans) { const list = []; E.plans = { list, tick: E2 => { for (const q of list) q.tick(); } }; }
   E.plans.list.push(p);

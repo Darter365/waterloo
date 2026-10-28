@@ -1,5 +1,6 @@
 # build products and test output (the built site lives at the repository root)
 sim/game.html
+sim/game_*.html
 sim/p?.html
 sim/*.png
 sim/*.log

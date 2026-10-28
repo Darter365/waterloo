@@ -18,7 +18,7 @@ const lerpPos = u => { const p = prevPos.get(u.id); if (!p || frac >= 1 || Math.
 const alive = u => u.onMap && !u.gone && u.str > 0;
 
 /* ----- unit drawing from the engine's state ----- */
-function nBnOf(u) { return Math.max(1, Math.round(u.str / (u.side === 'FR' ? 520 : u.side === 'PR' ? 700 : 560))); }
+function nBnOf(u) { const n = GAMEB.nations[u.nat]; return Math.max(1, Math.round(u.str / (n && n.battalion || 560))); } // men in a battalion, by army (the nation pack)
 function simBlocks(u, detail) {
   const F = u.F, D = u.D, n = nBnOf(u), out = [];
   if (u.type === 'inf') {
@@ -52,7 +52,7 @@ function drawUnits(g) {
   }
   // strongpoints: who holds them
   if (truthAlpha === 1) for (const sp of SIM.sps) {
-    if (!sp.holder) continue; const [x, y] = P(sp.x, sp.y), col = sp.holder === 'FR' ? PAL.FR : PAL.AL;
+    if (!sp.holder) continue; const [x, y] = P(sp.x, sp.y), col = sideColor(sp.holder);
     g.save(); g.strokeStyle = PAL.ink; g.lineWidth = 1; g.beginPath(); g.moveTo(x + 9, y - 2); g.lineTo(x + 9, y - 16); g.stroke(); g.fillStyle = col; g.fillRect(x + 9, y - 16, 9, 6); g.restore();
   }
   for (const u of SIM.units) {
@@ -92,9 +92,9 @@ function drawUnits(g) {
     unitHits.push({ u, kind: 'poly', pts: env });
   }
   // headquarters
-  for (const id of ['napoleon', 'wellington', 'blucher']) {
-    const L = SIM.leaders[id]; const p = SIM.leaderPos(L); if (!p) continue; if (id === 'blucher') continue;
-    const [x, y] = P(p[0], p[1]), col = id === 'napoleon' ? PAL.FR : PAL.AL;
+  for (const id of GB.hqLeaders || []) { // (phase 5) the army commanders whose headquarters the umpire's map marks
+    const L = SIM.leaders[id]; if (!L) continue; const p = SIM.leaderPos(L); if (!p) continue;
+    const [x, y] = P(p[0], p[1]), col = sideColor(L.side);
     g.save(); g.strokeStyle = PAL.ink; g.lineWidth = 1.3; g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - 18); g.stroke(); g.fillStyle = col; g.beginPath(); g.moveTo(x, y - 18); g.lineTo(x + 12, y - 15); g.lineTo(x, y - 11); g.closePath(); g.fill(); g.stroke(); g.restore();
     if (zf > 1.2) label(L.name, x + 6, y - 24, 'unit', 'l', col, 2, false, 1.1);
   }
@@ -114,13 +114,7 @@ function drawUnits(g) {
     }
   }
 }
-const DYN_GROUPS = [
-  { t: 'I CORPS', side: 'FR', corps: 'derlon', dy: 260 }, { t: 'II CORPS', side: 'FR', corps: 'reille', dy: 240 }, { t: 'VI CORPS', side: 'FR', corps: 'lobau', dy: 200 },
-  { t: 'GARDE', side: 'FR', corps: 'guard', dy: 220 }, { t: 'III CAV', side: 'FR', corps: 'kellermann', dy: 170 }, { t: 'IV CAV', side: 'FR', corps: 'milhaud', dy: 170 },
-  { t: 'BÜLOW', side: 'PR', corps: 'bulow', dx: 300 }, { t: 'PIRCH', side: 'PR', corps: 'pirch', dx: 300 }, { t: 'ZIETEN', side: 'PR', corps: 'zieten', dy: -250 },
-  { t: 'COOKE', side: 'AL', ids: ['byng', 'maitland'], dy: -190 }, { t: 'ALTEN', side: 'AL', ids: ['chalkett', 'kielm', 'ompteda'], dy: -380 }, { t: 'PICTON', side: 'AL', ids: ['kempt', 'pack', 'best', 'vincke'], dy: -420 },
-  { t: 'CLINTON', side: 'AL', ids: ['adam', 'duplat', 'hhalkett'], dy: -240 }, { t: 'BRUNSWICK', side: 'AL', ids: ['bruAv', 'bruButlar', 'bruSpecht'], dy: -200 },
-];
+const DYN_GROUPS = GB.groups || []; // (phase 5) the corps and division names the umpire's map writes when zoomed out: the battle's
 function drawSmoke(g) {
   if (!SIM || !layers.smoke) return;
   const SX = SIM.SX, SY = SIM.SY, sm = SIM.smoke;
@@ -140,14 +134,14 @@ function drawFlashes(g) {
 let offHits = [];
 function drawOffmap(g) {
   offHits = []; if (!SIM || viewMode === 'napoleon') return;
-  const groups = [['bulow', 'Bülow · IV Corps', 50.6933, 4.5040], ['pirch', 'Pirch I · II Corps', 50.6790, 4.5040], ['zieten', 'Zieten · I Corps', 50.7083, 4.4860], ['hal', 'Prince Frederik (Hal)', 50.6900, 4.3590], ['grouchy', 'Grouchy', 50.6550, 4.5040]];
-  for (const [key, title, la, lo] of groups) {
+  const groups = GB.offGroups || []; // (phase 5) the forces off the map and where their arrows point: the battle's
+  for (const [key, title, la, lo, gside] of groups) {
     const mem = SIM.offmap.filter(u => (u.corps === key || u.group === key) && !u.onMap && !u.gone);
     if (!mem.length) continue;
     const due = mem.filter(u => u.arriveAt != null).map(u => u.arriveAt); const next = due.length ? Math.min(...due) : null;
     const [wx, wy] = ll2m(la, lo), ex = Math.min(Math.max(wx, 0), WM), ey = Math.min(Math.max(wy, 0), HM), [cx, cy] = P(ex, ey);
     if (cx < -4 || cy < -4 || cx > cssW + 4 || cy > cssH + 4) continue;
-    const dir = wx > WM ? [1, 0] : wx < 0 ? [-1, 0] : wy < 0 ? [0, -1] : [0, 1], side = key === 'grouchy' ? 'FR' : key === 'hal' ? 'AL' : 'PR', col = sideColor(side);
+    const dir = wx > WM ? [1, 0] : wx < 0 ? [-1, 0] : wy < 0 ? [0, -1] : [0, 1], side = gside, col = sideColor(side);
     const ax = cx - dir[0] * 4, ay = cy - dir[1] * 4;
     g.save(); g.fillStyle = col; g.strokeStyle = col; g.lineWidth = 2.2; g.globalAlpha = next == null ? 0.4 : 1;
     g.beginPath(); g.moveTo(ax - dir[0] * 16, ay - dir[1] * 16); g.lineTo(ax, ay); g.stroke();
@@ -179,7 +173,7 @@ function unitHTML(u, rich) {
   const what = u.type === 'art' ? `${Math.round(u.str)} of ${u.guns0 || u.str0} guns` : `${fmt(u.str)} of ${fmt(u.str0)} men`;
   const kind = { inf: 'infantry', cav: 'cavalry', art: 'artillery', gar: 'garrison' }[u.type];
   const task = u.status === 'broken' ? (u.rallyT ? 'out of contact, trying to rally' : 'running for the rear') : u.charge ? 'charging ' + (SIM.byId[u.charge.target] ? SIM.byId[u.charge.target].name : '') : (TASKS[u.task.kind] || u.task.kind) + (u.task.sp ? ' ' + SIM.spById[u.task.sp].name : '');
-  const nat = NAT[u.nat] || (u.side === 'PR' ? 'Prussian' : '');
+  const nat = NAT[u.nat] || '';
   const coh = Math.round(u.coh), st = u.status;
   if (!rich) return `<b>${u.name}</b><div class="sub">${u.parent}</div><div>${nat} ${kind} · ${what}</div><div>${st} (cohesion ${coh}) · ${formOf(u)}${u.lying ? ', lying down' : ''} · ${task}</div>`;
   const cas = u.killed + u.wounded;
@@ -196,8 +190,8 @@ function unitHTML(u, rich) {
 
 /* ================= Napoleon's map: what he believes ================= */
 const SIDECOL = side => side === 'FR' ? PAL.FR : side === 'PR' ? PAL.PR : side === 'AL' ? PAL.AL : PAL.hach;
-const NATW = { GB: 'British', KGL: 'British', HAN: 'Hanoverian', NL: 'Dutch-Belgian', NAS: 'Nassau', BRU: 'Brunswick', MIX: 'allied', PR: 'Prussian', FR: 'French' };
-const CORPSN = { bulow: "Bülow's IV Corps", pirch: "Pirch's II Corps", zieten: "Zieten's I Corps", wellington: "Wellington's army", hal: 'the Hal force' };
+const NATW = new Proxy({}, { get: (_, k) => SIM && SIM.command ? SIM.command.NATWORD[k] : undefined }); // (phase 5) the battle's words, from the command layer
+const CORPSN = new Proxy({}, { get: (_, k) => SIM && SIM.command ? SIM.command.CORPSNAME[k] : undefined });
 function contactBox(c) {
   const k = c.kind;
   if (k === 'art') return [Math.min(400, Math.max(40, (c.guns || 6) * 15)), 26];
@@ -212,12 +206,12 @@ function quadAt(x, y, facing, W, D) {
 function polyFill(g, pts) { g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); }
 function drawBelief(g) {
   if (!SIM || !SIM.command) return;
-  const C = SIM.command, B = C.B.napoleon, now = SIM.t, s = view.s, zf = zoomF();
+  const C = SIM.command, B = C.B[CHIEF], now = SIM.t, s = view.s, zf = zoomF();
   if (viewMode === 'napoleon') unitHits = [];
   // places as Napoleon believes them
   for (const sp of SIM.sps) {
     const pb = B.places[sp.id]; if (!pb || !pb.holder) continue; const [x, y] = P(sp.x, sp.y), a = Math.max(0.35, Math.exp(-(now - pb.t) / 90));
-    g.save(); g.globalAlpha = a; g.strokeStyle = PAL.ink; g.lineWidth = 1; g.beginPath(); g.moveTo(x - 12, y - 2); g.lineTo(x - 12, y - 16); g.stroke(); g.fillStyle = pb.holder === 'FR' ? PAL.FR : PAL.AL; g.fillRect(x - 21, y - 16, 9, 6); g.restore();
+    g.save(); g.globalAlpha = a; g.strokeStyle = PAL.ink; g.lineWidth = 1; g.beginPath(); g.moveTo(x - 12, y - 2); g.lineTo(x - 12, y - 16); g.stroke(); g.fillStyle = sideColor(pb.holder); g.fillRect(x - 21, y - 16, 9, 6); g.restore();
   }
   for (const [id, pl] of Object.entries(B.plumes)) { const sp = SIM.spById[id]; const [x, y] = P(sp.x, sp.y); g.save(); g.globalAlpha = Math.max(0.25, Math.exp(-(now - pl.t) / 120)); g.fillStyle = 'rgba(90,85,80,0.55)'; for (let k = 0; k < 4; k++) { g.beginPath(); g.arc(x + 4 + k * 3, y - 10 - k * 9, 5 + k * 2.5, 0, 7); g.fill(); } g.restore(); }
   // own corps, as last reported
@@ -265,7 +259,7 @@ function drawRiders(g) {
   if (!SIM || !SIM.command || !layers.riders) return;
   for (const r of SIM.command.riders) {
     if (r.status !== 'riding' || r.offmapAt != null) continue;
-    if (viewMode === 'napoleon' && r.side !== 'FR') continue;
+    if (viewMode === 'napoleon' && r.side !== SIDE) continue;
     const col = r.side === 'FR' ? PAL.FR : r.side === 'PR' ? PAL.PR : PAL.AL;
     g.save(); g.strokeStyle = col; g.globalAlpha = 0.45; g.lineWidth = 1.2; g.setLineDash([1.5, 2.5]); g.beginPath(); r.trail.concat([[r.x, r.y]]).forEach(([x, y], i) => { const [px, py] = P(x, y); i ? g.lineTo(px, py) : g.moveTo(px, py); }); g.stroke(); g.setLineDash([]);
     const rp = riderPrev.get(r), rx = rp && frac < 1 ? rp[0] + (r.x - rp[0]) * frac : r.x, ry = rp && frac < 1 ? rp[1] + (r.y - rp[1]) * frac : r.y;
@@ -290,6 +284,6 @@ function hoverHTML(u, rich) {
   if (u.belief === 'rider') { const r = u.r; return `<b>A rider</b><div>Carrying ${r.label}.</div><div class="sub">Left ${t(r.leftAt)}, ${(r.ridden / 1000).toFixed(1)} km ridden.</div>`; }
   if (u.belief === 'own') { const o = u.o, un = u.unit; return `<b>${un.name}</b><div class="sub">${un.parent}</div><div>${o.tState >= 0 ? `${Math.round(o.str).toLocaleString('en-GB')} ${un.type === 'art' ? 'guns' : 'men'}, ${o.cohWord || 'condition unknown'}` : 'Condition unknown'}${o.task ? ' · ' + (TASKS[o.task] || o.task) : ''}</div><div class="conf">Position as of ${t(o.t)} (${srcShort(o.src)}), ${Math.round(now - o.t)} min ago${o.tState >= 0 ? `; condition as of ${t(o.tState)}` : ''}</div>`; }
   const c = u.c, kind = c.kind === 'troops' ? 'troops' : c.kind === 'art' ? 'guns' : c.kind === 'cav' ? 'cavalry' : 'infantry', formTxt = c.form ? (c.kind === 'cav' && c.form === 'columns' ? 'columns of squadrons' : FORM[c.form] || c.form) : '';
-  const who = c.corps ? CORPSN[c.corps] || '' : c.nat ? NATW[c.nat] : c.side === 'AL' ? "Wellington's (by position)" : c.side === 'PR' ? 'Prussian' : 'unidentified';
+  const who = c.corps ? CORPSN[c.corps] || '' : c.nat ? NATW[c.nat] : c.side ? `${(GB.byPosition || {})[c.side] || NATW[c.side] || 'the enemy’s'} (by position)` : 'unidentified';
   return `<b>${c.kind === 'art' ? (c.guns || '?') + ' guns' : 'About ' + (Math.round(c.str / (c.str > 2000 ? 500 : 100)) * (c.str > 2000 ? 500 : 100)).toLocaleString('en-GB') + ' ' + kind}</b><div class="sub">${who}${formTxt ? ' · ' + formTxt : ''}${c.status === 'broken' ? ' · running' : ''}</div><div>${c.moving ? 'On the move. ' : ''}${whereIs(c.x, c.y)}</div><div class="conf">Seen ${t(c.t)} · ${c.src} · ${Math.round(now - c.t)} min ago</div>${c.ghost ? `<div class="conf">An earlier report (${c.ghost.src}) put them ${Math.round(Math.hypot(c.x - c.ghost.x, c.y - c.ghost.y))} m away.</div>` : ''}`;
 }

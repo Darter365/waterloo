@@ -13,7 +13,10 @@ function historical(E, opt) {
   const plans = Packs().battle(E.battleId || 'waterloo').battle.plans || {}, plan = plans.historical;
   if (!plan) throw new Error(`battle ${E.battleId} has no historical plan`);
   const S = Plans().install(E, plan, opt || {});
-  for (const p of Object.values(plans)) if (p !== plan && p.withHistorical) Plans().install(E, p, opt || {}); // (phase 5) the other side's recorded orders (Ligny: Blücher's)
+  // (phase 5) the orders that are part of the battle whoever commands (always: Ligny's recall of d'Erlon by Ney), then the other side's
+  // recorded orders (withHistorical: Blücher's); this order keeps Ligny's results as they were when the recall was in Napoleon's plan
+  for (const p of Object.values(plans)) if (p !== plan && p.always) Plans().install(E, p, opt || {});
+  for (const p of Object.values(plans)) if (p !== plan && p.withHistorical && !p.always) Plans().install(E, p, opt || {});
   return S;
 }
 

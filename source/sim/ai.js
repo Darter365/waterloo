@@ -102,6 +102,7 @@ function apply(E, o) {
     E.logEvent('orders', `${L.name} reads the order differently and forms ${alt === 'mass' ? 'the massed division columns' : 'columns of attack'}.`, { side: L.side, hidden: true });
     o.form = alt;
   }
+  if (o.kind === 'attack' && o.guard && E.metrics.guardAttack == null) E.metrics.guardAttack = E.t; // (phase 5) the Guard going in, however the order came (Ligny's recorded orders go straight out)
   if (o.kind === 'attack') execAttack(E, o);
   else if (o.kind === 'advance' || o.kind === 'move' || o.kind === 'withdraw') execAdvance(E, o);
   else if (o.kind === 'bombard') execBombard(E, o);

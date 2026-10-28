@@ -27,22 +27,27 @@ FACES = [
 ]
 fontcss = ''.join(f"@font-face{{font-family:'{fam}';font-style:{st};font-weight:{w};font-display:swap;src:url(data:font/woff2;base64,{font(pkg, f)}) format('woff2')}}\n" for fam, st, w, pkg, f in FACES)
 
-game = open(os.path.join(SIM, 'game.html'), encoding='utf-8').read()
-# the Google Fonts links are replaced by the embedded faces
-game = re.sub(r'<link rel="preconnect"[^>]*>\n?', '', game)
-game = re.sub(r'<link rel="stylesheet" href="https://fonts\.googleapis\.com[^>]*>\n?', '', game)
-assert 'fonts.googleapis' not in game and 'fonts.gstatic' not in game
-title = re.search(r'<title>(.*?)</title>', game).group(1)
-game = game.replace(f'<title>{title}</title>\n', '', 1)
-stamp = hashlib.sha1(game.encode()).hexdigest()[:10]
+# (phase 5) one page per battle: index.html is Waterloo, ligny.html is Ligny (sim/game_ligny.html); both are cached for offline use
+PAGES = [('game.html', 'index.html', "Command Napoleon's army at Waterloo through riders, reports and orders."),
+         ('game_ligny.html', 'ligny.html', "Command Napoleon's army at Ligny, two days before Waterloo, through riders, reports and orders.")]
+def page_of(src):
+    game = open(os.path.join(SIM, src), encoding='utf-8').read()
+    # the Google Fonts links are replaced by the embedded faces
+    game = re.sub(r'<link rel="preconnect"[^>]*>\n?', '', game)
+    game = re.sub(r'<link rel="stylesheet" href="https://fonts\.googleapis\.com[^>]*>\n?', '', game)
+    assert 'fonts.googleapis' not in game and 'fonts.gstatic' not in game
+    title = re.search(r'<title>(.*?)</title>', game).group(1)
+    return title, game.replace(f'<title>{title}</title>\n', '', 1)
+built = [(out, desc) + page_of(src) for src, out, desc in PAGES]
+stamp = hashlib.sha1(''.join(g for _, _, _, g in built).encode()).hexdigest()[:10]
 
-head = f'''<!doctype html>
+def head_of(title, desc): return f'''<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>{title}</title>
-<meta name="description" content="Command Napoleon's army at Waterloo through riders, reports and orders.">
+<meta name="description" content="{desc}">
 <meta name="theme-color" content="#e7ddc6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#15110d" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -67,7 +72,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 </body>
 </html>
 '''
-open(os.path.join(OUT, 'index.html'), 'w', encoding='utf-8').write(head + game + tail)
+for out, desc, title, game in built: open(os.path.join(OUT, out), 'w', encoding='utf-8').write(head_of(title, desc) + game + tail)
 
 # icons: an ink "W" on the map's paper, with the double rule of the map's cartouche
 def ttf(pkg, name):
@@ -96,7 +101,7 @@ manifest = {
 }
 open(os.path.join(OUT, 'manifest.webmanifest'), 'w').write(json.dumps(manifest, indent=1))
 
-files = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/maskable-512.png']
+files = ['./', 'index.html', 'ligny.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/maskable-512.png']
 sw = f'''// Waterloo offline release {stamp}: every file is cached on install, and served from the cache first, so the game opens with no signal.
 // A new release changes this file, which makes the browser install the new cache and drop the old one.
 const CACHE = 'waterloo-{stamp}', FILES = {json.dumps(files)};
@@ -116,8 +121,11 @@ Open the site once in Safari (or Chrome), then **Add to Home Screen**. After tha
 
 Everything is in `index.html` (engine, map and game); `sw.js` keeps it in the device's cache. Release {stamp}.
 
+`ligny.html` is the second battle, Ligny (16 June 1815), played the same way: you are Napoleon against Blücher's Prussians, with
+Vandamme, Gérard and Grouchy to write to and d'Erlon's corps somewhere to the west. It is cached with the rest.
+
 `lab.html` is the battle lab: any battle in the engine's packs (Waterloo, Ligny, and an invented test battle), fought by the generic commanders
 or with you commanding one army through its own sightings; it also fights a battle many times and judges the results against the
 battle's targets. The source and the tools are in `source/`.
 ''')
-print('offline release', stamp, 'index.html', os.path.getsize(os.path.join(OUT, 'index.html')) // 1024, 'KB')
+print('offline release', stamp, ', '.join(f"{o} {os.path.getsize(os.path.join(OUT, o)) // 1024} KB" for o, *_ in built))

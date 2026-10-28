@@ -95,6 +95,33 @@ broken('t-toguns', B => onSide(B, 'FR', s => { s.toGuns[0].force = 'nobody'; ret
   E.run(17 * 60); ok(E.metrics.stAmandFall != null, 'ligny: the historical runner takes Saint-Amand by 17:00 (seed 2)');
   E.run(); ok(/French victory|Draw/.test(E.result.grade) && E.result.cas.FR.kw > 5000 && E.result.cas.PR.kw > 5000, 'ligny: the day ends with a grade and losses on both sides: ' + E.result.grade);
   ok(!/Marginal French/.test(E.result.grade) || E.spById.ligny.holder === 'FR' || E.flags.prWithdraw, 'ligny: a marginal French win means the French hold Ligny or the Prussians drew off'); }
+// (phase 5, stage 2) the command layer reads the battle's command block: Waterloo's chain is unchanged, Ligny's works, and both blocks are checked
+{ const lb = P.battles.ligny, brokenC = (id, change, expect) => {
+    const B = JSON.parse(JSON.stringify({ ...lb, map: undefined })); B.map = { ...lb.map }; change(B);
+    P.register('battle', id, B); const r = validate(id); delete P.battles[id];
+    ok(r.errors.some(e => expect.test(e)), `${id}: expected an error matching ${expect}, got: ${r.errors.join(' | ') || 'none'}`); };
+  brokenC('t-cmd-rcpt', B => { B.command.recipients.ney = { name: 'Ney', kind: 'marshal' }; }, /recipient "ney" is not a leader placed/);
+  brokenC('t-cmd-post', B => { B.command.post0 = 'atlantis'; }, /post0 "atlantis"/);
+  brokenC('t-game-corps', B => { B.game.corps = B.game.corps.concat('reille'); }, /"reille" is not one of the command block's recipients/);
+  brokenC('t-game-metric', B => { B.game.moments = [['ghost', 'a ghost']]; }, /metric "ghost"/);
+  brokenC('t-plan-always', B => { B.plans = { ...B.plans, ney: { ...B.plans.ney, via: 'builder' } }; }, /always or withHistorical plan must go out as orders/);
+  const En = require('../engine.js'), AI = require('../ai.js'), Cmd = require('../command.js'), Ord = require('../orders.js');
+  const W = En.create({ battle: 'waterloo', seed: 1 }); AI.make({ plan: 'script' }).init(W); Cmd.install(W, {}); Ord.install(W);
+  const cw = id => W.command.cmdOf(W.byId[id]);
+  ok(cw('aHMil') === 'milhaud' && cw('g1gren') === 'drouot' && W.command.RECIPIENTS.grouchy.kind === 'offmap' && W.leaders.grouchy.offmap && W.command.hq.post === 'rossomme', 'command: Waterloo\'s chain, recipients and post come from its pack as before');
+  const L = En.create({ battle: 'ligny', seed: 3 }); AI.make({ plan: 'script' }).init(L); Cmd.install(L, {}); Ord.install(L);
+  const r = L.command.order({ to: 'vandamme', action: 'attack', objective: { place: 'stamand' } });
+  ok(r.ok && L.command.cmdOf(L.byId['vernier']) === 'vandamme' && L.command.cmdOf(L.byId['aHPaj']) === 'grouchy' && L.command.hq.post === 'naveau', 'command: Ligny\'s chain from its pack; an order to Vandamme is accepted');
+  while (L.t < 15 * 60 && !(r.order.actedAt != null)) L.step();
+  ok(r.order.actedAt != null && r.order.actedAt < 15 * 60, `command: at Ligny the order is written, ridden and acted on within the hour (acted ${r.order.actedAt})`);
+  ok(L.command.order({ to: 'ney', action: 'hold' }).ok === false, 'command: at Ligny there is no Ney to write to');
+  // the game's "Napoleon's own orders" at Ligny: the recorded orders through the command layer, with no staff named (a crash once)
+  const RP = require('../replay.js'), H = RP.run({ battle: 'ligny', seed: 1000 }, [], { historical: true }).E;
+  ok(H.over && /French/.test(H.result.grade) && H.metrics.guardAttack > 19 * 60, `command: Ligny from Napoleon's orders through the command layer ends ${H.result.grade}, the Guard in at ${H.metrics.guardAttack}`);
+  // the player's own battle, no orders given: Blücher still makes his recorded counter-strokes, and Ney still recalls d'Erlon (no rider crosses the field)
+  const P0 = RP.run({ battle: 'ligny', seed: 1000 }, [], { until: 19 * 60 + 30 }).E, oid = id => P0.orders.find(o => o.id === id);
+  ok(oid('tippelskirch') && oid('brause') && oid('derlonRecalled') && oid('derlonRecalled').status === 'done' && P0.byId.schmitz.task.kind === 'retire' && !P0.command.riders.some(r => r.payload === oid('derlonRecalled')),
+    `command: in the player's battle at Ligny Blücher's recorded strokes and Ney's recall of d'Erlon happen as on the day (recall ${oid('derlonRecalled') && oid('derlonRecalled').status}, Schmitz ${P0.byId.schmitz.task.kind})`); }
 // (4d) orders of battle as CSV: Waterloo's goes out and comes back the same; every committed CSV is its pack's source
 { const O = require('./oob.js'), fs = require('fs'), W = P.battle('waterloo').W;
   const back = O.importRows(O.parseCSV(O.toCSV(O.exportRows(W))));
