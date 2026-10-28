@@ -431,7 +431,7 @@ const FORCES = [
   { group: 'grouchy', marches: false, units: GROUCHY_FORCE, fatigue0: 20 },
 ];
 const P = root.WPacks || (typeof require === 'function' ? require('../registry.js') : null);
-P.register('battle', 'waterloo', { version: '1.0', // (4e) versions start at phase 4: 1.0 is release 3 with phases 1-3 (in band)
+P.register('battle', 'waterloo', { version: '1.1', // (4e) versions start at phase 4: 1.0 is release 3 with phases 1-3 (in band); 1.1 (phase 5): the start-of-battle setup and the LHS metric moved here from ai.js, results unchanged
   name: 'Waterloo', date: '1815-06-18', era: 'napoleonic',
   nations: ['FR', 'GB', 'KGL', 'HAN', 'NL', 'NAS', 'BRU', 'MIX', 'PR'],
   // the armies on the field: morale at the start (est., rules doc) and the coalition each fights in (it shares places and does not fire on its own)
@@ -608,7 +608,7 @@ P.register('battle', 'waterloo', { version: '1.0', // (4e) versions start at pha
      once another has happened; every: each time), fires (a corps or side first fires on the enemy), near (a corps first comes within so many
      metres of a place), prestige (a side's prestige unit is first thrown back). */
   metrics: [
-    { id: 'lhsFall', when: 'taken', place: 'lhs', by: 'FR' },
+    { id: 'lhsFall', when: 'taken', place: 'lhs', by: 'FR' }, { id: 'lhsFall', when: 'held', place: 'lhs', by: 'FR' }, // (phase 5: was a rule in ai.js)
     { id: 'hougFall', when: 'taken', place: 'hougoumont', by: 'FR' },
     { id: 'plancenoitLost', when: 'taken', place: 'plancenoit', by: 'AL' },
     { id: 'plancenoitRetaken', when: 'taken', place: 'plancenoit', by: 'FR', after: 'plancenoitLost', every: true },
@@ -617,6 +617,12 @@ P.register('battle', 'waterloo', { version: '1.0', // (4e) versions start at pha
     { id: 'zietenPapelotte', when: 'near', corps: 'zieten', place: 'papelotte', within: 700, says: "Zieten's leading troops reach Papelotte." },
     { id: 'guardRepulsed', when: 'prestige', side: 'FR', says: '"La Garde recule!" The cry runs along the French line.' },
   ],
+  // (phase 5) the historical battle (ai.js): the allies are commanded by the generic doctrine with Wellington's habits; at the start Marbot's
+  // 7th Hussars (Bruno's brigade) screen the far right toward Lasne and the Dyle, and the Guard's 24 twelve-pounders are made a battery of
+  // their own for the grand battery (release 3's values: these were code in ai.js)
+  commanders: { generic: ['AL'] },
+  setup: { screens: [{ unit: 'bruno', at: [50.6830, 4.4830] }],
+    detach: [{ from: 'aGuard', id: 'aGuard12', guns: 24, name: "The Guard's 12-pounders", parent: 'Guard artillery', dx: -150, form: 'park', q: 1.15, corps: 'guard', cal: 12, coh: 82 }] },
   // a corps that marches by another's road: Pirch's II Corps followed Bülow's IV Corps through Lasne
   routeOf: { pirch: 'bulow' },
   // (phase 3c) plans: what the record says the commanders did, as rules (plans.js). 'historical' is Napoleon's orders on 18 June, given

@@ -10,9 +10,11 @@
 const Plans = () => root.WPlans || (typeof require === 'function' ? require('./plans.js') : null);
 const Packs = () => root.WPacks || (typeof require === 'function' ? require('./packs/all.js') : null);
 function historical(E, opt) {
-  const plan = (Packs().battle(E.battleId || 'waterloo').battle.plans || {}).historical;
+  const plans = Packs().battle(E.battleId || 'waterloo').battle.plans || {}, plan = plans.historical;
   if (!plan) throw new Error(`battle ${E.battleId} has no historical plan`);
-  return Plans().install(E, plan, opt || {});
+  const S = Plans().install(E, plan, opt || {});
+  for (const p of Object.values(plans)) if (p !== plan && p.withHistorical) Plans().install(E, p, opt || {}); // (phase 5) the other side's recorded orders (Ligny: Blücher's)
+  return S;
 }
 
 root.WScript = { historical };

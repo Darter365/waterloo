@@ -192,18 +192,31 @@ function validate(id) {
     }
   }
   // (phase 2) turning points, valued places and lines
-  const WHEN = ['taken', 'fires', 'near', 'prestige', 'line'], mids = new Set();
+  const WHEN = ['taken', 'held', 'fires', 'near', 'prestige', 'line'], mids = new Set();
   for (const m of B.metrics || []) {
-    if (!m.id || mids.has(m.id)) E(`metric "${m.id}": missing or repeated id`); mids.add(m.id);
+    if (!m.id || mids.has(m.id + '|' + m.when)) E(`metric "${m.id}": missing, or repeated with the same when`); mids.add(m.id + '|' + m.when); // a metric may have more than one trigger (when): the first to fire sets it
     if (!WHEN.includes(m.when)) { E(`metric ${m.id}: when "${m.when}" must be one of ${WHEN.join(', ')}`); continue; }
-    if ((m.when === 'taken' || m.when === 'near') && !(W.STRONGPOINTS || []).some(sp => sp.id === m.place)) E(`metric ${m.id}: place "${m.place}" is not a strongpoint`);
-    if (m.when === 'taken' && !new Set(sides.map(x => x.coalition || x.id)).has(m.by)) E(`metric ${m.id}: by "${m.by}" is not a coalition`);
+    if ((m.when === 'taken' || m.when === 'held' || m.when === 'near') && !(W.STRONGPOINTS || []).some(sp => sp.id === m.place)) E(`metric ${m.id}: place "${m.place}" is not a strongpoint`);
+    if ((m.when === 'taken' || m.when === 'held') && !new Set(sides.map(x => x.coalition || x.id)).has(m.by)) E(`metric ${m.id}: by "${m.by}" is not a coalition`);
     if (m.when === 'line' && !((W.OBJECTIVES || {})[m.line] || {}).line) E(`metric ${m.id}: line "${m.line}" is not an objective with a line`);
     if ((m.when === 'fires' || m.when === 'near') && !m.side && !m.corps) E(`metric ${m.id}: needs a side or a corps`);
     if (m.side && !sideIds.has(m.side)) E(`metric ${m.id}: side "${m.side}" is not one of the battle's sides`);
     if (m.after && !(B.metrics || []).some(x => x.id === m.after)) E(`metric ${m.id}: after "${m.after}" is not a metric`);
   }
   for (const sp of W.STRONGPOINTS || []) if (sp.value != null && !(num(sp.value) && sp.value >= 0)) E(`strongpoint ${sp.id}: value must be >= 0`);
+  for (const sp of W.STRONGPOINTS || []) for (const sec of sp.sections || []) if (sec.street != null && typeof sec.street !== 'boolean') E(`strongpoint ${sp.id}: section "${sec.name}" street must be true or false`);
+  // (phase 5) the grade: who attacks, what a decisive win must hold, what a marginal one is
+  const V = B.victory || {}, spIds = new Set((W.STRONGPOINTS || []).map(p => p.id));
+  if (V.attacker && !sideIds.has(V.attacker)) E(`victory: attacker "${V.attacker}" is not one of the battle's sides`);
+  if (V.decisive) { if (!spIds.has(V.decisive.holds)) E(`victory: decisive holds "${V.decisive.holds}", which is not a strongpoint`); if (!num(V.decisive.within) || !num(V.decisive.morale)) E('victory: decisive needs within (m) and morale'); }
+  if (typeof V.marginal === 'string') { const o = (W.OBJECTIVES || {})[V.marginal]; if (!o || !o.line || !o.flag) E(`victory: marginal "${V.marginal}" must be a line objective with a flag`); }
+  else if (V.marginal) { if (!(V.marginal.holds || []).length) E('victory: marginal must name a line objective, or holds: [places]'); for (const id of V.marginal.holds || []) if (!spIds.has(id)) E(`victory: marginal holds "${id}", which is not a strongpoint`); }
+  if (V.drawnOff != null && typeof V.drawnOff !== 'boolean') E('victory: drawnOff must be true or false');
+  // (phase 5) which armies the generic doctrine commands in the historical battle, and Waterloo-style start-of-battle setup
+  for (const g of (B.commanders || {}).generic || []) if (!sideIds.has(g)) E(`commanders: generic "${g}" is not one of the battle's sides`);
+  const fieldUnits = new Set((W.RAW || []).map(r => r[0]));
+  for (const sc of (B.setup || {}).screens || []) { if (!fieldUnits.has(sc.unit)) E(`setup: screen unit "${sc.unit}" is not on the field at the start`); where(`setup screen ${sc.unit}`, sc.at); }
+  for (const d of (B.setup || {}).detach || []) { if (!fieldUnits.has(d.from)) E(`setup: detach from "${d.from}", which is not on the field at the start`); if (units[d.id]) E(`setup: detach id "${d.id}" is already a unit`); if (!(num(d.guns) && d.guns > 0)) E(`setup: detach ${d.id} needs guns > 0`); }
   for (const [k, o] of Object.entries(W.OBJECTIVES || {})) if (o.value) {
     if (!o.line) E(`objective ${k}: only a line can carry a value (places carry theirs on the strongpoint)`);
     if (!new Set(sides.map(x => x.coalition || x.id)).has(o.holder)) E(`objective ${k}: holder "${o.holder}" is not a coalition (who holds it at the start)`);
@@ -228,6 +241,7 @@ function validate(id) {
     for (const f of s.feeds || []) { needPlace(s, 'feeds', f.place); needUnits(s, 'feeds', f.donors); }
     if (s.sectors) { needUnits(s, 'sectors', s.sectors.units); if ((s.sectors.names || []).length !== (s.sectors.bounds || [0, []])[1].length + 1) E(`side ${s.id}: sectors need one more name than bounds`); }
     for (const id of (s.reoccupy || {}).places || []) needPlace(s, 'reoccupy', id);
+    if (s.retake) { for (const id of s.retake.places || []) needPlace(s, 'retake', id); for (const k of ['every', 'chance', 'coh', 'str', 'near']) if (s.retake[k] != null && !(num(s.retake[k]) && s.retake[k] >= 0)) E(`side ${s.id}: retake ${k} must be a number >= 0`); if (s.retake.chance > 1.5) Wn(`side ${s.id}: retake chance ${s.retake.chance} is multiplied by the chief's aggression: over 1 means every try goes in`); if (s.reoccupy) Wn(`side ${s.id}: retake does nothing while the side has a reoccupy habit (doctrine.js: reoccupy replaces the generic retake)`); }
     for (const sh of s.shifts || []) { needUnits(s, 'shifts', sh.units); needPlace(s, 'shifts', sh.when.friendNear); }
     for (const c of s.calls || []) if (!forceIds.has(c.force)) E(`side ${s.id}: calls force "${c.force}" is not one of the battle's forces`);
     for (const g of (s.initiative || {}).garrison || []) { needPlace(s, 'initiative', g.place); needUnits(s, 'initiative', g.units); if (!(B.leaders || []).some(l => l.id === g.leader)) E(`side ${s.id}: initiative leader "${g.leader}" is not placed in the battle`); }

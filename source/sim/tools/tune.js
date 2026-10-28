@@ -2,7 +2,8 @@
    puts one battle in its band does not quietly push another out of its own.
      node tools/tune.js [--n 60] [--battles waterloo,toy-ridge] [--set NAME=v ...] [--sweep NAME=v1,v2,...] [--seed 1000] [--procs 2] [--generic AL,PR] [--no-timetables]
    --set changes an era constant (E.K) for every run; --sweep tries each value in turn (several sweeps: every combination). Each battle is
-   fought the way its targets say (runner: 'historical' = its recorded plan through the command layer; else the generic commanders on
+   fought the way its targets say (runner: 'historical' = its recorded plan through the command layer; 'plan' = its recorded plans straight
+   out as orders, without the command layer; else the generic commanders on
    every side), n times from the same seeds for every setting, so settings are compared on the same dice.
    Targets live in the battle packs (targets: { runner, checks }); a check is one of
      { what, share: 'grade regex', not: 'grade regex', min, max, below }   per cent of battles whose result matches

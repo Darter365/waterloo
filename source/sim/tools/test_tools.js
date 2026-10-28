@@ -78,6 +78,23 @@ broken('t-toguns', B => onSide(B, 'FR', s => { s.toGuns[0].force = 'nobody'; ret
   const q = Pl.install(E, { id: 'x', side: 'RD', as: 'carmin', via: 'order', rules: [{ id: 'go', at: '11:04', order: { to: 'vermillon', kind: 'attack', obj: 'ferme', units: ['r1'], form: 'attack' } }] });
   while (E.t < 670) { E.plans.tick(E); E.step(); }
   ok(q.done.go === 664 && E.orders.filter(o => o.id === 'go').length === 1, 'plan: an order plan fires once, on time'); }
+// (phase 5) Ligny: the second battle validates; its new pack fields are checked; the open-village rule and the grade by places work
+{ const lc = validate('ligny'); ok(lc.errors.length === 0, 'ligny validates: ' + lc.errors.join('; '));
+  const lb = P.battles.ligny, brokenL = (id, change, expect) => {
+    const B = JSON.parse(JSON.stringify({ ...lb, map: undefined })); B.map = { ...lb.map }; change(B);
+    P.register('battle', id, B); const r = validate(id); delete P.battles[id];
+    ok(r.errors.some(e => expect.test(e)), `${id}: expected an error matching ${expect}, got: ${r.errors.join(' | ') || 'none'}`); };
+  brokenL('t-retake', B => { B.sides = B.sides.map(s => s.id === 'PR' ? { ...s, retake: { ...s.retake, places: ['atlantis'] } } : s); }, /retake place "atlantis"/);
+  brokenL('t-marginal', B => { B.victory = { ...B.victory, marginal: { holds: ['atlantis'] } }; }, /marginal holds "atlantis"/);
+  brokenL('t-decisive', B => { B.victory = { ...B.victory, decisive: { ...B.victory.decisive, holds: 'atlantis' } }; }, /decisive holds "atlantis"/);
+  brokenL('t-generic', B => { B.commanders = { generic: ['XX'] }; }, /generic "XX"/);
+  broken('t-setup', B => { B.setup = { ...B.setup, screens: [{ unit: 'nobody', at: [50.68, 4.48] }] }; }, /screen unit "nobody"/);
+  const En = require('../engine.js'), AI = require('../ai.js'), Scr = require('../script.js');
+  const E = En.create({ battle: 'ligny', seed: 2 }); AI.make({ plan: 'script' }).init(E); Scr.historical(E);
+  ok(E.streetSecs.length >= 10 && En.create({ battle: 'waterloo', seed: 1 }).streetSecs.length === 0, 'ligny: open villages are marked street; Waterloo has none (its fights are unchanged)');
+  E.run(17 * 60); ok(E.metrics.stAmandFall != null, 'ligny: the historical runner takes Saint-Amand by 17:00 (seed 2)');
+  E.run(); ok(/French victory|Draw/.test(E.result.grade) && E.result.cas.FR.kw > 5000 && E.result.cas.PR.kw > 5000, 'ligny: the day ends with a grade and losses on both sides: ' + E.result.grade);
+  ok(!/Marginal French/.test(E.result.grade) || E.spById.ligny.holder === 'FR' || E.flags.prWithdraw, 'ligny: a marginal French win means the French hold Ligny or the Prussians drew off'); }
 // (4d) orders of battle as CSV: Waterloo's goes out and comes back the same; every committed CSV is its pack's source
 { const O = require('./oob.js'), fs = require('fs'), W = P.battle('waterloo').W;
   const back = O.importRows(O.parseCSV(O.toCSV(O.exportRows(W))));

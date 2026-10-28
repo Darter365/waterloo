@@ -116,7 +116,7 @@ Open the site once in Safari (or Chrome), then **Add to Home Screen**. After tha
 
 Everything is in `index.html` (engine, map and game); `sw.js` keeps it in the device's cache. Release {stamp}.
 
-`lab.html` is the battle lab: any battle in the engine's packs (Waterloo, and an invented test battle), fought by the generic commanders
+`lab.html` is the battle lab: any battle in the engine's packs (Waterloo, Ligny, and an invented test battle), fought by the generic commanders
 or with you commanding one army through its own sightings; it also fights a battle many times and judges the results against the
 battle's targets. The source and the tools are in `source/`.
 ''')

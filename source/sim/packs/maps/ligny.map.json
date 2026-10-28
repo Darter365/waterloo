@@ -1,0 +1,17 @@
+{
+ "id": "ligny",
+ "origin": [
+  50.547,
+  4.507
+ ],
+ "size": [
+  10850,
+  8400
+ ],
+ "cell": 50,
+ "heights": {
+  "grid": "ligny.grid.asc"
+ },
+ "features": "ligny.geojson",
+ "source": "EU-DEM 25 m (Copernicus) through the Open Topo Data API, sampled every 0.002 degrees (about 140 m east-west, 220 m north-south) on 28 October 2026; one isolated spike removed. Villages from Wikipedia, the US NGA gazetteer and the Mills Archive; the Ligny brook traced from the heights between them; roads and the places marked est. are estimated from written descriptions (no period map traced)"
+}

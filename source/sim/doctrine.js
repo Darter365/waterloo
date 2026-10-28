@@ -6,7 +6,8 @@
    Every choice is made from what the deciding commander knows (his belief record when the command layer runs; his side's sightings
    otherwise) and goes out as an order by rider (E.sendOrder), so delay and fog apply. The numbers below are est.: they shape how a
    doctrine plays and are tuned on the test battles, not on Waterloo. Leader settings (leader files) modulate them.
-   Battle pack, per side: posture ('attack' or 'defend'), reserve (corps held back), line (an objective key: the line it defends).
+   Battle pack, per side: posture ('attack' or 'defend'), reserve (corps held back), line (an objective key: the line it defends);
+   (phase 5) retake: the defender's own numbers for retaking places it lost (see defend; Ligny: Blücher's counter-attacks).
    Plan rules (plans.js) run alongside for anything a battle's record says its commanders did. */
 (function (root) {
 'use strict';
@@ -347,15 +348,19 @@ function defend(E, side, st, chief) {
   }
   // retake a place the enemy took from us (one we held at some time: not one that was his from the start), once his attack there has
   // slackened (none of his foot seen attacking near it); chance by aggression
+  // (Ligny) the battle pack may give the side its own numbers for this (sides[].retake: { every (min), chance (times the chief's aggression,
+  // in place of 0.3 x (agg + 0.3)), slack (false: go in while the enemy is still attacking there), coh, str (the bodies sent), near (m),
+  // places (ids; else every place of value) }); without it the generic numbers below, unchanged
+  const RT = sd.retake || {}, rtEvery = RT.every ?? RETAKE_EVERY, rtNear = RT.near ?? 1500, rtCoh = RT.coh ?? 65, rtStr = RT.str ?? 1200;
   st.everHeld = st.everHeld || new Set(); for (const sp of E.sps) if (sp.holder === coal) st.everHeld.add(sp.id);
-  if (!sd.reoccupy && chief && E.t - (st.retakeAt ?? -99) > RETAKE_EVERY && E.t < E.light.sunset) {
-    const lost = E.sps.filter(sp => sp.value && sp.holder && sp.holder !== coal && st.everHeld.has(sp.id) && mine.some(u => hyp(u.x - sp.x, u.y - sp.y) < 1500));
+  if (!sd.reoccupy && chief && E.t - (st.retakeAt ?? -99) > rtEvery && E.t < E.light.sunset) {
+    const lost = E.sps.filter(sp => sp.value && sp.holder && sp.holder !== coal && st.everHeld.has(sp.id) && (!RT.places || RT.places.includes(sp.id)) && mine.some(u => hyp(u.x - sp.x, u.y - sp.y) < rtNear));
     for (const sp of lost) {
-      if (seen(E, side, 20, c => hyp(c.x - sp.x, c.y - sp.y) < 700 && c.moving && c.kind === 'inf').length) continue;
-      const by = mine.filter(u => isFoot(E, u) && u.task.kind === 'hold' && u.coh > 65 && u.str > 1200 && hyp(u.x - sp.x, u.y - sp.y) < 1500).sort((a, b) => hyp(a.x - sp.x, a.y - sp.y) - hyp(b.x - sp.x, b.y - sp.y)).slice(0, 2);
+      if (RT.slack !== false && seen(E, side, 20, c => hyp(c.x - sp.x, c.y - sp.y) < 700 && c.moving && c.kind === 'inf').length) continue;
+      const by = mine.filter(u => isFoot(E, u) && u.task.kind === 'hold' && u.coh > rtCoh && u.str > rtStr && hyp(u.x - sp.x, u.y - sp.y) < rtNear).sort((a, b) => hyp(a.x - sp.x, a.y - sp.y) - hyp(b.x - sp.x, b.y - sp.y)).slice(0, 2);
       if (!by.length) continue;
       st.retakeAt = E.t;
-      if (E.rnd('retake') >= 0.3 * (chief.agg + 0.3)) break;
+      if (E.rnd('retake') >= (RT.chance != null ? RT.chance * chief.agg : 0.3 * (chief.agg + 0.3))) break;
       const k = Object.keys(E.objectives).find(k => E.objectives[k].sp === sp.id); if (!k) break;
       for (const u of by) st.reserve.delete(u.id);
       order(E, side, by[0].corps || side, { kind: 'attack', obj: k, units: [by[0].id], supports: by.slice(1).map(u => u.id), form: 'attack', maxAttempts: 2 });

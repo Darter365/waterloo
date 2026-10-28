@@ -1,0 +1,867 @@
+{
+"type": "FeatureCollection",
+"features": [
+{
+"type": "Feature",
+"properties": {
+"layer": "stream",
+"name": "the Ligny brook (la Ligne)"
+},
+"geometry": {
+"type": "LineString",
+"coordinates": [
+[
+4.508,
+50.5225
+],
+[
+4.52,
+50.5222
+],
+[
+4.53,
+50.5215
+],
+[
+4.536,
+50.52
+],
+[
+4.541,
+50.518
+],
+[
+4.546,
+50.515
+],
+[
+4.5475,
+50.511
+],
+[
+4.548,
+50.507
+],
+[
+4.552,
+50.505
+],
+[
+4.557,
+50.5042
+],
+[
+4.561,
+50.506
+],
+[
+4.566,
+50.5085
+],
+[
+4.571,
+50.5115
+],
+[
+4.576,
+50.514
+],
+[
+4.582,
+50.5165
+],
+[
+4.588,
+50.518
+],
+[
+4.596,
+50.518
+],
+[
+4.602,
+50.517
+],
+[
+4.608,
+50.5165
+],
+[
+4.611,
+50.5125
+],
+[
+4.609,
+50.508
+],
+[
+4.612,
+50.505
+],
+[
+4.62,
+50.504
+],
+[
+4.628,
+50.503
+],
+[
+4.637,
+50.502
+],
+[
+4.646,
+50.5025
+],
+[
+4.653,
+50.505
+],
+[
+4.66,
+50.5035
+]
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "road",
+"kind": "chaussee",
+"name": "the Namur road (Nivelles to Namur)"
+},
+"geometry": {
+"type": "LineString",
+"coordinates": [
+[
+4.542,
+50.547
+],
+[
+4.557,
+50.543
+],
+[
+4.577,
+50.537
+],
+[
+4.597,
+50.5315
+],
+[
+4.6025,
+50.53
+],
+[
+4.628,
+50.524
+],
+[
+4.66,
+50.5175
+]
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "road",
+"kind": "road",
+"name": "the road from Fleurus to the Point du Jour"
+},
+"geometry": {
+"type": "LineString",
+"coordinates": [
+[
+4.552,
+50.484
+],
+[
+4.564,
+50.495
+],
+[
+4.576,
+50.506
+],
+[
+4.586,
+50.5175
+],
+[
+4.594,
+50.524
+],
+[
+4.6025,
+50.53
+]
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "road",
+"kind": "lane",
+"name": "the lane from Fleurus to Saint-Amand"
+},
+"geometry": {
+"type": "LineString",
+"coordinates": [
+[
+4.55,
+50.484
+],
+[
+4.55,
+50.495
+],
+[
+4.5498,
+50.5042
+]
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "road",
+"kind": "lane",
+"name": "the lane from Fleurus to Ligny"
+},
+"geometry": {
+"type": "LineString",
+"coordinates": [
+[
+4.556,
+50.486
+],
+[
+4.565,
+50.498
+],
+[
+4.5715,
+50.509
+],
+[
+4.5747,
+50.5119
+]
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "road",
+"kind": "lane",
+"name": "the lane up the valley to Wagnelée"
+},
+"geometry": {
+"type": "LineString",
+"coordinates": [
+[
+4.5498,
+50.5042
+],
+[
+4.5432,
+50.5121
+],
+[
+4.537,
+50.519
+],
+[
+4.533,
+50.5231
+]
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "road",
+"kind": "lane",
+"name": "the lane from Saint-Amand to Brye"
+},
+"geometry": {
+"type": "LineString",
+"coordinates": [
+[
+4.551,
+50.505
+],
+[
+4.554,
+50.515
+],
+[
+4.5567,
+50.5241
+]
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "road",
+"kind": "lane",
+"name": "the lane from Ligny to Brye"
+},
+"geometry": {
+"type": "LineString",
+"coordinates": [
+[
+4.5747,
+50.5119
+],
+[
+4.566,
+50.518
+],
+[
+4.5567,
+50.5241
+]
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "road",
+"kind": "lane",
+"name": "the lane from Ligny to Sombreffe"
+},
+"geometry": {
+"type": "LineString",
+"coordinates": [
+[
+4.578,
+50.513
+],
+[
+4.587,
+50.522
+],
+[
+4.597,
+50.5315
+]
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "road",
+"kind": "lane",
+"name": "the lane from Brye to Wagnelée"
+},
+"geometry": {
+"type": "LineString",
+"coordinates": [
+[
+4.5567,
+50.5241
+],
+[
+4.545,
+50.5236
+],
+[
+4.533,
+50.5231
+]
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "road",
+"kind": "lane",
+"name": "the lane from Brye to the Namur road"
+},
+"geometry": {
+"type": "LineString",
+"coordinates": [
+[
+4.5567,
+50.5241
+],
+[
+4.556,
+50.534
+],
+[
+4.557,
+50.543
+]
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "road",
+"kind": "lane",
+"name": "the lane from Tongrinne to the Point du Jour"
+},
+"geometry": {
+"type": "LineString",
+"coordinates": [
+[
+4.6239,
+50.5157
+],
+[
+4.613,
+50.523
+],
+[
+4.6025,
+50.53
+]
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "road",
+"kind": "lane",
+"name": "the lane from Tongrenelle to Tongrinne"
+},
+"geometry": {
+"type": "LineString",
+"coordinates": [
+[
+4.6128,
+50.5115
+],
+[
+4.6239,
+50.5157
+]
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "road",
+"kind": "lane",
+"name": "the lane from Fleurus to Boignée and Balâtre"
+},
+"geometry": {
+"type": "LineString",
+"coordinates": [
+[
+4.556,
+50.486
+],
+[
+4.59,
+50.495
+],
+[
+4.62,
+50.504
+],
+[
+4.6379,
+50.4985
+]
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "road",
+"kind": "lane",
+"name": "the lane from Boignée to Tongrenelle"
+},
+"geometry": {
+"type": "LineString",
+"coordinates": [
+[
+4.62,
+50.504
+],
+[
+4.6128,
+50.5115
+]
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "village",
+"name": "Wagnelée",
+"r": 230
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.533,
+50.5231
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "village",
+"name": "le Hameau (est.)",
+"r": 130
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.537,
+50.519
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "village",
+"name": "Saint-Amand-la-Haye",
+"r": 170
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.5432,
+50.5121
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "village",
+"name": "Saint-Amand",
+"r": 280
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.5498,
+50.5042
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "village",
+"name": "Ligny",
+"r": 430
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.5735,
+50.5112
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "village",
+"name": "Brye",
+"r": 250
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.5567,
+50.5241
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "village",
+"name": "Sombreffe",
+"r": 330
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.597,
+50.5315
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "village",
+"name": "Mont-Potriaux (est.)",
+"r": 110
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.59,
+50.5178
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "village",
+"name": "Tongrenelle",
+"r": 180
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.6128,
+50.5115
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "village",
+"name": "Tongrinne",
+"r": 240
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.6239,
+50.5157
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "village",
+"name": "Boignée (est.)",
+"r": 190
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.62,
+50.504
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "village",
+"name": "Balâtre",
+"r": 240
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.6379,
+50.4985
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "village",
+"name": "Fleurus",
+"r": 500
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.548,
+50.4835
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "building",
+"name": "the château of Ligny (est.)",
+"w": 70,
+"h": 50,
+"rot": 20
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.5712,
+50.5092
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "building",
+"name": "the Ferme d’en Haut (est.)",
+"w": 50,
+"h": 40,
+"rot": 20
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.569,
+50.51
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "building",
+"name": "the Ferme d’en Bas (est.)",
+"w": 50,
+"h": 40,
+"rot": 20
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.5792,
+50.5137
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "building",
+"name": "the church of Ligny",
+"w": 30,
+"h": 18,
+"rot": 20
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.5747,
+50.5119
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "building",
+"name": "the Ferme de la Haye",
+"w": 45,
+"h": 35,
+"rot": 0
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.5432,
+50.5121
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "building",
+"name": "the church of Saint-Amand",
+"w": 30,
+"h": 18,
+"rot": 0
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.5498,
+50.5042
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "building",
+"name": "the château of Sombreffe",
+"w": 60,
+"h": 45,
+"rot": 0
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.5985,
+50.531
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "landmark",
+"name": "the Bussy mill"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.567,
+50.524
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "landmark",
+"name": "the Naveau mill"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.55522,
+50.48551
+]
+}
+},
+{
+"type": "Feature",
+"properties": {
+"layer": "landmark",
+"name": "the Point du Jour (est.)"
+},
+"geometry": {
+"type": "Point",
+"coordinates": [
+4.6025,
+50.53
+]
+}
+}
+]
+}

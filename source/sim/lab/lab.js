@@ -285,6 +285,7 @@ function workers() {
 ;self.onmessage = e => { const d = e.data, out = [];
   for (const seed of d.seeds) { try { let E;
     if (d.runner === 'historical') { E = WEngine.create({ battle: d.battle, seed }); WAI.make({ plan: 'script' }).init(E); WCommand.install(E, {}); WOrders.install(E); WScript.historical(E); }
+    else if (d.runner === 'plan') { E = WEngine.create({ battle: d.battle, seed }); WAI.make({ plan: 'script' }).init(E); WScript.historical(E); } // (phase 5) the recorded plans, without the command layer
     else { E = WEngine.create({ battle: d.battle, seed }); WDoctrine.make(d.runner === 'bare' ? { timetables: false } : {}).init(E); } // bare: without the battle's timetables (3d)
     E.run(); const r = E.result || {};
     out.push({ seed, grade: r.grade || 'unfinished', why: r.why, t: E.t, kw: Object.fromEntries(Object.entries(r.cas || {}).map(([s, c]) => [s, c.kw])), metrics: Object.assign({}, E.metrics) });
@@ -318,7 +319,7 @@ function manyShow(id, all, n, runner, t0) {
   const B = P.battles[id], res = all.filter(r => !r.err), errs = all.filter(r => r.err); if (!res.length) { $('manyout').innerHTML = errs.length ? `<p class="verdict bad">${esc(errs[0].err)}</p>` : ''; return; }
   const gr = {}; for (const r of res) gr[r.grade] = (gr[r.grade] || 0) + 1;
   const sides = Object.keys(res[0].kw), mets = Object.keys(res[0].metrics).filter(k => res.some(r => r.metrics[k] != null));
-  let h = `<p class="muted" style="margin:0">${res.length} of ${n} fought (${runner === 'historical' ? 'the recorded plan' : runner === 'bare' ? 'generic commanders, no timetables' : 'generic commanders'}), ${((performance.now() - t0) / 1000).toFixed(0)} s${errs.length ? `; ${errs.length} failed: ${esc(errs[0].err)}` : ''}</p>`;
+  let h = `<p class="muted" style="margin:0">${res.length} of ${n} fought (${runner === 'historical' || runner === 'plan' ? 'the recorded plan' : runner === 'bare' ? 'generic commanders, no timetables' : 'generic commanders'}), ${((performance.now() - t0) / 1000).toFixed(0)} s${errs.length ? `; ${errs.length} failed: ${esc(errs[0].err)}` : ''}</p>`;
   h += '<h3>Results</h3><table>' + Object.entries(gr).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${Math.round(100 * v / res.length)}%</td></tr>`).join('') + '</table>';
   h += '<h3>Killed and wounded</h3><table><tr><th>army</th><th class="n">p10</th><th class="n">median</th><th class="n">p90</th></tr>' + sides.map(s => `<tr><td>${esc(B.sides.find(x => x.id === s) ? B.sides.find(x => x.id === s).name : s)}</td>${[0.1, 0.5, 0.9].map(q => `<td class="n">${kf(pct(res.map(r => r.kw[s]), q))}</td>`).join('')}</tr>`).join('') + '</table>';
   if (mets.length) h += '<h3>When things happened</h3><table><tr><th>metric</th><th class="n">in</th><th class="n">median</th></tr>' + mets.map(k => `<tr><td>${esc(k)}</td><td class="n">${res.filter(r => r.metrics[k] != null).length}/${res.length}</td><td class="n">${tm(pct(res.map(r => r.metrics[k]), 0.5))}</td></tr>`).join('') + '</table>';

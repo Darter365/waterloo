@@ -81,10 +81,10 @@ function execCavRaid(E, o) {
 // (6) the general retreat: each brigade makes for the high road and marches off the field toward Charleroi; the rearguard first
 // stands across the road at Rossomme and follows once the rest are past
 function execRetire(E, o) {
-  const us = units(E, o.units), side = us.length ? us[0].side : undefined, exit = E.retreatExit(side), rg = o.rear ? E.rearguardLine(side) : null;
+  const us = units(E, o.units), side = us.length ? us[0].side : undefined, own = o.exit ? E.ll2m(o.exit[0], o.exit[1]) : null, exit = own || E.retreatExit(side), rg = o.rear ? E.rearguardLine(side) : null; // own: (phase 5) a body leaving the field by another way than its army's retreat (d'Erlon's corps recalled)
   us.forEach((u, i) => {
     if (u.spId) E.leaveSp(u);
-    const tp = rg ? lerp(rg[0], rg[1], (i + 0.5) / us.length) : exit, task = rg ? { kind: 'rearguard', dest: tp, since: E.t, order: o.id } : { kind: 'retire', since: E.t, order: o.id };
+    const tp = rg ? lerp(rg[0], rg[1], (i + 0.5) / us.length) : exit, task = rg ? { kind: 'rearguard', dest: tp, since: E.t, order: o.id } : own ? { kind: 'retire', since: E.t, order: o.id, exit: own } : { kind: 'retire', since: E.t, order: o.id };
     if (u.charge) { u.charge.prevTask = task; return; } // a charge in progress rides back first, then takes up the order (below, under rally)
     E.setTask(u, task, o.cause); E.routeTo(u, tp, true);
     if (u.type === 'inf' && u.form !== 'square') E.setForm(u, 'columns');
@@ -199,7 +199,7 @@ function unitControl(E) {
       if (!u.path || !u.path.length) { u.pursuing = false; const [bx, by] = E.rallyBack(u); E.setTask(u, { kind: 'rally', at: [u.x + bx, u.y + by] }); u.path = [u.task.at]; }
       u.wind = Math.max(0, u.wind - 2);
     } else if (t.kind === 'retire') {
-      if (!u.path || !u.path.length) { if (E.atRear(u, 200)) E.withdrawUnit(u); else E.routeTo(u, E.retreatExit(u.side), true); }
+      if (!u.path || !u.path.length) { if (t.exit ? hyp(u.x - t.exit[0], u.y - t.exit[1]) < 200 : E.atRear(u, 200)) E.withdrawUnit(u); else E.routeTo(u, t.exit || E.retreatExit(u.side), true); }
     } else if (t.kind === 'rearguard') {
       if ((!u.path || !u.path.length) && !t.arrived) { t.arrived = E.t; u.facing = E.frontFacing(u.side); if (u.type === 'inf') E.setForm(u, 'square'); }
       // follow once nothing of ours that is still formed is north of the rearguard, or it is badly hurt, or after two hours
@@ -262,19 +262,22 @@ function make(opts = {}) {
       E.ai = ai; E.plan = { steps: [], done: {} };
       // (3d) the allied army is commanded by the generic doctrine, its habits from the battle pack (opts.generic may name more armies);
       // the others march, halt and attack by their timetables and their generals' initiative (battle pack)
-      S.generic = [...new Set(['AL', ...(opts.generic || [])])];
+      // (phase 5) the battle pack names the armies the generic doctrine commands in the historical battle (Waterloo: the allies; Ligny:
+      // the Prussians); opts.generic may name more
+      const B = (root.WPacks || (typeof require === 'function' ? require('./packs/all.js') : null)).battle(E.battleId).battle, setup = B.setup || {};
+      S.generic = [...new Set([...((B.commanders || {}).generic || []), ...(opts.generic || [])])];
       S.gen = Doc().make({ sides: S.generic, embedded: true }).init(E);
       S.timetable = {};
       for (const sd of E.sides) if (!S.generic.includes(sd.id)) S.timetable[sd.id] = Doc().approachInit(E, sd.id, sd, {});
-      // French starting posture: hold; guns hold fire until ordered
-      for (const u of E.units) if (u.side === 'FR' && u.onMap) u.task = { kind: 'hold', since: E.t };
-      // the 11:00 deployment: Marbot's 7th Hussars (Bruno's brigade, Jacquinot) watch the far right toward Lasne and the Dyle
-      if (E.byId.bruno) E.byId.bruno.task = { kind: 'screen', area: E.ll2m(50.6830, 4.4830), since: E.t };
-      // detach the Guard's 24 twelve-pounders as their own battery for the grand battery
-      const g = E.byId.aGuard;
-      if (g && !E.byId.aGuard12) { g.str -= 24; g.str0 -= 24; g.guns0 = g.str; const u = addUnit(E, { id: 'aGuard12', side: 'FR', name: "The Guard's 12-pounders", parent: 'Guard artillery', nat: 'FR', type: 'art', str: 24, x: g.x - 150, y: g.y, facing: 0, form: 'park', q: 1.15, corps: 'guard', cal: 12 }); u.coh = 82; u.shells = 0; }
-      // 'script' plans are given by a script through the order builder (see script.js)
-      E.ruleHooks.push(E2 => { if (E2.metrics.lhsFall == null && E2.spById.lhs.holder === 'FR') E2.metrics.lhsFall = E2.t; });
+      // the other armies' starting posture: hold, guns holding fire until ordered (their orders come from the plan)
+      for (const u of E.units) if (!S.generic.includes(u.side) && u.onMap) u.task = { kind: 'hold', since: E.t };
+      // (phase 5) the start as the battle pack sets it: bodies posted to screen a flank (Waterloo: Marbot's hussars toward Lasne), and
+      // batteries made up out of a larger one (Waterloo: the Guard's 24 twelve-pounders for the grand battery)
+      for (const sc of setup.screens || []) { const u = E.byId[sc.unit]; if (u) u.task = { kind: 'screen', area: E.ll2m(sc.at[0], sc.at[1]), since: E.t }; }
+      for (const d of setup.detach || []) {
+        const g = E.byId[d.from];
+        if (g && !E.byId[d.id]) { g.str -= d.guns; g.str0 -= d.guns; g.guns0 = g.str; const u = addUnit(E, { id: d.id, side: g.side, name: d.name, parent: d.parent, nat: g.nat, type: 'art', str: d.guns, x: g.x + (d.dx || 0), y: g.y + (d.dy || 0), facing: d.facing || 0, form: d.form, q: d.q, corps: d.corps, cal: d.cal }); u.coh = d.coh; u.shells = 0; }
+      }
       return ai;
     },
     tick(E) {
@@ -284,6 +287,7 @@ function make(opts = {}) {
       for (const sd of E.sides) if (S.timetable[sd.id]) Doc().toGunsTick(E, sd.id, sd, S.timetable[sd.id]);
       initiativeTick(E, S);
       if (E.plan.steps.length) runPlan(E, S);
+      if (E.plans) E.plans.tick(E); // (phase 5) plans whose rules go straight out as orders (plans.js, via 'order'); a 'builder' plan runs from the command layer
       if (opts.onTick) opts.onTick(E, S);
     },
     receive(E, o) { apply(E, o); },

@@ -10,6 +10,9 @@ process.on('message', ({ battle, seeds, K, runner, aiOpts }) => {
     if (runner === 'historical') { // the battle as recorded: its historical plan through the command layer (Waterloo: Napoleon's orders)
       const AI = require(path.join(SIM, 'ai.js')), Cmd = require(path.join(SIM, 'command.js')), Ord = require(path.join(SIM, 'orders.js')), Scr = require(path.join(SIM, 'script.js'));
       E = En.create({ battle, seed, K }); AI.make(Object.assign({ plan: 'script' }, aiOpts || {})).init(E); Cmd.install(E, {}); Ord.install(E); Scr.historical(E);
+    } else if (runner === 'plan') { // (phase 5) the battle as recorded, its plans going straight out as orders, without the command layer (a battle whose staff and riders are not modelled yet: Ligny)
+      const AI = require(path.join(SIM, 'ai.js')), Scr = require(path.join(SIM, 'script.js'));
+      E = En.create({ battle, seed, K }); AI.make(Object.assign({ plan: 'script' }, aiOpts || {})).init(E); Scr.historical(E);
     } else { // the generic commanders on every side
       E = En.create({ battle, seed, K }); require(path.join(SIM, 'doctrine.js')).make(aiOpts || {}).init(E); // (aiOpts.timetables: false: no battle timetables)
     }

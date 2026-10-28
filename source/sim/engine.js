@@ -290,6 +290,7 @@ function create(opts = {}) {
     const o = { id: sp.id, name: sp.name, key: !!sp.key, value: sp.value ?? (sp.key ? 1 : 0), secs, access: acc, holder: null, garrison: null, x: secs[secs.length - 1].x, y: secs[secs.length - 1].y };
     E.sps.push(o); E.spById[sp.id] = o;
   }
+  E.streetSecs = E.sps.flatMap(sp => sp.secs.filter(s => s.street)); // (Ligny) sections that are open villages: see edgeSec
   E.objectives = {};
   for (const [k, o] of Object.entries(W.OBJECTIVES)) {
     const ob = { id: k, name: o.name };
@@ -630,6 +631,17 @@ function create(opts = {}) {
   function onFlank(t, from) { if (allRound(t.form) || t.held) return false; return angDiff(t.facing, bearing(from.x - t.x, from.y - t.y)) > 100; }
   E.onFlank = onFlank;
   const fireCount = new Map();
+  // (Ligny, est.) an open village (a section marked street: houses, gardens and hedges, no continuous wall): foot fighting within K.EDGE_R of
+  // its edge are among its outlying houses too, so they take cover (K.EDGE_COVER times the section's cover) and spread out to fire (at least
+  // K.EDGE_FIRE of their men). Walled farms keep the siege rules. A battle with no street section (Waterloo) is unchanged.
+  const edgeCache = new Map();
+  function edgeSec(u) {
+    if (!E.streetSecs.length || !E.K.EDGE_COVER || u.spSec || served(u) || !foot(u)) return null;
+    if (edgeCache.has(u.id)) return edgeCache.get(u.id);
+    let found = null; const side = sideKey(u);
+    for (const s of E.streetSecs) if (s.held && s.held !== side && !s.burnt && hyp(u.x - s.x, u.y - s.y) < s.r + E.K.EDGE_R + u.D / 2) { found = s; break; }
+    edgeCache.set(u.id, found); return found;
+  }
   // (6) skirmish fire round held farms: see K.SKIRM_*. No dice, so with SKIRM_AMMO at 0 nothing changes.
   function skirmishFarms() {
     if (!E.K.SKIRM_AMMO) return;
@@ -657,7 +669,7 @@ function create(opts = {}) {
     }
   }
   function fire() {
-    dmg.clear(); fireCount.clear(); secFire.clear();
+    dmg.clear(); fireCount.clear(); secFire.clear(); edgeCache.clear();
     const dusk = duskFire(E.t);
     for (const u of E.units) {
       if (!formed(u) || u.formTo === 'limbered') continue;
@@ -679,7 +691,8 @@ function create(opts = {}) {
         if (!E.flags.opened) { E.flags.opened = E.t; log('army', 'Musketry breaks out: the battle has begun.', { important: true }); }
         const r = frontRange(u, best), sec = u.spSec, men = sec ? Math.min(u.str, sec.cap) : u.str;
         const ov = clamp((best.F + 80) / Math.max(40, u.F), 0.25, 1);
-        let firers = men * fireFrac(u) * ov * (u.formTimer > 0 ? 0.5 : 1);
+        const edge = edgeSec(u);
+        let firers = men * (edge ? Math.max(fireFrac(u), E.K.EDGE_FIRE) : fireFrac(u)) * ov * (u.formTimer > 0 ? 0.5 : 1);
         if (best.spSec && E.K.SEC_FIRE_PER_M) { // only so many muskets can bear on a farm's walls: about this many per metre of its perimeter (est.)
           const cap = 2 * Math.PI * best.spSec.r * E.K.SEC_FIRE_PER_M, used = secFire.get(best.id) || 0; secFire.set(best.id, used + firers); firers = Math.min(firers, Math.max(0, cap - used)); }
         const close = r < 110 && (best.task.kind === 'attack' || u.task.kind === 'attack');
@@ -688,6 +701,7 @@ function create(opts = {}) {
         let p = hitChance(r, wp.hit || HIT); if (wp.longHit && r > wp.longHit.beyond) p *= wp.longHit.mul; // a rifle's reach past the musket's
         const tcell = TT[cellIdx(best.x, best.y)], sc = best.spSec || (best.secCover && hyp(best.x - best.secCover.x, best.y - best.secCover.y) < best.secCover.r ? best.secCover : null);
         let cover = sc ? sc.cover : (COVER[tcell] ?? 1);
+        if (!sc) { const es = edgeSec(best); if (es) cover = Math.min(cover, es.cover * E.K.EDGE_COVER); }
         const sh = shelterOf(u, best, 60); if (sh) cover *= sh.K.cover ?? 1; // (2g) behind a hedge or wall
         const sm = clamp(1 - 0.25 * smokeAt(u.x, u.y), 0.6, 1);
         const fv = wp.volley, first = fv && !u.volleyUsed && r < fv.within ? fv.mul : 1; if (first > 1) u.volleyUsed = true; // a first volley, loaded with care
@@ -1231,6 +1245,7 @@ function create(opts = {}) {
     for (const m of METRICS) {
       if (E.metrics[m.id] != null) continue;
       if (m.when === 'fires') { const u = E.units.find(x => (m.side ? x.side === m.side : x.corps === m.corps) && alive(x) && firedOn(x, m.at)); if (u) { E.metrics[m.id] = E.t; E.flags[m.id] = E.t; } }
+      else if (m.when === 'held') { const sp = E.spById[m.place]; if (sp && sp.holder === m.by) E.metrics[m.id] = E.t; } // (phase 5) the first time the place is theirs, however it became so
       else if (m.when === 'near') { const sp = E.spById[m.place], u = E.units.find(x => x.corps === m.corps && alive(x) && hyp(x.x - sp.x, x.y - sp.y) < m.within); if (u) { E.metrics[m.id] = E.t; if (m.says) log('army', m.says, { side: u.side, important: true }); } }
     }
     // a line worth holding (battle objectives with a value): the enemy's foot stand on it with none of the holders close; the holders have it
@@ -1276,13 +1291,15 @@ function create(opts = {}) {
     const adj = c => (BATTLE.battle.coalitionAdjectives || {})[c] || COAL_NAME[c] || c;
     const attBroke = E.flags[attC + 'Broken'], defBroke = E.flags[defC + 'Broken'], attM = E.morale[att];
     const D = V.decisive, sp = D && E.spById[D.holds], held = !sp || !E.units.some(u => COAL[u.side] !== attC && formed(u) && hyp(u.x - sp.x, u.y - sp.y) < D.within);
-    const mo = V.marginal && E.objectives[V.marginal], marginal = mo ? !!E.flags[mo.flag] : Object.values(E.objectives).some(o => o.value && o.line && o.takenAt && o.by === attC);
-    const wk = att.toLowerCase() + 'Withdraw';
+    // marginal: the battle's line objective flagged taken (Waterloo), or (Ligny) every place in marginal.holds held by the attacker at the end
+    const mh = V.marginal && V.marginal.holds, mo = typeof V.marginal === 'string' && E.objectives[V.marginal];
+    const marginal = mh ? mh.every(id => E.spById[id] && E.spById[id].holder === attC) : mo ? !!E.flags[mo.flag] : Object.values(E.objectives).some(o => o.value && o.line && o.takenAt && o.by === attC);
+    const wk = att.toLowerCase() + 'Withdraw', defWk = SIDE_IDS.some(s => COAL[s] === defC && E.flags[s.toLowerCase() + 'Withdraw']);
     if (defBroke && !attBroke && attM >= (D ? D.morale : 40) && held) r.grade = `Decisive ${adj(attC)} victory`;
     else if (defBroke && !attBroke) r.grade = `${adj(attC)} victory`;
     else if (attBroke && V.catastropheBefore != null && attBroke < V.catastropheBefore) r.grade = `${adj(attC)} catastrophe`;
     else if (attBroke) r.grade = `${adj(defC)} victory`;
-    else if (marginal) r.grade = `Marginal ${adj(attC)} victory`;
+    else if (marginal || (V.drawnOff && defWk)) r.grade = `Marginal ${adj(attC)} victory`; // (Ligny) victory.drawnOff: the defender giving up the field is at least that
     else if (E.flags[wk] && attM >= 20) r.grade = `Marginal ${adj(defC)} victory`;
     else r.grade = 'Draw';
     if (E.flags[wk]) { // what the retreat brought away: brigades that marched off in order, and their guns

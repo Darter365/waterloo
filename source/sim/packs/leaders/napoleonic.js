@@ -10,7 +10,7 @@
 (function (root) {
 'use strict';
 const P = root.WPacks || (typeof require === 'function' ? require('../registry.js') : null);
-P.register('leader', 'napoleonic-1815', { version: '1.0',
+P.register('leader', 'napoleonic-1815', { version: '1.1', // 1.1: the commanders added for Ligny
   era: 'napoleonic',
   // defaults by nation and rank (est.: the engine's values before leader files, so that a leader the file leaves out acts as before)
   defaults: {
@@ -37,6 +37,16 @@ P.register('leader', 'napoleonic-1815', { version: '1.0',
     bulow: { name: 'Bülow', nation: 'PR', army: 'PR', rank: 2, traits: { agg: 0.5, ini: 0.6, obe: 0.8, skill: 0.85, exp: 0.5 } },
     pirch: { name: 'Pirch I', nation: 'PR', army: 'PR', rank: 2, traits: { agg: 0.5, ini: 0.4, obe: 0.9, skill: 0.6, exp: 0.5 } },
     zieten: { name: 'Zieten', nation: 'PR', army: 'PR', rank: 2, traits: { agg: 0.6, ini: 0.4, obe: 0.9, skill: 0.7, exp: 0.6 } },
+    // added for Ligny (est., from their reputations in the accounts of the campaign; to be checked against Wavre, where several fought again):
+    // Vandamme hard-driving and touchy about orders from anyone but the Emperor; Gérard able and forward; Grouchy careful and literal;
+    // Pajol and Exelmans bold cavalry generals; Girard led from the front and fell at la Haye; Thielmann steady (Clausewitz his chief of staff)
+    vandamme: { name: 'Vandamme', nation: 'FR', army: 'FR', rank: 2, traits: { agg: 0.8, ini: 0.6, obe: 0.6, skill: 0.75, exp: 0.7 } },
+    gerard: { name: 'Gérard', nation: 'FR', army: 'FR', rank: 2, traits: { agg: 0.75, ini: 0.7, obe: 0.8, skill: 0.8, exp: 0.8 } },
+    grouchy: { name: 'Grouchy', nation: 'FR', army: 'FR', rank: 2, traits: { agg: 0.4, ini: 0.3, obe: 0.95, skill: 0.65, exp: 0.5 } },
+    pajol: { name: 'Pajol', nation: 'FR', army: 'FR', rank: 2, traits: { agg: 0.75, ini: 0.7, obe: 0.8, skill: 0.75, exp: 0.8 } },
+    exelmans: { name: 'Exelmans', nation: 'FR', army: 'FR', rank: 2, traits: { agg: 0.8, ini: 0.7, obe: 0.75, skill: 0.75, exp: 0.8 } },
+    girard: { name: 'Girard', nation: 'FR', army: 'FR', rank: 1, traits: { agg: 0.85, ini: 0.7, obe: 0.8, skill: 0.75, exp: 0.95 } },
+    thielmann: { name: 'Thielmann', nation: 'PR', army: 'PR', rank: 2, traits: { agg: 0.5, ini: 0.5, obe: 0.8, skill: 0.7, exp: 0.5 } },
   },
   source: 'rules doc, Waterloo Game: Simulation Rules (the first five traits); est. otherwise', confidence: 'low: interpretations of the record, to be checked across the battles each leader fought',
 });

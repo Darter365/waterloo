@@ -4,7 +4,7 @@
 (function (root) {
 'use strict';
 const P = root.WPacks || (typeof require === 'function' ? require('../registry.js') : null);
-P.register('era', 'napoleonic', { version: '1.0',
+P.register('era', 'napoleonic', { version: '1.1', // 1.1 (phase 5): the open-village constants (EDGE_*), used only where a battle marks a section street
   name: 'The Napoleonic wars',
   /* ---------------- calibration constants (est.) ---------------- */
   K: {
@@ -19,6 +19,9 @@ P.register('era', 'napoleonic', { version: '1.0',
   WALL_FIRE: 0.7,       // musketry against men behind walls and loopholes, on top of the section's cover
   WALL_MELEE: 0.3,      // the defenders' share of the close-quarter losses at a wall (the attackers' is unchanged)
   SEC_FIRE_PER_M: 1.0,  // muskets that can bear on a farm section: this many per metre of its perimeter
+  // (Ligny, est.) fighting at the edge of an open village (a section marked street): foot within EDGE_R m of it take cover, EDGE_COVER times
+  // the section's own, and at least EDGE_FIRE of them fire (they spread among the gardens and houses). Only sections marked street use these.
+  EDGE_COVER: 1.5, EDGE_R: 60, EDGE_FIRE: 0.6, // EDGE_FIRE as the garrison formation fires: both sides fight from the houses; the defenders keep the better cover
   WALL_SHOCK: 0.5,      // cohesion the defenders lose for each assault they beat off, as a share of the open-ground rate
   NOAMMO_MELEE: 1,      // wall bonus in the melee test when the defenders have no cartridges (2 = no change; release 1: 1, they can no longer hold the loopholes)
   // (6) skirmishing round a held farm (est.; 0 = off): enemy foot within SKIRM_R of a garrisoned farm keep skirmishers at it, and the garrison

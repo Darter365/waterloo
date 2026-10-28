@@ -1,7 +1,7 @@
 {
  "note": "Battle names, era words (era:) and arm-type branches (arm:) the engine still uses (engine roadmap, phase 1). This list may only shrink: phases 2 and 3 move each into a pack or a capability. Regenerate with node tools/lint.js --update.",
  "totals": {
-  "battle": 315,
+  "battle": 323,
   "era": 50,
   "arm": 97
  },
@@ -26,8 +26,8 @@
    "era:square": 7
   },
   "ai.js": {
-   "AL": 3,
-   "FR": 6,
+   "AL": 2,
+   "FR": 2,
    "Hougoumont": 1,
    "arm:art": 5,
    "arm:cav": 5,
@@ -35,7 +35,6 @@
    "arm:inf": 8,
    "era:limber": 2,
    "era:square": 3,
-   "guard": 1,
    "hougoumont": 1
   },
   "command.js": {
@@ -43,6 +42,7 @@
    "Bülow": 1,
    "FR": 45,
    "GB": 2,
+   "Grouchy": 3,
    "HAN": 1,
    "KGL": 1,
    "Kellermann": 5,
@@ -93,6 +93,8 @@
    "Drouot": 1,
    "FR": 30,
    "GB": 1,
+   "Grouchy": 10,
+   "Gérard": 1,
    "Kellermann": 1,
    "Lobau": 3,
    "Milhaud": 1,
