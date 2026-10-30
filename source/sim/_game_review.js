@@ -42,9 +42,9 @@ function reviewRecord() {
     umpireFlags: (G.reviewFlags || []).map(x => x.text), playerFlags: Object.keys(mine.flagged).filter(k => mine.flagged[k]).map(i => ({ t: ev[i].t, text: ev[i].text })),
     notes: mine.notes, mapNotes: (G.marks || []).filter(m => m.kind === 'note').map(m => ({ t: m.t, text: m.text })) };
 }
-document.addEventListener('change', e => { if (!G || !G.review) return; const c = e.target.closest('[data-rv]'); if (c) G.review.flagged[c.dataset.rv] = c.checked; });
-document.addEventListener('input', e => { if (e.target.id === 'rv-notes' && G && G.review) G.review.notes = e.target.value.slice(0, 4000); });
-document.addEventListener('click', async e => {
+hook(document, 'change', e => { if (!G || !G.review) return; const c = e.target.closest('[data-rv]'); if (c) G.review.flagged[c.dataset.rv] = c.checked; });
+hook(document, 'input', e => { if (e.target.id === 'rv-notes' && G && G.review) G.review.notes = e.target.value.slice(0, 4000); });
+hook(document, 'click', async e => {
   const b = e.target.closest('button'); if (!b || !G || !SIM) return;
   if (b.id === 'rv-copy') {
     const txt = `${GAMEB.battle.name} umpire’s review (paste this to Claude):\n` + JSON.stringify(reviewRecord());

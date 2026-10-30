@@ -20,7 +20,7 @@ const shownT = () => playing && frac < 1 ? SIM.t - TICK_MIN * (1 - frac) : SIM.t
 const clockText = () => { const t = shownT(), h = SIM.fmtT(Math.floor(t)); return playing && speed <= 30 ? `${h}:${String(Math.floor((t % 1) * 60)).padStart(2, '0')}` : h; };
 viewMode = 'napoleon'; layers.riders = false; layers.flashes = false;
 const clockEl = document.getElementById('clock');
-const $ = id => document.getElementById(id);
+const $ = id => DEAD ? (ROOT.querySelector('#' + CSS.escape(id)) || DUMMY) : document.getElementById(id); // (phase 5) a stopped battle sees only its own old page
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const capF = s => s && !/^d['’]/.test(s) ? s[0].toUpperCase() + s.slice(1) : s; // never “D'Erlon”
 const hm = t => SIM.fmtT(Math.round(t));
@@ -106,6 +106,7 @@ function halt() {
 }
 let shownClock = '';
 function loop(now) {
+  if (DEAD) return; FRAMES++; // (phase 5) the battle was changed: this one's loop ends
   if (playing && SIM && !SIM.over) {
     const iv = tickMs(); let n = 0; glideMs = Math.min(1500, Math.max(250, iv * 0.8));
     while (playing && now - lastStepAt >= iv && n < (G.toEnd ? 6 : 4)) { stepGame(); lastStepAt += iv; n++; }
@@ -538,7 +539,7 @@ function selectUnit(u) {
   requestDraw();
 }
 $('unitcard').addEventListener('click', e => { const b = e.target.closest('[data-write]'); if (b) writeTo(b.dataset.write); });
-window.addEventListener('keydown', e => {
+hook(window, 'keydown', e => {
   if (e.target.closest && e.target.closest('select,input,textarea,button')) return;
   if (e.key === ' ') { e.preventDefault(); goClick(); }
   else if (e.key === ',' || e.key === '<' || e.key === '.' || e.key === '>') { const i = SPEEDS.indexOf(speed) + (e.key === ',' || e.key === '<' ? -1 : 1); if (i >= 0 && i < SPEEDS.length) setSpeed(SPEEDS[i]); }

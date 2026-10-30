@@ -272,7 +272,7 @@ function relogApply(e, made, idMap) {
 function setRunText(t) { const el = $('runtxt'); if (el) el.innerHTML = esc(t); }
 
 /* ----- wiring ----- */
-document.addEventListener('click', e => {
+hook(document, 'click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.id === 'aar-luckgo') startLuck();
   else if (b.id === 'aar-fight') { const T = +$('aar-from').value; if (G && T >= G.t0) { window.scrollTo({ top: 0, behavior: 'smooth' }); refight(T); } }

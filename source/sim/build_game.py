@@ -13,9 +13,12 @@ head = ('<title>__TITLE__</title>\n<meta name="claude:viewport-fit-sides" conten
         '<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
         '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Monsieur+La+Doulaise&display=swap">\n'
         '<style>\n' + R('_css_base.css') + '\n' + R('_css_viewer.css') + '\n' + R('_css_game.css') + '</style>\n')
-# (phase 5) the battle the page plays: the one this page was built for, or one named after # in its link (#ligny), if it has a game block.
-# Its map comes from the battle's packs (Waterloo's is data.js, the others' terrain packs), with what only Waterloo's map has left empty.
-battle_pre = r"""const GAME_ID = (() => { const ok = id => !!(id && WPacks.battles[id] && WPacks.battles[id].game); let h = ''; try { h = (location.hash || '').slice(1); } catch (e) { } return ok(h) ? h : '__BATTLE__'; })();
+# (phase 5) one page plays every battle that has a game block: bootGame(id) runs the whole game for one battle in its own closure, and
+# stop() ends it (its loop, its page-wide listeners, its workers), so the shell below can swap in another battle without a reload.
+# ROOT is this boot's copy of the page; once stopped, $ looks only there, so a late timer of the old battle cannot touch the new one.
+# The battle's map comes from its packs (Waterloo's is data.js, the others' terrain packs), with what only Waterloo's map has left empty.
+battle_pre = r"""const ROOT = document.getElementById('game-root'), DUMMY = document.createElement('div'); let DEAD = false, FRAMES = 0; const HOOKS = [];
+const hook = (t, type, fn, o) => { t.addEventListener(type, fn, o); HOOKS.push(() => t.removeEventListener(type, fn, o)); };
 globalThis.WBATTLE = GAME_ID;
 const GAMEB = WPacks.battle(GAME_ID), GB = GAMEB.battle.game;
 const WD = (() => { const W = GAMEB.W; return Object.assign({ HEDGES: [], SANDPIT: null, DEBATED: null, LION: null }, W, {
@@ -66,11 +69,12 @@ for a, b in [("for (let lo = 4.37; lo < 4.5001; lo += 0.01, k++)", "for (let lo 
              ("for (let la = 50.64; la < 50.708; la += 0.01, k++)", "for (let la = Math.floor((LAT0 - HM / MLAT) * 100) / 100 + 0.01; la < LAT0; la += 0.01, k++)")]:
     assert frame.count(a) == 1, a; frame = frame.replace(a, b)
 game = '\n'.join([
-    "(() => {", "'use strict';", battle_pre, imports,
+    "function bootGame(GAME_ID) {", "'use strict';", battle_pre, imports,
     '/* ================= terrain (from the map) ================= */', L(207, 315),
     '/* ================= obstacles ================= */', L(581, 588),
     L(598, 615), view, L(637, 766), live, frame,
-    R('_shared_draw.js'), R('_interact.js'), R('_game.js'), R('_game_orders.js'), R('_game_disp.js'), R('_game_letters.js'), R('_game_staff.js'), R('_game_pencil.js'), R('_game_alarm.js'), R('_game_mapstyle.js'), R('_game_glass.js'), R('_game_aar.js'), R('_game_review.js'), R('_game_end.js'), R('_game_boot.js'), '})();'])
+    R('_shared_draw.js'), R('_interact.js'), R('_game.js'), R('_game_orders.js'), R('_game_disp.js'), R('_game_letters.js'), R('_game_staff.js'), R('_game_pencil.js'), R('_game_alarm.js'), R('_game_mapstyle.js'), R('_game_glass.js'), R('_game_aar.js'), R('_game_review.js'), R('_game_end.js'), R('_game_boot.js'),
+    'return { id: GAME_ID, frames: () => FRAMES, stop() { DEAD = true; playing = false; for (const f of HOOKS.splice(0)) f(); } };', '}'])
 # the packs first (registry, then eras, nations, leaders, battles: the order packs/all.js loads them in node), then the engine
 PACKS = ['packs/registry.js', 'packs/eras/napoleonic.js', 'packs/eras/medieval-test.js', 'packs/nations/napoleonic.js', 'packs/leaders/napoleonic.js', 'packs/maps/toy-ridge.js', 'packs/oob/toy-ridge.js', 'packs/maps/ligny.js', 'packs/oob/ligny.js', 'packs/battles/waterloo.js', 'packs/battles/toy-ridge.js', 'packs/battles/ligny.js']
 srcs = PACKS + ['data.js', 'engine.js', 'ai.js', 'command.js', 'orders.js', 'plans.js', 'script.js', 'doctrine.js', 'replay.js']
@@ -79,11 +83,30 @@ sid = lambda f: 'src-' + f[:-3].replace('/', '-')
 # the worker takes every script whose id starts "src-", in page order
 assert '</script' not in ''.join(R(f) for f in srcs) + game
 assert open(os.path.join(D, 'packs', 'all.js')).read().count('require(') == len(PACKS), 'packs/all.js and PACKS disagree'
-# (phase 5) one page per battle with a game block: game.html plays Waterloo (as before), game_<id>.html the others; each page can play
-# any of them when its link ends #<id>
-import re as _re
-for bid, fname in [('waterloo', 'game.html'), ('ligny', 'game_ligny.html')]:
-    title = _re.search(r"P\.register\('battle', '%s'[\s\S]*?\n  game: \{\n    title: '([^']*)'" % bid, R('packs/battles/%s.js' % bid)).group(1)
-    html = head.replace('__TITLE__', title) + '\n' + R('_game_body.html') + '\n' + ''.join(f'<script id="{sid(f)}">\n' + R(f) + '\n</script>\n' for f in srcs) + '<script>\n' + game.replace("'__BATTLE__'", repr(bid)) + '\n</script>\n'
-    out = os.path.join(D, fname); open(out, 'w', encoding='utf-8').write(html)
-    print('wrote', out, len(html) // 1024, 'KB')
+# (phase 5) one app: every battle with a game block, chosen on the start screen (the select #s-battle), in the link (#ligny), or the one this
+# viewer played last; Waterloo the first time. Changing battle stops the running one and boots the other on a fresh copy of the page.
+shell = r"""const WApp = (() => {
+  let root = document.getElementById('game-root'), cur = null; const PRISTINE = root.innerHTML, boots = [];
+  const ok = id => !!(id && WPacks.battles[id] && WPacks.battles[id].game);
+  const battles = () => Object.keys(WPacks.battles).filter(ok).sort((a, b) => String(WPacks.battles[a].date).localeCompare(String(WPacks.battles[b].date)));
+  const KEEP = ['s-hist', 's-staff', 's-sil', 's-map', 's-stop']; // the player's settings carry over to the next battle; the start and seed are the battle's
+  function start(id) {
+    if (!ok(id)) id = 'waterloo';
+    if (cur) {
+      const keep = KEEP.map(k => [k, (document.getElementById(k) || {}).value]);
+      cur.stop(); const fresh = root.cloneNode(false); fresh.innerHTML = PRISTINE; root.replaceWith(fresh); root = fresh;
+      for (const [k, v] of keep) { const el = document.getElementById(k); if (el && [...el.options].some(o => o.value === v)) el.value = v; }
+    }
+    try { localStorage.setItem('napoleon.battle', id); } catch (e) { }
+    cur = bootGame(id); boots.push(cur); window.scrollTo(0, 0);
+  }
+  let first = ''; try { first = (location.hash || '').slice(1); } catch (e) { }
+  if (!ok(first)) { try { first = localStorage.getItem('napoleon.battle') || ''; } catch (e) { } }
+  globalThis.WApp = { start, battles, boots, get current() { return cur && cur.id; } }; // (WGame is each battle's own test hooks)
+  start(ok(first) ? first : 'waterloo');
+  return globalThis.WApp;
+})();"""
+html = (head.replace('__TITLE__', "Napoleon's Command") + '\n<div id="game-root">\n' + R('_game_body.html') + '\n</div>\n'
+        + ''.join(f'<script id="{sid(f)}">\n' + R(f) + '\n</script>\n' for f in srcs) + '<script>\n' + game + '\n' + shell + '\n</script>\n')
+out = os.path.join(D, 'game.html'); open(out, 'w', encoding='utf-8').write(html)
+print('wrote', out, len(html) // 1024, 'KB')

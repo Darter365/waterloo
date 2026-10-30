@@ -4,7 +4,7 @@ import asyncio, os, sys, time
 from playwright.async_api import async_playwright
 SIM = os.path.dirname(os.path.abspath(__file__)) + '/'
 OUT = SIM
-page = sys.argv[1] if len(sys.argv) > 1 else 'game_ligny.html'; mode = sys.argv[2] if len(sys.argv) > 2 else 'hist'
+page = sys.argv[1] if len(sys.argv) > 1 else 'game.html'; mode = sys.argv[2] if len(sys.argv) > 2 else 'hist'
 html = open(SIM + page).read()
 open(OUT + 'pl.html', 'w').write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style></head><body>' + html + '</body></html>')
 async def main():
@@ -12,6 +12,7 @@ async def main():
         b = await p.chromium.launch(); pg = await (await b.new_context(viewport={'width': 1440, 'height': 900})).new_page()
         errs = []; pg.on('pageerror', lambda e: errs.append('PAGEERR ' + str(e))); pg.on('console', lambda m: errs.append('CONSOLE ' + m.text) if m.type == 'error' and 'ERR_TUNNEL' not in m.text else None)
         await pg.goto('file://' + OUT + 'pl.html'); await pg.wait_for_timeout(1200)
+        if await pg.eval_on_selector('#s-battle', 's => s.value') != 'ligny': await pg.select_option('#s-battle', 'ligny'); await pg.wait_for_timeout(1200) # (one app) choose Ligny on the start screen
         print('TITLE', await pg.title(), '|', await pg.inner_text('#g-h1'), '|', (await pg.inner_text('#s-intro'))[:90], '|', await pg.inner_text('#s-go'))
         await pg.fill('#s-seed', '4242'); await pg.click('#s-go'); await pg.wait_for_timeout(400)
         await pg.screenshot(path=OUT + 'l_begin.png')

@@ -1,7 +1,7 @@
 {
- "name": "Waterloo: Napoleon's Command",
- "short_name": "Waterloo",
- "description": "Command Napoleon's army at Waterloo through riders, reports and orders.",
+ "name": "Napoleon's Command",
+ "short_name": "Napoleon",
+ "description": "Command Napoleon's army at Ligny and Waterloo through riders, reports and orders.",
  "start_url": "./",
  "scope": "./",
  "display": "standalone",

@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Napoleon at Waterloo</title>
-<meta name="description" content="Command Napoleon's army at Waterloo through riders, reports and orders.">
+<title>Napoleon's Command</title>
+<meta name="description" content="Command Napoleon's army at Ligny and Waterloo through riders, reports and orders.">
 <meta name="theme-color" content="#e7ddc6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#15110d" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Waterloo">
+<meta name="apple-mobile-web-app-title" content="Napoleon">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -501,6 +501,7 @@ table.moments td:nth-child(2){font-weight:600}
 .rv-out{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.75rem;margin-top:6px}
 </style>
 
+<div id="game-root">
 <header class="top">
   <div>
     <h1 id="g-h1">Waterloo <span>· Napoleon’s command</span></h1>
@@ -533,6 +534,7 @@ table.moments td:nth-child(2){font-weight:600}
       <div class="setup" id="setup">
         <form class="setupcard" id="setupform">
           <h2>Take command</h2>
+          <div class="row"><label for="s-battle">Battle</label><select id="s-battle"></select></div>
           <p id="s-intro">Wellington’s army stands on the ridge of Mont-Saint-Jean, astride the Brussels road. Grouchy is away to the east with a third of your army, following the Prussians. The battle begins at 11:00 and ends with the dark, or when an army breaks.</p>
           <div class="row"><label for="s-scen">Start</label>
             <select id="s-scen"><option value="1100">11:00, as in 1815: the ground soaked, drying through the day</option><option value="0500">05:00, dawn: the army still coming up, the ground soaked</option><option value="dry">11:00, but dry: what if it had not rained?</option></select></div>
@@ -694,6 +696,7 @@ table.moments td:nth-child(2){font-weight:600}
   </div>
 </section>
 
+</div>
 <script id="src-packs-registry">
 /* The pack registry: eras, nations, leaders and battles are data, registered here and resolved into one battle the engine can run.
    Nothing in a pack is code the sim depends on for its rules; a battle names its era, the nations it uses and the leaders it places,
@@ -6558,9 +6561,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = root.WRepl
 
 </script>
 <script>
-(() => {
+function bootGame(GAME_ID) {
 'use strict';
-const GAME_ID = (() => { const ok = id => !!(id && WPacks.battles[id] && WPacks.battles[id].game); let h = ''; try { h = (location.hash || '').slice(1); } catch (e) { } return ok(h) ? h : 'waterloo'; })();
+const ROOT = document.getElementById('game-root'), DUMMY = document.createElement('div'); let DEAD = false, FRAMES = 0; const HOOKS = [];
+const hook = (t, type, fn, o) => { t.addEventListener(type, fn, o); HOOKS.push(() => t.removeEventListener(type, fn, o)); };
 globalThis.WBATTLE = GAME_ID;
 const GAMEB = WPacks.battle(GAME_ID), GB = GAMEB.battle.game;
 const WD = (() => { const W = GAMEB.W; return Object.assign({ HEDGES: [], SANDPIT: null, DEBATED: null, LION: null }, W, {
@@ -7438,7 +7442,7 @@ const shownT = () => playing && frac < 1 ? SIM.t - TICK_MIN * (1 - frac) : SIM.t
 const clockText = () => { const t = shownT(), h = SIM.fmtT(Math.floor(t)); return playing && speed <= 30 ? `${h}:${String(Math.floor((t % 1) * 60)).padStart(2, '0')}` : h; };
 viewMode = 'napoleon'; layers.riders = false; layers.flashes = false;
 const clockEl = document.getElementById('clock');
-const $ = id => document.getElementById(id);
+const $ = id => DEAD ? (ROOT.querySelector('#' + CSS.escape(id)) || DUMMY) : document.getElementById(id); // (phase 5) a stopped battle sees only its own old page
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const capF = s => s && !/^d['’]/.test(s) ? s[0].toUpperCase() + s.slice(1) : s; // never “D'Erlon”
 const hm = t => SIM.fmtT(Math.round(t));
@@ -7524,6 +7528,7 @@ function halt() {
 }
 let shownClock = '';
 function loop(now) {
+  if (DEAD) return; FRAMES++; // (phase 5) the battle was changed: this one's loop ends
   if (playing && SIM && !SIM.over) {
     const iv = tickMs(); let n = 0; glideMs = Math.min(1500, Math.max(250, iv * 0.8));
     while (playing && now - lastStepAt >= iv && n < (G.toEnd ? 6 : 4)) { stepGame(); lastStepAt += iv; n++; }
@@ -7956,7 +7961,7 @@ function selectUnit(u) {
   requestDraw();
 }
 $('unitcard').addEventListener('click', e => { const b = e.target.closest('[data-write]'); if (b) writeTo(b.dataset.write); });
-window.addEventListener('keydown', e => {
+hook(window, 'keydown', e => {
   if (e.target.closest && e.target.closest('select,input,textarea,button')) return;
   if (e.key === ' ') { e.preventDefault(); goClick(); }
   else if (e.key === ',' || e.key === '<' || e.key === '.' || e.key === '>') { const i = SPEEDS.indexOf(speed) + (e.key === ',' || e.key === '<' ? -1 : 1); if (i >= 0 && i < SPEEDS.length) setSpeed(SPEEDS[i]); }
@@ -9093,7 +9098,7 @@ function relogApply(e, made, idMap) {
 function setRunText(t) { const el = $('runtxt'); if (el) el.innerHTML = esc(t); }
 
 /* ----- wiring ----- */
-document.addEventListener('click', e => {
+hook(document, 'click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.id === 'aar-luckgo') startLuck();
   else if (b.id === 'aar-fight') { const T = +$('aar-from').value; if (G && T >= G.t0) { window.scrollTo({ top: 0, behavior: 'smooth' }); refight(T); } }
@@ -9146,9 +9151,9 @@ function reviewRecord() {
     umpireFlags: (G.reviewFlags || []).map(x => x.text), playerFlags: Object.keys(mine.flagged).filter(k => mine.flagged[k]).map(i => ({ t: ev[i].t, text: ev[i].text })),
     notes: mine.notes, mapNotes: (G.marks || []).filter(m => m.kind === 'note').map(m => ({ t: m.t, text: m.text })) };
 }
-document.addEventListener('change', e => { if (!G || !G.review) return; const c = e.target.closest('[data-rv]'); if (c) G.review.flagged[c.dataset.rv] = c.checked; });
-document.addEventListener('input', e => { if (e.target.id === 'rv-notes' && G && G.review) G.review.notes = e.target.value.slice(0, 4000); });
-document.addEventListener('click', async e => {
+hook(document, 'change', e => { if (!G || !G.review) return; const c = e.target.closest('[data-rv]'); if (c) G.review.flagged[c.dataset.rv] = c.checked; });
+hook(document, 'input', e => { if (e.target.id === 'rv-notes' && G && G.review) G.review.notes = e.target.value.slice(0, 4000); });
+hook(document, 'click', async e => {
   const b = e.target.closest('button'); if (!b || !G || !SIM) return;
   if (b.id === 'rv-copy') {
     const txt = `${GAMEB.battle.name} umpire’s review (paste this to Claude):\n` + JSON.stringify(reviewRecord());
@@ -9195,13 +9200,16 @@ $('end-no').addEventListener('click', () => openEndBox(false));
 function readPal() { readPalette(); PAL.order = getComputedStyle(document.documentElement).getPropertyValue('--m-order').trim() || '#7b2a9e'; }
 function themeChanged() { readPal(); legend(); scheduleTerrain(true); requestDraw(); }
 readPal();
-new ResizeObserver(() => resize()).observe(box);
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeChanged);
-new MutationObserver(themeChanged).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+{ const ro = new ResizeObserver(() => resize()); ro.observe(box); const mo = new MutationObserver(themeChanged); mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  HOOKS.push(() => ro.disconnect(), () => mo.disconnect(), () => { for (const w of AAR.workers) w.terminate(); }); hook(matchMedia('(prefers-color-scheme: dark)'), 'change', themeChanged); }
 if (document.fonts && document.fonts.load) Promise.all(["13px 'IM Fell English SC'", "italic 12px 'IM Fell English'", "12px 'IM Fell English'", "11px 'EB Garamond'"].map(f => document.fonts.load(f).catch(() => 0))).then(() => requestDraw());
 // (phase 5) the page's words for this battle, from its game block (Waterloo's stand in the page itself)
 if (GB.page) { const PG = GB.page; if (PG.h1) $('g-h1').innerHTML = PG.h1; if (PG.lead) $('g-lead').textContent = PG.lead; if (PG.cartouche) $('g-cart').textContent = PG.cartouche; if (PG.mapLabel) canvas.setAttribute('aria-label', PG.mapLabel); }
 $('s-intro').textContent = GB.intro;
+// (phase 5) the battles this app plays, in date order; choosing one starts it on a fresh page
+{ const sb = $('s-battle'); const MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  sb.innerHTML = globalThis.WApp.battles().map(id => { const b = WPacks.battles[id], [y, m, d] = String(b.date).split('-'); return `<option value="${id}">${esc(b.name)}, ${+d} ${MON[m - 1]} ${y}</option>`; }).join(''); sb.value = GAME_ID;
+  sb.addEventListener('change', () => { if (sb.value !== GAME_ID) globalThis.WApp.start(sb.value); }); }
 { const sc = $('s-scen'); sc.innerHTML = Object.entries(GB.starts).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join(''); const go = () => { $('s-go').textContent = (GB.starts[sc.value] || {}).begin || 'Begin'; }; sc.addEventListener('change', go); go(); }
 for (const [k, html] of Object.entries(GB.help || {})) { const el = document.querySelector(`[data-help="${k}"]`); if (!el) continue; if (html == null) el.hidden = true; else el.innerHTML = html; }
 for (const [a, b] of GB.helpSwap || []) { const el = document.querySelector('[data-help="steps"]'); if (el) el.innerHTML = el.innerHTML.replace(a, b); }
@@ -9209,11 +9217,33 @@ $('s-seed').value = (Math.random() * 1e6) | 0;
 newGame(readSetup());
 requestAnimationFrame(loop);
 
+return { id: GAME_ID, frames: () => FRAMES, stop() { DEAD = true; playing = false; for (const f of HOOKS.splice(0)) f(); } };
+}
+const WApp = (() => {
+  let root = document.getElementById('game-root'), cur = null; const PRISTINE = root.innerHTML, boots = [];
+  const ok = id => !!(id && WPacks.battles[id] && WPacks.battles[id].game);
+  const battles = () => Object.keys(WPacks.battles).filter(ok).sort((a, b) => String(WPacks.battles[a].date).localeCompare(String(WPacks.battles[b].date)));
+  const KEEP = ['s-hist', 's-staff', 's-sil', 's-map', 's-stop']; // the player's settings carry over to the next battle; the start and seed are the battle's
+  function start(id) {
+    if (!ok(id)) id = 'waterloo';
+    if (cur) {
+      const keep = KEEP.map(k => [k, (document.getElementById(k) || {}).value]);
+      cur.stop(); const fresh = root.cloneNode(false); fresh.innerHTML = PRISTINE; root.replaceWith(fresh); root = fresh;
+      for (const [k, v] of keep) { const el = document.getElementById(k); if (el && [...el.options].some(o => o.value === v)) el.value = v; }
+    }
+    try { localStorage.setItem('napoleon.battle', id); } catch (e) { }
+    cur = bootGame(id); boots.push(cur); window.scrollTo(0, 0);
+  }
+  let first = ''; try { first = (location.hash || '').slice(1); } catch (e) { }
+  if (!ok(first)) { try { first = localStorage.getItem('napoleon.battle') || ''; } catch (e) { } }
+  globalThis.WApp = { start, battles, boots, get current() { return cur && cur.id; } }; // (WGame is each battle's own test hooks)
+  start(ok(first) ? first : 'waterloo');
+  return globalThis.WApp;
 })();
 </script>
 
 <script>
-// the offline release: keep every file of the game in this device's cache (release b39d5ca8d3)
+// the offline release: keep every file of the game in this device's cache (release d26cce5c27)
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>

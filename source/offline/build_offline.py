@@ -27,9 +27,8 @@ FACES = [
 ]
 fontcss = ''.join(f"@font-face{{font-family:'{fam}';font-style:{st};font-weight:{w};font-display:swap;src:url(data:font/woff2;base64,{font(pkg, f)}) format('woff2')}}\n" for fam, st, w, pkg, f in FACES)
 
-# (phase 5) one page per battle: index.html is Waterloo, ligny.html is Ligny (sim/game_ligny.html); both are cached for offline use
-PAGES = [('game.html', 'index.html', "Command Napoleon's army at Waterloo through riders, reports and orders."),
-         ('game_ligny.html', 'ligny.html', "Command Napoleon's army at Ligny, two days before Waterloo, through riders, reports and orders.")]
+# (phase 5) one app: index.html plays every battle (Ligny, Waterloo), chosen on its start screen; ligny.html only forwards to it
+PAGES = [('game.html', 'index.html', "Command Napoleon's army at Ligny and Waterloo through riders, reports and orders.")]
 def page_of(src):
     game = open(os.path.join(SIM, src), encoding='utf-8').read()
     # the Google Fonts links are replaced by the embedded faces
@@ -52,7 +51,7 @@ def head_of(title, desc): return f'''<!doctype html>
 <meta name="theme-color" content="#15110d" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Waterloo">
+<meta name="apple-mobile-web-app-title" content="Napoleon">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -73,8 +72,10 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 </html>
 '''
 for out, desc, title, game in built: open(os.path.join(OUT, out), 'w', encoding='utf-8').write(head_of(title, desc) + game + tail)
+# the address Ligny had for two days, kept so an old link still lands on Ligny
+open(os.path.join(OUT, 'ligny.html'), 'w', encoding='utf-8').write('<!doctype html><meta charset="utf-8"><title>Napoleon at Ligny</title><meta http-equiv="refresh" content="0; url=./#ligny"><a href="./#ligny">Ligny</a>\n')
 
-# icons: an ink "W" on the map's paper, with the double rule of the map's cartouche
+# icons: an ink "N" on the map's paper, with the double rule of the map's cartouche
 def ttf(pkg, name):
     f = TTFont(os.path.join(FONTS, name)); f.flavor = None; b = io.BytesIO(); f.save(b); b.seek(0); return b
 PAPER, INK, ACCENT = (243, 234, 210), (57, 44, 32), (138, 74, 23)
@@ -85,7 +86,7 @@ def icon(size, maskable=False):
         m2 = round(size * 0.095); d.rectangle([m2, m2, size - m2 - 1, size - m2 - 1], outline=INK, width=max(1, size // 160))
     fw = ImageFont.truetype(ttf('im-fell-english-sc', 'im-fell-english-sc-latin-400-normal.woff2'), round(size * (0.46 if maskable else 0.56)))
     fy = ImageFont.truetype(ttf('im-fell-english', 'im-fell-english-latin-400-italic.woff2'), round(size * (0.10 if maskable else 0.12)))
-    d.text((size / 2, size * (0.46 if maskable else 0.45)), 'W', font=fw, fill=INK, anchor='mm')
+    d.text((size / 2, size * (0.46 if maskable else 0.45)), 'N', font=fw, fill=INK, anchor='mm') # (one app) N for Napoleon, no longer W for Waterloo
     d.text((size / 2, size * (0.70 if maskable else 0.75)), '1815', font=fy, fill=ACCENT, anchor='mm')
     return im
 icon(512).save(os.path.join(OUT, 'icons', 'icon-512.png'))
@@ -94,15 +95,15 @@ icon(180).save(os.path.join(OUT, 'icons', 'apple-touch-icon.png'))
 icon(512, True).save(os.path.join(OUT, 'icons', 'maskable-512.png'))
 
 manifest = {
-    'name': "Waterloo: Napoleon's Command", 'short_name': 'Waterloo', 'description': "Command Napoleon's army at Waterloo through riders, reports and orders.",
+    'name': "Napoleon's Command", 'short_name': 'Napoleon', 'description': "Command Napoleon's army at Ligny and Waterloo through riders, reports and orders.",
     'start_url': './', 'scope': './', 'display': 'standalone', 'orientation': 'any', 'background_color': '#e7ddc6', 'theme_color': '#e7ddc6',
     'icons': [{'src': 'icons/icon-192.png', 'sizes': '192x192', 'type': 'image/png'}, {'src': 'icons/icon-512.png', 'sizes': '512x512', 'type': 'image/png'},
               {'src': 'icons/maskable-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'}],
 }
 open(os.path.join(OUT, 'manifest.webmanifest'), 'w').write(json.dumps(manifest, indent=1))
 
-files = ['./', 'index.html', 'ligny.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/maskable-512.png']
-sw = f'''// Waterloo offline release {stamp}: every file is cached on install, and served from the cache first, so the game opens with no signal.
+files = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/maskable-512.png']
+sw = f'''// Napoleon's Command offline release {stamp}: every file is cached on install, and served from the cache first, so the game opens with no signal.
 // A new release changes this file, which makes the browser install the new cache and drop the old one.
 const CACHE = 'waterloo-{stamp}', FILES = {json.dumps(files)};
 self.addEventListener('install', e => {{ e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); }});
@@ -113,16 +114,14 @@ self.addEventListener('fetch', e => {{
 }});
 '''
 open(os.path.join(OUT, 'sw.js'), 'w').write(sw)
-open(os.path.join(OUT, 'README.md'), 'w').write(f'''# Waterloo: Napoleon's Command
+open(os.path.join(OUT, 'README.md'), 'w').write(f'''# Napoleon's Command
 
-A command game of 18 June 1815: you are Napoleon, and you know only what your eyes, your aides and your corps commanders' riders tell you.
+A command game of June 1815: you are Napoleon, at Ligny on the 16th or Waterloo on the 18th, and you know only what your eyes, your
+aides and your corps commanders' riders tell you. Choose the battle on the start screen; `index.html#ligny` opens Ligny directly.
 
 Open the site once in Safari (or Chrome), then **Add to Home Screen**. After that it opens from the icon with no signal.
 
 Everything is in `index.html` (engine, map and game); `sw.js` keeps it in the device's cache. Release {stamp}.
-
-`ligny.html` is the second battle, Ligny (16 June 1815), played the same way: you are Napoleon against Blücher's Prussians, with
-Vandamme, Gérard and Grouchy to write to and d'Erlon's corps somewhere to the west. It is cached with the rest.
 
 `lab.html` is the battle lab: any battle in the engine's packs (Waterloo, Ligny, and an invented test battle), fought by the generic commanders
 or with you commanding one army through its own sightings; it also fights a battle many times and judges the results against the

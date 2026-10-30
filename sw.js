@@ -1,6 +1,6 @@
-// Waterloo offline release b39d5ca8d3: every file is cached on install, and served from the cache first, so the game opens with no signal.
+// Napoleon's Command offline release d26cce5c27: every file is cached on install, and served from the cache first, so the game opens with no signal.
 // A new release changes this file, which makes the browser install the new cache and drop the old one.
-const CACHE = 'waterloo-b39d5ca8d3', FILES = ["./", "index.html", "ligny.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png", "icons/maskable-512.png"];
+const CACHE = 'waterloo-d26cce5c27', FILES = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png", "icons/maskable-512.png"];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
