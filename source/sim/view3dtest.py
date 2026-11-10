@@ -49,6 +49,13 @@ async def main():
         v = await pg.evaluate("WGame.v3()")
         print('TICKS', 'OK' if v['tick'] > t0 and v['on'] and mids > 0 else 'BAD', t0, '->', v['tick'], '| frames', v['frames'], '| seen mid-glide', mids, '| smoke lumps', v['smoke'])
         await pg.evaluate("WGame.v3Cam(0.5, 1.15, 3600)"); await pg.wait_for_timeout(400); await shot('v3_2_running')
+        # on the ground: the eye comes down to a rider's height, looks level, and walks forward on a pinch or scroll
+        await pg.evaluate("WGame.v3Stand(3350, 5150, 0.1)"); await pg.tap('#v3g'); await pg.wait_for_timeout(500); e = await pg.evaluate("WGame.v3Eye()")
+        print('GROUND', 'OK' if e['ground'] and 5 < e['y'] - e['floor'] < 30 and e['fov'] == 60 and e['trees'] > 200 and e['shrubs'] > 50 else 'BAD', {k: round(v, 1) if isinstance(v, float) else v for k, v in e.items()})
+        await shot('v3_4_ground'); await pg.evaluate("WGame.v3Stand(2450, 4900, 0.0)"); await pg.wait_for_timeout(400); await shot('v3_5_ground_wood')
+        pr = await pg.evaluate("WGame.v3Probe(0, -0.6)"); print('INSIDE', 'OK' if pr and pr['dist'] > 25 else 'BAD', pr)  # standing in a brigade's block, the block is not drawn
+        await pg.tap('#v3g'); await pg.wait_for_timeout(300); e = await pg.evaluate("WGame.v3Eye()"); print('ABOVE', 'OK' if not e['ground'] and e['y'] - e['floor'] > 300 else 'BAD')
+        await pg.evaluate("WGame.v3Cam(0.3, 1.1, 2600)"); await pg.evaluate("WGame.v3Stand(2600, 4300, 0.3)"); await pg.wait_for_timeout(400); await shot('v3_6_trees_above')
         await pg.tap('#v3x'); await pg.wait_for_timeout(200); v = await pg.evaluate("WGame.v3()"); print('CLOSE', 'OK' if not v['on'] else 'BAD')
         # 4. Napoleon's map after the battle: now the picture may be shown
         await start(pg, 'napoleon'); await pg.evaluate("WGame.fightOut('mine')")

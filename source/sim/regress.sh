@@ -10,5 +10,5 @@ echo "### speed (B1)"; timeout 600 python3 tools/pw.py speedtest.py 2>&1 | grep 
 echo "### ligny"; timeout 900 python3 tools/pw.py lignytest.py 2>&1 | grep -E "^(TITLE|TO|VERDICT|AARSUM|AARCHECK|ERRORS)" | cut -c1-400
 echo "### switch"; timeout 600 python3 tools/pw.py switchtest.py 2>&1 | grep -E "^(BATTLES|SWITCH|FRAMES|PLAYED|errors)" | cut -c1-300
 echo "### release 4 (phone)"; timeout 900 python3 tools/pw.py release4test.py 2>&1 | grep -E "^(START|BRIEF|STRIP|VERDICT|STAKES|WHY|errors)" | cut -c1-300
-echo "### relief view (3D, phone)"; timeout 900 python3 tools/pw.py view3dtest.py 2>&1 | grep -E "^(FOG|OPEN|CANVAS|TICKS|CLOSE|AFTER|errors)" | cut -c1-300
+echo "### relief view (3D, phone)"; timeout 900 python3 tools/pw.py view3dtest.py 2>&1 | grep -E "^(FOG|OPEN|CANVAS|TICKS|GROUND|INSIDE|ABOVE|CLOSE|AFTER|errors)" | cut -c1-300
 echo "### done"
