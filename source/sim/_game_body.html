@@ -3,7 +3,7 @@
     <h1 id="g-h1">Waterloo <span>· Napoleon’s command</span></h1>
     <p id="g-lead">You are the Emperor on the morning of 18 June 1815. You see the field from your post and learn the rest from riders. Every order you give is written, carried across the field and passed down before a single brigade moves.</p>
   </div>
-  <span class="stamp">Release 3</span>
+  <span class="stamp">Release 4</span>
 </header>
 
 <main class="layout">
@@ -26,6 +26,7 @@
       <form class="pennote" id="pennote" hidden><label class="vh" for="pennote-in">Note</label><input id="pennote-in" maxlength="60" placeholder="Write a note" autocomplete="off"><button type="submit">Write</button></form>
       <div class="glasscap" id="glasscap" hidden aria-live="polite"></div>
       <div class="modehint" id="modehint" hidden></div>
+      <div class="strip" id="strip" hidden></div>
       <div class="tip" id="tip" hidden></div>
       <div class="setup" id="setup">
         <form class="setupcard" id="setupform">
@@ -34,6 +35,7 @@
           <p id="s-intro">Wellington’s army stands on the ridge of Mont-Saint-Jean, astride the Brussels road. Grouchy is away to the east with a third of your army, following the Prussians. The battle begins at 11:00 and ends with the dark, or when an army breaks.</p>
           <div class="row"><label for="s-scen">Start</label>
             <select id="s-scen"><option value="1100">11:00, as in 1815: the ground soaked, drying through the day</option><option value="0500">05:00, dawn: the army still coming up, the ground soaked</option><option value="dry">11:00, but dry: what if it had not rained?</option></select></div>
+          <details class="more" id="s-more"><summary>More settings</summary>
           <div class="row"><label for="s-hist">History</label>
             <select id="s-hist"><option value="uncertain">Historical, with uncertainty</option><option value="strict">Strict history</option><option value="open">Open: wider swings</option></select></div>
           <div class="row"><label for="s-staff">Staff</label>
@@ -45,6 +47,7 @@
           <div class="row"><label for="s-stop">Clock</label>
             <select id="s-stop"><option value="all">Stops for news, gathered over up to 15 minutes (8 for ★)</option><option value="decide">Stops only for dispatches marked ★</option></select></div>
           <div class="row"><label for="s-seed">Seed</label><input id="s-seed" type="number" min="0" step="1" inputmode="numeric"><button type="button" id="s-rnd">Random</button></div>
+          </details>
           <button type="submit" class="begin" id="s-go">Begin at 11:00</button>
           <p class="small">The same seed with the same orders fights the same battle.</p>
         </form>
@@ -143,6 +146,9 @@
         <p data-help="steps"><b>Letters with several steps.</b> After writing a step, choose “Add a next step for …” to give the same commander a next step in the same letter: bombard Hougoumont, then attack it 45 minutes after the guns open, say. One rider carries the letter and he acknowledges it once. A next step can wait until an earlier one begins or is done, plus a delay you choose. A bombardment “begins” when its guns first fire, not when the order is read: guns that must first move up can take half an hour or more, and if they have not opened 45 minutes after the order was read he takes it as begun. Any order can also wait until a given battery has fired on a given place for so many minutes; only fire on that very place counts, so the preview warns you if no order of yours has those guns firing there. He judges “done” by what his own brigades report, so it can be late. Each extra step lowers clarity by 0.05 and adds 30% to the writing time (my estimates).</p>
         <p><b>The timeline.</b> Under Your orders, each live order is a row against the clock: written, riding, passed down, waiting on its conditions, and the expected start (◇). Ticks mark acknowledgements and the solid bar starts when a report says they are doing it. A condition you cannot time, such as a farm changing hands, leaves the row open. The order you are drafting shows as well, before you send it.</p>
         <p><b>Dispatches on the map.</b> Tap a dispatch, or one line of what you saw, to see on the map what it told you: the enemy bodies it reported ringed in orange, your brigades it concerned picked out, dotted arrows for anything that has moved since you last heard of it, farms that changed hands, and for guns or musketry heard, the bearing from your post. Tap it again, or tap open ground, to clear it.</p>
+        <p><b>Orders from the map.</b> Tap one of your brigades and a strip opens on the map for its commander: Attack, Advance or Hold. Tap the place (a tap near a named place takes the place; anywhere else marks the point) and send. The strip writes the same order the form does, so anything it cannot say (which brigades, the formation, conditions, a letter of several steps) is under More.</p>
+        <p><b>The campaign’s verdict.</b> The field’s result says who held the ground. Beside it the verdict says what the day meant for your campaign, with a score out of 100: a quiet draw that leaves the allied armies joined is a day lost. The briefing says what the day demands before you begin. The tiers and points are estimates that rank results; they are not history.</p>
+        <p><b>Why it happened.</b> In the umpire’s log, and in the turning points after the battle, tap “why?” under an entry to see what caused it and, for a brigade that broke, what fire cost it in the half hour before and from whom. Napoleon’s map never shows this during the battle: he did not know it.</p>
         <p><b>Tapping the map.</b> Tap one of your brigades to pick out its whole corps and see what you last heard of it and your latest order to it. Tap an enemy body to ring every body known to belong to the same corps. Tap open ground to clear every highlight.</p>
         <p><b>Two ways to play.</b> On Napoleon’s map (realism) you see only what he knew. On the umpire’s map you also see every brigade where it really is, the riders on the road, the arrivals due off the map and the umpire’s log, and can switch between the two maps or lay one over the other. Orders, riders and reports work the same way in both; only what you can see changes.</p>
         <p data-help="ney"><b>Ney.</b> At the start Marshal Ney commands the whole front line, as he did on the day, and acts on his own judgement. Give him a sector and a goal and he will feed fresh brigades at it; tell him to hand the front back and his own initiatives stop. While his sector includes the cavalry (the whole front, the centre or the left) he may take the reserve cavalry forward on his own if he thinks the enemy is giving way, and once La Haye Sainte is taken he will push what infantry and horse guns he can find at the allied centre. You will see it happen from your post and he explains himself in his next report. To keep a corps out of his hands, order it to hold: brigades you have told to hold stay where they are until another order of yours moves them. Your army panel shows how free his hand is.</p>

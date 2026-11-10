@@ -1,0 +1,184 @@
+/* The perception layer and the event stream (engine roadmap, B2): the one contract between the sim and whatever draws it.
+   A client (the 2D map today, a 3D headquarters later) needs nothing else from the engine:
+
+     const V = WView.install(E);
+     V.world()            the ground, once: heights, roads, woods, buildings, places (never changes during a battle)
+     V.snapshot('chief')  what the player's commander believes right now: his own brigades as last reported, the enemy as last
+                          seen, who he thinks holds each place, what he hears, the orders he has given as far as he knows
+     V.snapshot('truth')  the umpire's picture: every brigade where it really is (the umpire's map, replays, the end of the battle)
+     V.watch('chief')     start collecting timed events for that viewer ('truth' as well, or instead)
+     V.drain('chief', n)  the events with seq > n: guns firing, volleys, charges, lines breaking, places changing hands, dispatches
+     V.why(ref)           the chain of causes behind a log entry (umpire's knowledge: shown only on the umpire's map and afterwards)
+     V.losses(id, t, m)   what fire cost a unit in the m minutes before t, and from whom (umpire's knowledge, as above)
+
+   Rules the contract keeps (tools/test_view.js checks each):
+   - Plain data. Everything returned survives JSON.stringify and shares no object with the engine.
+   - No dice. Looking never changes the battle: a battle watched every tick ends on the same state hash as one never watched.
+   - Fog is kept. A 'chief' snapshot is built only from the commander's belief record, and a 'chief' event carries a position only
+     if it could be seen from where he stands; one he can only hear carries a bearing, a loudness and a delay, and nothing else.
+     Enemy bodies are named by an opaque key, never by the unit's real id.
+   Values marked (est.) are mine. */
+(function (root) {
+'use strict';
+const hyp = Math.hypot, D2R = Math.PI / 180;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const bearing = (dx, dy) => (Math.atan2(dx, -dy) / D2R + 360) % 360;
+const r1 = v => Math.round(v * 10) / 10;
+const VERSION = 1;
+const TICK_MIN = 2;
+const P = {
+  SOUND_MPS: 340,                 // the bang trails the flash by distance / 340 m a second (physics)
+  HEAR: { cannon: 12000, volley: 4000, charge: 1500, melee: 1200 }, // (est.) metres each kind of noise carries
+  EYE: 2.5,                       // the engine's own eye height for a mounted officer
+  RIDER_SEEN: 800,                // (est.) a rider coming in is noticed this far from headquarters
+  KEEP: 6000,                     // events kept per viewer; older ones are dropped (a client drains far more often)
+};
+// a repeatable number in [0, 1) from a name and a tick: spreads a tick's events over its two minutes without touching the dice
+function spread(name, tick) { let h = 2166136261 ^ tick; for (let i = 0; i < name.length; i++) { h ^= name.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0) % 10000) / 10000; }
+const plain = x => JSON.parse(JSON.stringify(x));
+
+function install(E) {
+  if (E.view) return E.view;
+  const W = E.W, C = () => E.command, arms = E.era.arms;
+  const crewed = u => !!(arms[u.arm] && arms[u.arm].crew);
+  const here = u => u.onMap && !u.gone && u.str > 0;
+  const keys = new Map(); // an enemy unit's real id -> the opaque key the commander's picture uses for it
+  const keyOf = tid => { if (!keys.has(tid)) keys.set(tid, 'c' + (keys.size + 1)); return keys.get(tid); };
+
+  /* ---------- the ground ---------- */
+  let worldCache = null;
+  function world() {
+    if (worldCache) return worldCache;
+    const pick = k => plain(W[k] || []);
+    return (worldCache = {
+      v: VERSION, battle: E.battleId, size: { w: W.WM, h: W.HM },
+      origin: { lat: W.LAT0, lon: W.LON0, mPerLat: W.MLAT, mPerLon: W.MLON },
+      grid: { nx: W.NX, ny: W.NY, cell: W.CELL, heights: Array.from(W.H, r1) },
+      roads: pick('ROADS'), sunken: pick('SUNKEN'), streams: pick('STREAMS'), woods: pick('WOODS'), villages: pick('VILLAGES'),
+      buildings: pick('BUILDINGS'), houses: pick('HOUSES'), enclosures: pick('ENCLOSURES'), hedges: pick('HEDGES'), landmarks: pick('LM'),
+      places: E.sps.map(sp => ({ id: sp.id, name: sp.name, x: r1(sp.x), y: r1(sp.y) })),
+      objectives: Object.values(E.objectives || {}).map(o => ({ id: o.id, name: o.name, x: o.point ? r1(o.point[0]) : null, y: o.point ? r1(o.point[1]) : null })),
+      sides: E.sides.map(s => ({ id: s.id, coalition: E.coalition[s.id] })),
+      light: { sunset: E.light.sunset, dark: E.light.dark },
+    });
+  }
+
+  /* ---------- snapshots ---------- */
+  const common = who => ({ v: VERSION, who, battle: E.battleId, t: E.t, clock: E.fmtT(E.t), over: !!E.over,
+    light: { sun: r1(E.light.sunAt(E.t)), seeing: Math.round(E.bgVis(E.t)) }, ground: { wet: r1(E.wet) }, wind: { dir: Math.round(E.wind.dir), speed: r1(E.wind.speed) } });
+  function truth() {
+    const S = common('truth');
+    S.units = E.units.filter(here).map(u => ({ id: u.id, side: u.side, name: u.name, corps: u.corps || null, arm: u.arm, x: r1(u.x), y: r1(u.y), facing: Math.round(u.facing),
+      form: u.form, front: Math.round(u.F), depth: Math.round(u.D), str: Math.round(u.str), coh: Math.round(u.coh), status: u.status, task: u.task.kind, place: u.spId || null,
+      firing: !!u.firedTick, charging: !!u.charge }));
+    S.places = E.sps.map(sp => ({ id: sp.id, holder: sp.holder || null }));
+    S.morale = Object.fromEntries(E.sideIds.map(s => [s, Math.round(E.morale[s])]));
+    S.riders = C() ? C().riders.filter(r => r.status === 'riding' && r.x != null).map(r => ({ x: r1(r.x), y: r1(r.y), side: r.side, kind: r.kind })) : [];
+    S.smoke = { nx: E.SX, ny: E.SY, cell: 100, a: Array.from(E.smoke, v => Math.round(v * 100) / 100) };
+    S.result = E.result ? { grade: E.result.grade, why: E.result.why, t: E.result.t } : null;
+    return S;
+  }
+  // an order as its writer knows it: written, sent, acknowledged (he learns nothing else until a report tells him)
+  const known = o => o.status === 'cancelled' ? 'cancelled' : o.ackedAt != null ? 'acknowledged' : o.sentAt != null ? 'sent' : 'writing';
+  function chief() {
+    const c = C(); if (!c) throw new Error('view: this battle has no command layer, so there is no commander to see through');
+    const id = c.X.chief, B = c.B[id], L = E.leaders[id], S = common('chief');
+    S.side = c.side; S.commander = id;
+    S.at = { x: r1(L.x), y: r1(L.y), post: c.hq.post || null, moving: !!c.hq.moving };
+    S.own = [...B.own.values()].map(r => { const u = E.byId[r.uid]; return { id: r.uid, name: u.name, corps: u.corps || null, arm: u.arm, x: r1(r.x), y: r1(r.y), form: r.form || null,
+      str: Math.round(r.str), state: r.cohWord || null, task: r.task || null, place: r.sp || null, gone: !!r.gone, seenAt: r.t, reportedAt: r.tState, src: r.src }; });
+    S.enemy = [...B.c.values()].map(r => ({ key: keyOf(r.tid), identified: !!r.idLevel, side: r.side || null, nation: r.nat || null, corps: r.corps || null, kind: r.kind,
+      x: r1(r.x), y: r1(r.y), str: Math.round(r.str), guns: r.guns || 0, form: r.form || null, status: r.status || null, moving: !!r.moving, facing: Math.round(r.dir || 0),
+      place: r.garrison || null, seenAt: r.t, src: r.src }));
+    S.places = Object.entries(B.places).map(([sp, p]) => ({ id: sp, holder: p.holder || null, knownAt: p.t, src: p.src }));
+    S.heard = c.heard(id).map(h => ({ dir: h.dir, kind: h.k, words: h.w, level: r1(h.v) }));
+    S.orders = c.orders.filter(o => o.from === id).map(o => ({ id: o.id, to: o.to, action: o.action, text: c.describe ? c.describe(o) : o.action, state: known(o), issuedAt: o.issuedAt, ackedAt: o.ackedAt ?? null }));
+    S.dispatches = c.inbox.slice(-20).map(m => ({ id: m.id, t: m.t, kind: m.kind, title: m.title || null, text: m.text || null, from: m.from || null }));
+    S.riders = c.riders.filter(r => r.status === 'riding' && r.to === id && r.x != null && hyp(r.x - L.x, r.y - L.y) < P.RIDER_SEEN).map(r => ({ x: r1(r.x), y: r1(r.y) }));
+    return S;
+  }
+  const snapshot = (who = 'chief') => who === 'truth' ? truth() : chief();
+
+  /* ---------- the event stream ---------- */
+  const feeds = {}; let seq = 0, logAt = 0, inboxAt = 0, charging = new Set(), stepping = false;
+  function watch(who = 'chief') {
+    if (who === 'chief' && !C()) throw new Error('view: no command layer to watch through');
+    if (!feeds[who]) feeds[who] = [];
+    if (!stepping) { stepping = true; logAt = E.log.length; inboxAt = C() ? C().inbox.length : 0; const step = E.step; E.step = function () { const t0 = E.t, tick = E.tick, was = E.over; step(); if (!was) collect(t0, tick); }; }
+    return V;
+  }
+  const push = (who, e) => { const f = feeds[who]; e.seq = ++seq; f.push(e); if (f.length > P.KEEP) f.splice(0, f.length - P.KEEP); };
+  // what the commander gets of one event: seen (with its place), only heard (a bearing, a loudness, a delay), or nothing
+  function perceive(e) {
+    const c = C(), L = E.leaders[c.X.chief], d = hyp(e.x - L.x, e.y - L.y), s = E.los(L.x, L.y, P.EYE, e.x, e.y, 2);
+    const seen = s.clear && d <= E.bgVis(E.t) * s.trans; // (est.) smoke on the line shortens the day's seeing
+    const reach = P.HEAR[e.kind] || 0, heard = d < reach;
+    if (!seen && !heard) return null;
+    const out = { t: e.t, kind: e.kind, seen };
+    if (seen) { out.x = e.x; out.y = e.y; out.size = e.size; if (e.side) out.side = e.side; if (e.place) out.place = e.place; }
+    if (heard) { out.bearing = Math.round(bearing(e.x - L.x, e.y - L.y)); out.delay = r1(d / P.SOUND_MPS); out.loud = r1(clamp(Math.sqrt((e.size || 1) / (e.kind === 'cannon' ? 8 : 1500)), 0.2, 3) * Math.pow(1 - d / reach, 2)); } // (est.)
+    return out;
+  }
+  function emit(e) {
+    if (feeds.truth) push('truth', Object.assign({}, e));
+    if (feeds.chief && e.x != null) { const p = perceive(e); if (p) push('chief', p); }
+  }
+  const LOG_KIND = { break: 'break', rally: 'rally', place: 'place', arrival: 'arrival', army: 'army', end: 'end' };
+  function collect(t0, tick) {
+    const now = new Set();
+    for (const u of E.units) {
+      if (!here(u)) continue;
+      if (u.firedTick) emit({ t: r1(t0 + TICK_MIN * spread(u.id, tick)), kind: crewed(u) ? 'cannon' : 'volley', x: r1(u.x), y: r1(u.y), side: u.side, unit: u.id, size: Math.round(u.str) });
+      if (u.charge) { now.add(u.id); if (!charging.has(u.id)) emit({ t: r1(t0 + TICK_MIN * spread(u.id + '!', tick)), kind: 'charge', x: r1(u.x), y: r1(u.y), side: u.side, unit: u.id, size: Math.round(u.str) }); }
+      else if (u.melee && u.meleeAtk) emit({ t: r1(t0 + TICK_MIN * spread(u.id + 'x', tick)), kind: 'melee', x: r1(u.x), y: r1(u.y), side: u.side, unit: u.id, size: Math.round(u.str) });
+    }
+    charging = now;
+    for (; logAt < E.log.length; logAt++) {
+      const l = E.log[logAt], kind = LOG_KIND[l.cat]; if (!kind) continue;
+      const u = l.unit ? E.byId[l.unit] : null, sp = l.sp ? E.spById[l.sp] : null, at = u && u.onMap ? u : sp;
+      emit({ t: l.t, kind, x: at ? r1(at.x) : null, y: at ? r1(at.y) : null, side: l.side || (u && u.side) || null, unit: l.unit || null, place: l.sp || null, size: u ? Math.round(u.str) : 0, text: l.text, log: logAt });
+    }
+    if (C() && feeds.chief) for (; inboxAt < C().inbox.length; inboxAt++) { const m = C().inbox[inboxAt]; push('chief', { t: m.t, kind: 'dispatch', id: m.id, about: m.kind, title: m.title || null }); }
+  }
+  function drain(who = 'chief', since = 0) { const f = feeds[who]; if (!f) return []; let i = f.length; while (i > 0 && f[i - 1].seq > since) i--; return plain(f.slice(i)); }
+
+  /* ---------- why: the chain of causes behind a log entry, nearest first ---------- */
+  function why(ref, depth = 6) {
+    const start = typeof ref === 'number' ? ref : ref && ref.cause;
+    const out = [], seen = new Set();
+    (function walk(i, d) {
+      const c = E.causes[i]; if (c == null || typeof i !== 'number' || seen.has(i) || d > depth) return;
+      seen.add(i); out.push({ t: c.t, text: c.text, depth: d });
+      for (const k of c.links || []) walk(k, d + 1);
+    })(start, 0);
+    return out;
+  }
+
+  /* ---------- who hurt whom: fire losses by firer, kept in ten-minute blocks from the engine's damage hook (no dice) ---------- */
+  const hurt = new Map(); // target id -> Map('block|firer|kind' -> men)
+  const prevHook = E.onDmg;
+  E.onDmg = function (t, cas, kind, src) {
+    if (prevHook) prevHook(t, cas, kind, src);
+    if (!t || !(cas > 0)) return;
+    let m = hurt.get(t.id); if (!m) hurt.set(t.id, (m = new Map()));
+    const k = Math.floor(E.t / 10) + '|' + (src ? src.id : '') + '|' + kind; m.set(k, (m.get(k) || 0) + cas);
+  };
+  // what fire cost a unit in the minutes before t, and from whom (the largest first). Guns count their casualties in men hit.
+  function losses(unitId, t = E.t, minutes = 30) {
+    const m = hurt.get(unitId), by = new Map(); let total = 0; if (!m) return { men: 0, minutes, by: [] };
+    const b1 = Math.floor(t / 10), b0 = Math.floor((t - minutes) / 10);
+    for (const [k, cas] of m) { const [b, src, kind] = k.split('|'); if (+b < b0 || +b > b1) continue; total += cas; const kk = src + '|' + kind; by.set(kk, (by.get(kk) || 0) + cas); }
+    const list = [...by].map(([kk, cas]) => { const [src, kind] = kk.split('|'), u = E.byId[src]; return { from: u ? u.name : null, side: u ? u.side : null, kind: kind === 'art' ? 'guns' : 'musketry', men: Math.round(cas) }; })
+      .filter(x => x.men >= 1).sort((a, b) => b.men - a.men);
+    return { men: Math.round(total), minutes, by: list.slice(0, 4) };
+  }
+
+  const V = { version: VERSION, P, world, snapshot, watch, drain, why, losses };
+  E.view = V;
+  return V;
+}
+
+const api = { version: VERSION, install, P };
+root.WView = api;
+if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);

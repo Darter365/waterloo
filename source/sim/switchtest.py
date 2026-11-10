@@ -14,7 +14,7 @@ async def main():
             return await pg.evaluate("() => ({ cur: WApp.current, h1: document.getElementById('g-h1').textContent, to: [...document.querySelectorAll('#ob-to option')].map(o => o.value).join(','), start: document.getElementById('s-go').textContent, map: document.getElementById('s-map').value, roots: document.querySelectorAll('#game-root').length, boots: WApp.boots.length })")
         print('BATTLES', await pg.eval_on_selector('#s-battle', 's => [...s.options].map(o => o.value + "=" + o.textContent).join(" | ")'))
         print('FIRST', await state())
-        await pg.select_option('#s-map', 'umpire')
+        await pg.evaluate("document.getElementById('s-more').open = true"); await pg.select_option('#s-map', 'umpire')
         for bid in ['ligny', 'waterloo', 'ligny']:
             await pg.select_option('#s-battle', bid); await pg.wait_for_timeout(1000); print('SWITCH', bid, await state())
         f0 = await pg.evaluate("() => WApp.boots.map(b => b.frames())"); await pg.wait_for_timeout(1000); f1 = await pg.evaluate("() => WApp.boots.map(b => b.frames())")

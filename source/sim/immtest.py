@@ -12,7 +12,7 @@ async def main():
         b = await p.chromium.launch(); ctx = await b.new_context(viewport={'width': W, 'height': H}, color_scheme='dark' if dark else 'light', has_touch=W < 600)
         pg = await ctx.new_page(); errs = []; pg.on('pageerror', lambda e: errs.append('PAGEERR ' + str(e)))
         await pg.goto('file://' + D + 'pi.html'); await pg.wait_for_timeout(800)
-        await pg.fill('#s-seed', '4242'); await pg.click('#s-go'); await pg.wait_for_timeout(400)
+        await pg.evaluate("document.getElementById('s-more').open = true"); await pg.fill('#s-seed', '4242'); await pg.click('#s-go'); await pg.wait_for_timeout(400)
         print('BRIEF STAFF', (await pg.inner_text('#stopcards')).split('Nothing moves')[1][:400].replace('\n', ' | ') if 'Nothing moves' in await pg.inner_text('#stopcards') else '')
         await pg.select_option('#ob-to', 'derlon'); await pg.select_option('#ob-act', 'attack'); await pg.select_option('#ob-obj', 'ridgeEast')
         print('LETTER', (await pg.inner_text('#ob-prev')).split('Clarity')[0].replace('\n', ' | '))

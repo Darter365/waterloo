@@ -14,7 +14,7 @@ async def main():
         await pg.goto('file://' + OUT + 'pl.html'); await pg.wait_for_timeout(1200)
         if await pg.eval_on_selector('#s-battle', 's => s.value') != 'ligny': await pg.select_option('#s-battle', 'ligny'); await pg.wait_for_timeout(1200) # (one app) choose Ligny on the start screen
         print('TITLE', await pg.title(), '|', await pg.inner_text('#g-h1'), '|', (await pg.inner_text('#s-intro'))[:90], '|', await pg.inner_text('#s-go'))
-        await pg.fill('#s-seed', '4242'); await pg.click('#s-go'); await pg.wait_for_timeout(400)
+        await pg.evaluate("document.getElementById('s-more').open = true"); await pg.fill('#s-seed', '4242'); await pg.click('#s-go'); await pg.wait_for_timeout(400)
         await pg.screenshot(path=OUT + 'l_begin.png')
         print('BRIEF', (await pg.inner_text('#stopcards'))[:700].replace('\n', ' | '))
         print('TO', await pg.eval_on_selector('#ob-to', 's => [...s.options].map(o => o.value).join(",")'))

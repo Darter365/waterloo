@@ -12,7 +12,7 @@ async def main():
         b = await p.chromium.launch(); pg = await (await b.new_context(viewport={'width': W, 'height': H})).new_page()
         errs = []; pg.on('pageerror', lambda e: errs.append('PAGEERR ' + str(e))); pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' and 'ERR_TUNNEL' not in m.text else None)
         await pg.goto('file://' + D + 'p6.html'); await pg.wait_for_timeout(1200)
-        await pg.fill('#s-seed', '4242'); await pg.click('#s-go'); await pg.wait_for_timeout(500)
+        await pg.evaluate("document.getElementById('s-more').open = true"); await pg.fill('#s-seed', '4242'); await pg.click('#s-go'); await pg.wait_for_timeout(500)
         async def sel(s, v): await pg.select_option(s, v); await pg.wait_for_timeout(60)
         async def click(s): await pg.click(s); await pg.wait_for_timeout(80)
         async def setc(vals): return await pg.evaluate(SETC + '(' + json.dumps(vals) + ')')

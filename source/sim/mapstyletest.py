@@ -11,7 +11,7 @@ async def main():
         b = await p.chromium.launch(); ctx = await b.new_context(viewport={'width': W, 'height': H}, has_touch=W < 600)
         pg = await ctx.new_page(); errs = []; pg.on('pageerror', lambda e: errs.append('PAGEERR ' + str(e)))
         await pg.goto('file://' + D + 'pm.html'); await pg.wait_for_timeout(800)
-        await pg.fill('#s-seed', '4242'); await pg.click('#s-go'); await pg.wait_for_timeout(400)
+        await pg.evaluate("document.getElementById('s-more').open = true"); await pg.fill('#s-seed', '4242'); await pg.click('#s-go'); await pg.wait_for_timeout(400)
         await pg.select_option('#ob-to', 'derlon'); await pg.select_option('#ob-act', 'attack'); await pg.select_option('#ob-obj', 'ridgeEast'); await pg.click('#ob-send')
         await pg.select_option('#ob-to', 'reille'); await pg.select_option('#ob-act', 'attack'); await pg.select_option('#ob-obj', 'hougoumont'); await pg.click('#ob-send')
         await pg.select_option('#r-stop', 'decide')

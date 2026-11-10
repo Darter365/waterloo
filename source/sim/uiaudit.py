@@ -46,7 +46,7 @@ async def run(p, W, H, dark, seed):
     async def audit(where):
         for f in await pg.evaluate(AUDIT): f['where'] = where; finds.append(f)
     await audit('setup')
-    await pg.fill('#s-seed', str(seed)); await pg.click('#s-go'); await pg.wait_for_timeout(400)
+    await pg.evaluate("document.getElementById('s-more').open = true"); await pg.fill('#s-seed', str(seed)); await pg.click('#s-go'); await pg.wait_for_timeout(400)
     for d in await pg.query_selector_all('details'): await d.evaluate('d => d.open = true')
     await audit('briefing')
     await pg.select_option('#ob-to', 'army'); await pg.wait_for_timeout(100); await audit('retreat draft')

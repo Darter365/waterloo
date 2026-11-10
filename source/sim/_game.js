@@ -47,8 +47,9 @@ function newGame(o) {
   // (phase 5, stage 2) set up exactly as the after-action report's re-runs are (replay.js), so a battle fought again from the order log
   // comes out the same: the same engine, commanders, command layer and the recorded orders the computer follows whatever the player does
   SIM = WReplay.setup({ battle: GAME_ID, seed: o.seed, history: o.history, scenario: o.scenario, staff: o.staff, silence: o.silence });
+  WView.install(SIM); // (release 4) the contract (view.js): causes and fire losses for the umpire's log and the verdict; it draws no dice
   G = { umpire: o.mapMode === 'umpire', logShown: 0, selOrder: null, hoverWid: null, dispSel: null, focusCorps: null, focusEnemy: null, opts: o, phase: 'setup', shown: 0, curFrom: 0, current: [], stopT: SIM.t, prevStopT: SIM.t, briefing: true, stopMode: o.stop, runTo: null, newIds: new Set(), pick: false, sent: null, sel: null, latch: {}, gatherUntil: null, scan: 0, orderLog: [], orderIdx: {}, made: {}, t0: SIM.t, knew: [], knewNow: null, samples: [], nextSample: null, stops: [], refoughtFrom: null, toEnd: null, toEndFrom: null };
-  $('endbox').hidden = true;
+  $('endbox').hidden = true; stripClose();
   aarReset();
   OB = freshOB(CORPS[0]);
   viewMode = G.umpire ? 'compare' : 'napoleon'; layers.riders = G.umpire; layers.flashes = G.umpire; selected = null; prevPos.clear(); GLIDE.clear(); frac = 1; flashes = [];
@@ -165,7 +166,8 @@ function writeTo(cid) { OB = freshOB(cid); OB.touched = true; G.selOrder = null;
 
 function briefingHTML() {
   const st = GB.starts[G.opts.scenario] || Object.values(GB.starts)[0];
-  return `<div class="brief">${st.brief}</div>`;
+  const stk = GAMEB.battle.stakes;
+  return `<div class="brief">${st.brief}${stk && stk.side === SIDE && stk.brief ? `<p class="brief-stakes">${esc(stk.brief)}</p>` : ''}</div>`;
 }
 function dispHTML(m) {
   const lag = m.writtenAt != null ? Math.round(m.t - m.writtenAt) : 0;
@@ -496,6 +498,7 @@ function click(x, y, ptype) {
   if (G && G.pick) {
     const [wx, wy] = screenToWorld(x, y);
     if (wx < 0 || wy < 0 || wx > WM || wy > HM) return;
+    if (STRIP.stage === 'place') { stripPlace(wx, wy); return; } // (release 4) the strip on the map asked for the place
     OB.point = [wx, wy]; OB.place = null; OB.touched = true; G.selOrder = null; cancelPick(); renderOB(); requestDraw();
     if (narrow()) $('obBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
@@ -508,6 +511,7 @@ function click(x, y, ptype) {
   if (!u.belief && u.side === SIDE) G.focusCorps = cmdOf(u); // the same on the umpire's map
   if (u.belief === 'enemy') G.focusEnemy = u.c.corps ? { corps: u.c.corps } : { tid: u.c.tid };
   selectUnit(u); renderOrders();
+  if (G.focusCorps && (u.belief === 'own' || (!u.belief && u.side === SIDE))) stripOpen(G.focusCorps); else stripClose(); // (release 4) orders from the map
   if (ptype !== 'mouse') showTip(hoverHTML(u, false), x, y);
 }
 function selHTML(u) {
@@ -529,7 +533,7 @@ function clearHighlights(keepTip) {
   if (!G) return;
   G.selOrder = null; G.dispSel = null; G.focusCorps = null; G.focusEnemy = null; G.hoverWid = null;
   if (OB) OB.touched = false; // the draft stays in the form; touching it again puts it back on the map
-  selectUnit(null); if (!keepTip) tip.hidden = true;
+  selectUnit(null); if (!keepTip) { tip.hidden = true; stripClose(); }
   renderOrders(); renderStop(); renderEarlier(); requestDraw();
 }
 function selectUnit(u) {
@@ -545,12 +549,12 @@ hook(window, 'keydown', e => {
   else if (e.key === ',' || e.key === '<' || e.key === '.' || e.key === '>') { const i = SPEEDS.indexOf(speed) + (e.key === ',' || e.key === '<' ? -1 : 1); if (i >= 0 && i < SPEEDS.length) setSpeed(SPEEDS[i]); }
   else if (e.key === '+' || e.key === '=') zoomAt(cssW / 2, cssH / 2, 1.4); else if (e.key === '-') zoomAt(cssW / 2, cssH / 2, 1 / 1.4);
   else if (e.key.startsWith('Arrow')) { const d = 60; if (e.key === 'ArrowLeft') view.tx += d; if (e.key === 'ArrowRight') view.tx -= d; if (e.key === 'ArrowUp') view.ty += d; if (e.key === 'ArrowDown') view.ty -= d; clampView(); requestDraw(); scheduleTerrain(false); }
-  else if (e.key === 'Escape') { if (G && G.pick) cancelPick(); else clearHighlights(); }
+  else if (e.key === 'Escape') { if (G && G.pick) { cancelPick(); stripClose(); } else clearHighlights(); }
 });
 
 /* ---------- the end: the umpire opens his map ---------- */
 function endGame() {
-  playing = false; G.phase = 'over';
+  playing = false; G.phase = 'over'; stripClose();
   const C = SIM.command; G.current = C.inbox.slice(G.shown); G.curFrom = G.shown; G.shown = C.inbox.length; G.prevStopT = G.stopT; G.stopT = SIM.t; G.newIds = new Set();
   if (G.pick) cancelPick();
   viewMode = 'compare'; layers.riders = true; $('cartsub').textContent = `${GB.date} · la carte de l’arbitre`;
@@ -561,6 +565,19 @@ function endGame() {
   aarStart();
 }
 const VIEWNOTES = { napoleon: 'Your map as it stood at the end: what you believed.', truth: 'The umpire’s map: every brigade where it really was.', compare: 'Your belief drawn over the truth, which is shown faint underneath.' };
+// (release 4) why an entry of the umpire's log happened: the engine's chain of causes, and for a brigade that broke, what fire cost it and
+// from whom. Umpire's knowledge: only the umpire's log (umpire's map mode) and the verdict show it, never Napoleon's map during play.
+function whyHTML(l) {
+  if (!SIM.view || l.cause == null) return '';
+  const chain = SIM.view.why(l).slice(l.cat === 'break' ? 1 : 0), parts = chain.map(c => `<li><time>${hm(c.t)}</time><span>${esc(capF(c.text))}.</span></li>`);
+  const f = l.cat === 'break' && l.unit ? SIM.view.losses(l.unit, l.t) : null;
+  if (f && f.men >= 20) parts.push(`<li><time></time><span>Fire cost it about ${fmt(Math.round(f.men / 10) * 10)} men in the half hour before: ${f.by.filter(b => b.men >= 5).map(b => `${fmt(b.men)} to the ${b.kind} of ${esc(b.from || 'skirmishers')}`).join(', ')}.</span></li>`);
+  return parts.length ? `<details class="why"><summary><span class="vh">Why this happened</span></summary><ol class="hiddenlist">${parts.join('')}</ol></details>` : '';
+}
+function stakesHTML() {
+  const stk = GAMEB.battle.stakes, J = stk && stk.side === SIDE ? WStakes.judge(SIM, stk) : null; if (!J) return '';
+  return `<div class="stakes" id="stakes"><p class="stakes-t"><span class="stakes-k">For the campaign · ${esc(J.tierName.toLowerCase())}</span><span>${esc(J.title)}</span><span class="stakes-s">${J.score} / 100</span></p><p class="small">${esc(J.text)}</p><p class="small">You lost ${fmt(J.exchange.own)} men killed, wounded and taken; the enemy lost ${fmt(J.exchange.enemy)}${J.exchange.counted ? '' : ' (the exchange is not counted for an army that refused battle)'}. ${fmt(J.left)} of your ${fmt(J.start)} are still in the ranks.</p></div>`;
+}
 function renderVerdict() {
   const R = SIM.result, C = SIM.command, t = hm;
   const cas = GB.losses;
@@ -576,7 +593,7 @@ function renderVerdict() {
   const mine = C.orders.filter(o => o.from === CHIEF);
   const fate = o => o.status === 'cancelled' ? 'torn up' : o.status === 'lost' ? 'never arrived: every rider was lost' : RKIND(o.to) === 'hq' ? 'done' : RKIND(o.to) === 'offmap' ? (o.receivedAt ? `reached ${SIM.leaders[o.to] ? SIM.leaders[o.to].name : o.to} ${t(o.receivedAt)}` : 'still on the road') : o.actedAt != null ? `arrived ${t(o.receivedAt)}, acted on ${t(o.actedAt)}` : o.receivedAt ? `arrived ${t(o.receivedAt)}, ${o.status === 'waiting' ? 'its conditions were never met' : 'not acted on'}` : 'still on the road';
   const wd = R.withdrawn, retreatTxt = wd ? `<p class="small">You ordered the retreat at ${t(wd.from)}. Marched off the field in order: ${fmt(wd.men)} of the ${fmt(wd.menAtStart)} formed foot and horse you had then, and ${wd.guns} of ${wd.gunsAll} guns.${wd.stillHere > 500 ? ` Still on the field and formed at the end: ${fmt(wd.stillHere)}, who would get away in the dark.` : ''} ${GB.retreatDay ? ' ' + GB.retreatDay : ''}</p>` : '';
-  $('verdict').innerHTML = `<p class="verdict-g">${R.grade}</p><p class="small">The battle ended at ${t(R.t)} (${R.why}). Seed ${SIM.seed}.</p>${retreatTxt}
+  $('verdict').innerHTML = `<p class="verdict-g">${R.grade}</p><p class="small">The battle ended at ${t(R.t)} (${R.why}). Seed ${SIM.seed}.</p>${stakesHTML()}${retreatTxt}
   <div class="seg" id="viewseg" role="group" aria-label="Whose map"><button data-view="napoleon">Your map</button><button data-view="truth">Umpire’s map</button><button data-view="compare">Both</button></div>
   <p class="small" id="viewnote"></p>
   <div class="tscroll"><table class="forces"><thead><tr><th></th><th>Killed &amp; wounded</th><th>Taken &amp; straggled</th><th>1815 (rules doc)</th></tr></thead><tbody>${cas.map(([n, k, h]) => `<tr><td><span class="dot" style="background:var(--p-${k.toLowerCase()})"></span>${n}</td><td>${fmt(R.cas[k].kw)}</td><td>${fmt(R.cas[k].cap)}</td><td class="small">${h}</td></tr>`).join('')}</tbody></table></div>
@@ -586,7 +603,7 @@ function renderVerdict() {
   <p style="margin-top:.9em"><b>How your orders went</b></p>
   <ol class="hiddenlist">${mine.map(o => `<li><time>${t(o.issuedAt)}</time><span>${esc(capF(C.describe(o)))}<br><span class="small">${o.byScript ? 'Napoleon’s own order, given for you · ' : ''}${fate(o)}${o.misread ? ' · misread: ' + esc(o.misread) : ''}</span></span></li>`).join('') || '<li><time></time><span class="small">You gave no orders.</span></li>'}</ol>
   <details class="inner"><summary>${GB.enemyDecisions || 'The enemy’s decisions'} (${theirs.length})</summary><ol class="hiddenlist">${theirs.map(l => `<li><time>${t(l.t)}</time><span>${esc(capF(l.text))}</span></li>`).join('')}</ol></details>
-  <details class="inner"><summary>The umpire’s log: turning points</summary><ol class="hiddenlist">${SIM.log.filter(l => l.important || ['break', 'place', 'army', 'end'].includes(l.cat)).map(l => `<li><time>${t(l.t)}</time><span>${esc(capF(l.text))}</span></li>`).join('')}</ol></details>
+  <details class="inner"><summary>The umpire’s log: turning points</summary><ol class="hiddenlist">${SIM.log.filter(l => l.important || ['break', 'place', 'army', 'end'].includes(l.cat)).map(l => `<li><time>${t(l.t)}</time><span>${esc(capF(l.text))}${whyHTML(l)}</span></li>`).join('')}</ol></details>
   <div class="btnrow"><button class="bigbtn" id="aar-open" type="button">The after-action report</button><button class="bigbtn quiet" id="again" type="button">Fight another battle</button></div>`;
   setView(viewMode);
   $('viewseg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setView(b.dataset.view); });
@@ -602,7 +619,7 @@ function noteEvent(l) {
 }
 function renderUmpLog() {
   if (!G || !G.umpire) return; const list = $('umplog'), frag = document.createDocumentFragment();
-  for (; G.logShown < SIM.log.length; G.logShown++) { const l = SIM.log[G.logShown]; if (!(l.important || ['break', 'place', 'army', 'end'].includes(l.cat) || l.cat === 'hidden' || (l.cat === 'orders' && l.side !== SIDE))) continue; const li = document.createElement('li'); li.innerHTML = `<time>${hm(l.t)}</time><span>${esc(capF(l.text))}</span>`; frag.prepend(li); }
+  for (; G.logShown < SIM.log.length; G.logShown++) { const l = SIM.log[G.logShown]; if (!(l.important || ['break', 'place', 'army', 'end'].includes(l.cat) || l.cat === 'hidden' || (l.cat === 'orders' && l.side !== SIDE))) continue; const li = document.createElement('li'); li.innerHTML = `<time>${hm(l.t)}</time><span>${esc(capF(l.text))}${whyHTML(l)}</span>`; frag.prepend(li); }
   list.prepend(frag); while (list.children.length > 300) list.lastChild.remove();
 }
 

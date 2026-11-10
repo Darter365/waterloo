@@ -10,7 +10,7 @@ async def one(p, mode):
     b = await p.chromium.launch(); pg = await (await b.new_context(viewport={'width': 1440, 'height': 900})).new_page()
     errs = []; pg.on('pageerror', lambda e: errs.append('PAGEERR ' + str(e)))
     await pg.goto('file://' + D + 'pe.html'); await pg.wait_for_timeout(800)
-    await pg.fill('#s-seed', '5150'); await pg.click('#s-go'); await pg.wait_for_timeout(300)
+    await pg.evaluate("document.getElementById('s-more').open = true"); await pg.fill('#s-seed', '5150'); await pg.click('#s-go'); await pg.wait_for_timeout(300)
     await pg.select_option('#ob-to', 'reille'); await pg.select_option('#ob-act', 'attack'); await pg.select_option('#ob-obj', 'hougoumont'); await pg.click('#ob-send')
     await pg.select_option('#ob-to', 'grandBattery'); await pg.select_option('#ob-act', 'bombard'); await pg.select_option('#ob-obj', 'ridgeEast'); await pg.click('#ob-send')
     # ride on to 14:00 with stops only for stars, continuing through stops

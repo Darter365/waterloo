@@ -73,11 +73,11 @@ game = '\n'.join([
     '/* ================= terrain (from the map) ================= */', L(207, 315),
     '/* ================= obstacles ================= */', L(581, 588),
     L(598, 615), view, L(637, 766), live, frame,
-    R('_shared_draw.js'), R('_interact.js'), R('_game.js'), R('_game_orders.js'), R('_game_disp.js'), R('_game_letters.js'), R('_game_staff.js'), R('_game_pencil.js'), R('_game_alarm.js'), R('_game_mapstyle.js'), R('_game_glass.js'), R('_game_aar.js'), R('_game_review.js'), R('_game_end.js'), R('_game_boot.js'),
+    R('_shared_draw.js'), R('_interact.js'), R('_game.js'), R('_game_orders.js'), R('_game_strip.js'), R('_game_disp.js'), R('_game_letters.js'), R('_game_staff.js'), R('_game_pencil.js'), R('_game_alarm.js'), R('_game_mapstyle.js'), R('_game_glass.js'), R('_game_aar.js'), R('_game_review.js'), R('_game_end.js'), R('_game_boot.js'),
     'return { id: GAME_ID, frames: () => FRAMES, stop() { DEAD = true; playing = false; for (const f of HOOKS.splice(0)) f(); } };', '}'])
 # the packs first (registry, then eras, nations, leaders, battles: the order packs/all.js loads them in node), then the engine
 PACKS = ['packs/registry.js', 'packs/eras/napoleonic.js', 'packs/eras/medieval-test.js', 'packs/nations/napoleonic.js', 'packs/leaders/napoleonic.js', 'packs/maps/toy-ridge.js', 'packs/oob/toy-ridge.js', 'packs/maps/ligny.js', 'packs/oob/ligny.js', 'packs/battles/waterloo.js', 'packs/battles/toy-ridge.js', 'packs/battles/ligny.js']
-srcs = PACKS + ['data.js', 'engine.js', 'ai.js', 'command.js', 'orders.js', 'plans.js', 'script.js', 'doctrine.js', 'replay.js']
+srcs = PACKS + ['data.js', 'engine.js', 'ai.js', 'command.js', 'orders.js', 'plans.js', 'script.js', 'doctrine.js', 'replay.js', 'view.js', 'stakes.js']
 sid = lambda f: 'src-' + f[:-3].replace('/', '-')
 # each engine script carries an id so the after-action report's re-run worker can be built from the same source (step 6);
 # the worker takes every script whose id starts "src-", in page order

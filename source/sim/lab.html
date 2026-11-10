@@ -1172,6 +1172,28 @@ P.register('battle', 'waterloo', { version: '1.1', // (4e) versions start at pha
     { what: 'Prussian killed and wounded (median)', losses: 'PR', median: [5000, 8000] },
   ] },
   victory: { attacker: 'FR', decisive: { holds: 'ba', within: 600, morale: 40 }, catastropheBefore: 1080, marginal: 'ridgeCentre' },
+  // (release 4) plans the strategy bench fights beside doing nothing and the historical orders (tools/strategies.js): opening orders, given
+  // at the start as a player would give them. expect.idleLoses is a judgment, not a record: with both allied armies on the field by evening,
+  // an army that sits still should be attacked.
+  strategies: {
+    centre: { name: 'Three corps at the ridge at 11:00', orders: [
+      { to: 'grandBattery', action: 'bombard', objective: { place: 'ridgeCentre' } }, { to: 'reille', action: 'attack', objective: { place: 'ridgeRightCentre' } },
+      { to: 'derlon', action: 'attack', objective: { place: 'ridgeCentre' } }, { to: 'lobau', action: 'attack', objective: { place: 'ridgeCentre' } }] },
+    expect: { idleLoses: true },
+  },
+  // (release 4) what the day meant for Napoleon's campaign, beside the field's grade (stakes.js reads these in order; tiers and the 5% are est.)
+  stakes: { side: 'FR',
+    brief: 'What the day demands: Wellington beaten before Blücher can join him. Together they outnumber you on this field by about two to one. A day that ends with Wellington still on his ridge is a day lost, however few men it costs.',
+    rules: [
+      { if: { ownBroken: true }, tier: 5, title: 'The army destroyed', text: 'Your army has broken and the road to Paris is open. In 1815 Napoleon abdicated four days after such a day.' },
+      { if: { grade: 'catastrophe' }, tier: 5, title: 'The army destroyed', text: 'Your army has broken and the road to Paris is open. In 1815 Napoleon abdicated four days after such a day.' },
+      { if: { enemyBroken: 'AL', grade: 'Decisive' }, tier: 1, title: 'Wellington destroyed', text: 'Wellington’s army is broken and you stand across the Brussels road. Blücher must now fight you alone or fall back.' },
+      { if: { enemyBroken: 'AL' }, tier: 2, title: 'Wellington beaten', text: 'Wellington’s army has broken. Blücher is still on your flank, but the allies are no longer joined.' },
+      { if: { grade: 'Marginal French' }, tier: 3, title: 'The ridge won, the armies unbeaten', text: 'You hold the centre of Wellington’s ridge at nightfall, but his army is unbroken and the Prussians are on your flank. Nothing is settled.' },
+      { if: { grade: 'Marginal Allied' }, tier: 4, title: 'The army saved, the field given up', text: 'You drew the army off in order. Wellington and Blücher have joined, and the campaign of separating them has failed.' },
+      { if: { unhurt: ['AL', 0.05] }, tier: 4, flat: true, title: 'A day given away', text: 'You never seriously attacked Wellington. He still holds his ridge, Blücher has joined him, and tomorrow you face both. Light losses count for nothing here: the day was the one thing you could not spare.' },
+      { tier: 4, title: 'Wellington still on his ridge', text: 'Your attacks did not break Wellington, and Blücher has joined him. Tomorrow you face both armies with the men you have left.' },
+    ] },
   // the corps by name, for the log
   corpsNames: { bulow: "Bülow's IV Corps", pirch: "Pirch's II Corps", zieten: "Zieten's I Corps", hal: "Prince Frederik's corps from Hal", grouchy: "Grouchy's wing" },
   /* (phase 2) the turning points the after-action report and the calibration watch, by when: taken (a place passes to a side; after: only
@@ -1614,6 +1636,24 @@ P.register('battle', 'ligny', { version: '0.1', oob: 'ligny', terrain: 'ligny',
   // 600 m; marginal if at the end the French hold the three brook villages the day was fought for, or the Prussians have drawn off. In 1815 the
   // Prussian centre broke at Ligny about 20:00 and the army drew off in the night, in order, toward Wavre: a French victory short of decisive
   victory: { attacker: 'FR', decisive: { holds: 'bussy', within: 600, morale: 40 }, marginal: { holds: ['ligny'] }, drawnOff: true },
+  // (release 4) plans the strategy bench fights beside doing nothing and the historical orders (tools/strategies.js)
+  strategies: {
+    villages: { name: 'Every corps at the villages at once', orders: [
+      { to: 'vandamme', action: 'attack', objective: { place: 'stamand' } }, { to: 'gerard', action: 'attack', objective: { place: 'ligny' } },
+      { to: 'drouot', action: 'attack', objective: { place: 'ligny' } }] },
+    expect: {},
+  },
+  // (release 4) what the day meant for Napoleon's campaign (stakes.js; tiers and the 6% are est.)
+  stakes: { side: 'FR',
+    brief: 'What the day demands: Blücher beaten so thoroughly that he cannot come to Wellington’s help. Holding the villages at nightfall is not enough if his army marches away in order.',
+    rules: [
+      { if: { ownBroken: true }, tier: 5, title: 'The army destroyed', text: 'Your army has broken on the first great day of the campaign. Nothing now stands between the allies and the frontier.' },
+      { if: { enemyBroken: 'PR', grade: 'Decisive' }, tier: 1, title: 'Blücher destroyed', text: 'The Prussian army is broken and its headquarters taken. Wellington must now face you alone.' },
+      { if: { enemyBroken: 'PR' }, tier: 2, title: 'Blücher broken', text: 'The Prussian army has broken. It will be days before it can help Wellington.' },
+      { if: { grade: 'French victory' }, tier: 3, title: 'The field won, the Prussians not destroyed', text: 'You hold the field, as Napoleon did in 1815, but the Prussian army has gone off in order. In 1815 it fell back north on Wavre and reached Napoleon’s flank at Waterloo two days later.' },
+      { if: { unhurt: ['PR', 0.06] }, tier: 4, flat: true, title: 'A day given away', text: 'You never seriously attacked Blücher. He stands unbeaten, with Wellington at Quatre Bras a few miles to the west, and the two can now join. Light losses count for nothing here.' },
+      { tier: 4, title: 'Blücher still in his villages', text: 'Your attacks did not drive Blücher from his position. He and Wellington, a few miles to the west at Quatre Bras, can now join.' },
+    ] },
   corpsNames: { vandamme: "Vandamme's III Corps", gerard: "Gérard's IV Corps", guard: 'the Imperial Guard', guardcav: 'the Guard heavy cavalry', pajol: "Pajol's cavalry", exelmans: "Exelmans' cavalry",
     milhaud: "Milhaud's cuirassiers", derlon: "d'Erlon's I Corps", lobau: "Lobau's VI Corps", zieten: "Zieten's I Corps", pirch: "Pirch's II Corps", thielmann: "Thielmann's III Corps" },
   metrics: [

@@ -499,6 +499,32 @@ table.moments td:nth-child(2){font-weight:600}
 .rv-lab{display:block;font-size:.88rem;color:var(--fg-2);margin-top:8px}
 #rv-notes,.rv-out{width:100%;max-width:80ch;display:block;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:2px;padding:6px 8px;font:inherit;font-size:.92rem}
 .rv-out{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.75rem;margin-top:6px}
+
+/* release 4: the campaign verdict, causes, the order strip on the map, and the fold of settings */
+.stakes{margin:8px 0 10px;padding:9px 11px;border:1px solid var(--line);border-left:4px solid var(--accent);background:color-mix(in srgb,var(--accent) 6%,var(--panel))}
+.stakes-t{font-family:var(--fell);font-size:1.12rem;line-height:1.25;margin:0 0 4px;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+.stakes-k{font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-2);font-family:var(--serif);flex:1 0 100%}
+.stakes-s{margin-left:auto;font-family:var(--serif);font-weight:600;font-size:.98rem;white-space:nowrap}
+.stakes .small{padding-left:0;margin:.25em 0}
+.brief-stakes{margin-top:.6em;padding-top:.55em;border-top:1px solid var(--line)}
+details.why{display:block;margin-top:2px}
+details.why>summary{cursor:pointer;font-size:.8rem;color:var(--accent);padding:2px 0;list-style:none;display:inline-block;min-height:24px}
+details.why>summary::-webkit-details-marker{display:none}
+details.why>summary::before{content:"why? "}
+details.why[open]>summary::before{content:"why: "}
+details.why ol{margin:2px 0 6px;padding:5px 8px;border-left:2px solid var(--line);font-size:.84rem;color:var(--fg-2)}
+details.more{margin:6px 0 2px;border-top:1px solid var(--line)}
+details.more>summary{cursor:pointer;padding:9px 0;font-size:.92rem;color:var(--fg-2);min-height:28px}
+.strip{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;width:min(520px,calc(100% - 110px));background:var(--m-paper);color:var(--m-ink);border:1px solid var(--m-ink);padding:8px 10px;font-size:.92rem;line-height:1.3;z-index:6;box-shadow:2px 3px 0 color-mix(in srgb,var(--m-ink) 22%,transparent)}
+.strip-t{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+.strip-b{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+.strip button{font-family:var(--serif);font-size:.95rem;min-height:40px;padding:6px 12px;border:1px solid var(--m-ink);background:transparent;color:var(--m-ink);border-radius:2px;cursor:pointer;flex:1 1 auto}
+.strip button.go{background:var(--m-ink);color:var(--m-paper);font-weight:600}
+.strip button.quiet{border-color:color-mix(in srgb,var(--m-ink) 40%,transparent);flex:0 1 auto}
+.strip button:disabled{opacity:.45;cursor:default}
+.strip button.strip-x{flex:0 0 auto;min-height:32px;min-width:32px;padding:0 8px;border:0;font-size:1.2rem;line-height:1;margin:-4px -6px 0 0}
+.strip .err{color:var(--m-no);font-size:.86rem;margin-top:4px}
+@media (max-width:640px){.strip{width:calc(100% - 64px);left:8px;transform:none}}
 </style>
 
 <div id="game-root">
@@ -507,7 +533,7 @@ table.moments td:nth-child(2){font-weight:600}
     <h1 id="g-h1">Waterloo <span>· Napoleon’s command</span></h1>
     <p id="g-lead">You are the Emperor on the morning of 18 June 1815. You see the field from your post and learn the rest from riders. Every order you give is written, carried across the field and passed down before a single brigade moves.</p>
   </div>
-  <span class="stamp">Release 3</span>
+  <span class="stamp">Release 4</span>
 </header>
 
 <main class="layout">
@@ -530,6 +556,7 @@ table.moments td:nth-child(2){font-weight:600}
       <form class="pennote" id="pennote" hidden><label class="vh" for="pennote-in">Note</label><input id="pennote-in" maxlength="60" placeholder="Write a note" autocomplete="off"><button type="submit">Write</button></form>
       <div class="glasscap" id="glasscap" hidden aria-live="polite"></div>
       <div class="modehint" id="modehint" hidden></div>
+      <div class="strip" id="strip" hidden></div>
       <div class="tip" id="tip" hidden></div>
       <div class="setup" id="setup">
         <form class="setupcard" id="setupform">
@@ -538,6 +565,7 @@ table.moments td:nth-child(2){font-weight:600}
           <p id="s-intro">Wellington’s army stands on the ridge of Mont-Saint-Jean, astride the Brussels road. Grouchy is away to the east with a third of your army, following the Prussians. The battle begins at 11:00 and ends with the dark, or when an army breaks.</p>
           <div class="row"><label for="s-scen">Start</label>
             <select id="s-scen"><option value="1100">11:00, as in 1815: the ground soaked, drying through the day</option><option value="0500">05:00, dawn: the army still coming up, the ground soaked</option><option value="dry">11:00, but dry: what if it had not rained?</option></select></div>
+          <details class="more" id="s-more"><summary>More settings</summary>
           <div class="row"><label for="s-hist">History</label>
             <select id="s-hist"><option value="uncertain">Historical, with uncertainty</option><option value="strict">Strict history</option><option value="open">Open: wider swings</option></select></div>
           <div class="row"><label for="s-staff">Staff</label>
@@ -549,6 +577,7 @@ table.moments td:nth-child(2){font-weight:600}
           <div class="row"><label for="s-stop">Clock</label>
             <select id="s-stop"><option value="all">Stops for news, gathered over up to 15 minutes (8 for ★)</option><option value="decide">Stops only for dispatches marked ★</option></select></div>
           <div class="row"><label for="s-seed">Seed</label><input id="s-seed" type="number" min="0" step="1" inputmode="numeric"><button type="button" id="s-rnd">Random</button></div>
+          </details>
           <button type="submit" class="begin" id="s-go">Begin at 11:00</button>
           <p class="small">The same seed with the same orders fights the same battle.</p>
         </form>
@@ -647,6 +676,9 @@ table.moments td:nth-child(2){font-weight:600}
         <p data-help="steps"><b>Letters with several steps.</b> After writing a step, choose “Add a next step for …” to give the same commander a next step in the same letter: bombard Hougoumont, then attack it 45 minutes after the guns open, say. One rider carries the letter and he acknowledges it once. A next step can wait until an earlier one begins or is done, plus a delay you choose. A bombardment “begins” when its guns first fire, not when the order is read: guns that must first move up can take half an hour or more, and if they have not opened 45 minutes after the order was read he takes it as begun. Any order can also wait until a given battery has fired on a given place for so many minutes; only fire on that very place counts, so the preview warns you if no order of yours has those guns firing there. He judges “done” by what his own brigades report, so it can be late. Each extra step lowers clarity by 0.05 and adds 30% to the writing time (my estimates).</p>
         <p><b>The timeline.</b> Under Your orders, each live order is a row against the clock: written, riding, passed down, waiting on its conditions, and the expected start (◇). Ticks mark acknowledgements and the solid bar starts when a report says they are doing it. A condition you cannot time, such as a farm changing hands, leaves the row open. The order you are drafting shows as well, before you send it.</p>
         <p><b>Dispatches on the map.</b> Tap a dispatch, or one line of what you saw, to see on the map what it told you: the enemy bodies it reported ringed in orange, your brigades it concerned picked out, dotted arrows for anything that has moved since you last heard of it, farms that changed hands, and for guns or musketry heard, the bearing from your post. Tap it again, or tap open ground, to clear it.</p>
+        <p><b>Orders from the map.</b> Tap one of your brigades and a strip opens on the map for its commander: Attack, Advance or Hold. Tap the place (a tap near a named place takes the place; anywhere else marks the point) and send. The strip writes the same order the form does, so anything it cannot say (which brigades, the formation, conditions, a letter of several steps) is under More.</p>
+        <p><b>The campaign’s verdict.</b> The field’s result says who held the ground. Beside it the verdict says what the day meant for your campaign, with a score out of 100: a quiet draw that leaves the allied armies joined is a day lost. The briefing says what the day demands before you begin. The tiers and points are estimates that rank results; they are not history.</p>
+        <p><b>Why it happened.</b> In the umpire’s log, and in the turning points after the battle, tap “why?” under an entry to see what caused it and, for a brigade that broke, what fire cost it in the half hour before and from whom. Napoleon’s map never shows this during the battle: he did not know it.</p>
         <p><b>Tapping the map.</b> Tap one of your brigades to pick out its whole corps and see what you last heard of it and your latest order to it. Tap an enemy body to ring every body known to belong to the same corps. Tap open ground to clear every highlight.</p>
         <p><b>Two ways to play.</b> On Napoleon’s map (realism) you see only what he knew. On the umpire’s map you also see every brigade where it really is, the riders on the road, the arrivals due off the map and the umpire’s log, and can switch between the two maps or lay one over the other. Orders, riders and reports work the same way in both; only what you can see changes.</p>
         <p data-help="ney"><b>Ney.</b> At the start Marshal Ney commands the whole front line, as he did on the day, and acts on his own judgement. Give him a sector and a goal and he will feed fresh brigades at it; tell him to hand the front back and his own initiatives stop. While his sector includes the cavalry (the whole front, the centre or the left) he may take the reserve cavalry forward on his own if he thinks the enemy is giving way, and once La Haye Sainte is taken he will push what infantry and horse guns he can find at the allied centre. You will see it happen from your post and he explains himself in his next report. To keep a corps out of his hands, order it to hold: brigades you have told to hold stay where they are until another order of yours moves them. Your army panel shows how free his hand is.</p>
@@ -1719,6 +1751,28 @@ P.register('battle', 'waterloo', { version: '1.1', // (4e) versions start at pha
     { what: 'Prussian killed and wounded (median)', losses: 'PR', median: [5000, 8000] },
   ] },
   victory: { attacker: 'FR', decisive: { holds: 'ba', within: 600, morale: 40 }, catastropheBefore: 1080, marginal: 'ridgeCentre' },
+  // (release 4) plans the strategy bench fights beside doing nothing and the historical orders (tools/strategies.js): opening orders, given
+  // at the start as a player would give them. expect.idleLoses is a judgment, not a record: with both allied armies on the field by evening,
+  // an army that sits still should be attacked.
+  strategies: {
+    centre: { name: 'Three corps at the ridge at 11:00', orders: [
+      { to: 'grandBattery', action: 'bombard', objective: { place: 'ridgeCentre' } }, { to: 'reille', action: 'attack', objective: { place: 'ridgeRightCentre' } },
+      { to: 'derlon', action: 'attack', objective: { place: 'ridgeCentre' } }, { to: 'lobau', action: 'attack', objective: { place: 'ridgeCentre' } }] },
+    expect: { idleLoses: true },
+  },
+  // (release 4) what the day meant for Napoleon's campaign, beside the field's grade (stakes.js reads these in order; tiers and the 5% are est.)
+  stakes: { side: 'FR',
+    brief: 'What the day demands: Wellington beaten before Blücher can join him. Together they outnumber you on this field by about two to one. A day that ends with Wellington still on his ridge is a day lost, however few men it costs.',
+    rules: [
+      { if: { ownBroken: true }, tier: 5, title: 'The army destroyed', text: 'Your army has broken and the road to Paris is open. In 1815 Napoleon abdicated four days after such a day.' },
+      { if: { grade: 'catastrophe' }, tier: 5, title: 'The army destroyed', text: 'Your army has broken and the road to Paris is open. In 1815 Napoleon abdicated four days after such a day.' },
+      { if: { enemyBroken: 'AL', grade: 'Decisive' }, tier: 1, title: 'Wellington destroyed', text: 'Wellington’s army is broken and you stand across the Brussels road. Blücher must now fight you alone or fall back.' },
+      { if: { enemyBroken: 'AL' }, tier: 2, title: 'Wellington beaten', text: 'Wellington’s army has broken. Blücher is still on your flank, but the allies are no longer joined.' },
+      { if: { grade: 'Marginal French' }, tier: 3, title: 'The ridge won, the armies unbeaten', text: 'You hold the centre of Wellington’s ridge at nightfall, but his army is unbroken and the Prussians are on your flank. Nothing is settled.' },
+      { if: { grade: 'Marginal Allied' }, tier: 4, title: 'The army saved, the field given up', text: 'You drew the army off in order. Wellington and Blücher have joined, and the campaign of separating them has failed.' },
+      { if: { unhurt: ['AL', 0.05] }, tier: 4, flat: true, title: 'A day given away', text: 'You never seriously attacked Wellington. He still holds his ridge, Blücher has joined him, and tomorrow you face both. Light losses count for nothing here: the day was the one thing you could not spare.' },
+      { tier: 4, title: 'Wellington still on his ridge', text: 'Your attacks did not break Wellington, and Blücher has joined him. Tomorrow you face both armies with the men you have left.' },
+    ] },
   // the corps by name, for the log
   corpsNames: { bulow: "Bülow's IV Corps", pirch: "Pirch's II Corps", zieten: "Zieten's I Corps", hal: "Prince Frederik's corps from Hal", grouchy: "Grouchy's wing" },
   /* (phase 2) the turning points the after-action report and the calibration watch, by when: taken (a place passes to a side; after: only
@@ -2161,6 +2215,24 @@ P.register('battle', 'ligny', { version: '0.1', oob: 'ligny', terrain: 'ligny',
   // 600 m; marginal if at the end the French hold the three brook villages the day was fought for, or the Prussians have drawn off. In 1815 the
   // Prussian centre broke at Ligny about 20:00 and the army drew off in the night, in order, toward Wavre: a French victory short of decisive
   victory: { attacker: 'FR', decisive: { holds: 'bussy', within: 600, morale: 40 }, marginal: { holds: ['ligny'] }, drawnOff: true },
+  // (release 4) plans the strategy bench fights beside doing nothing and the historical orders (tools/strategies.js)
+  strategies: {
+    villages: { name: 'Every corps at the villages at once', orders: [
+      { to: 'vandamme', action: 'attack', objective: { place: 'stamand' } }, { to: 'gerard', action: 'attack', objective: { place: 'ligny' } },
+      { to: 'drouot', action: 'attack', objective: { place: 'ligny' } }] },
+    expect: {},
+  },
+  // (release 4) what the day meant for Napoleon's campaign (stakes.js; tiers and the 6% are est.)
+  stakes: { side: 'FR',
+    brief: 'What the day demands: Blücher beaten so thoroughly that he cannot come to Wellington’s help. Holding the villages at nightfall is not enough if his army marches away in order.',
+    rules: [
+      { if: { ownBroken: true }, tier: 5, title: 'The army destroyed', text: 'Your army has broken on the first great day of the campaign. Nothing now stands between the allies and the frontier.' },
+      { if: { enemyBroken: 'PR', grade: 'Decisive' }, tier: 1, title: 'Blücher destroyed', text: 'The Prussian army is broken and its headquarters taken. Wellington must now face you alone.' },
+      { if: { enemyBroken: 'PR' }, tier: 2, title: 'Blücher broken', text: 'The Prussian army has broken. It will be days before it can help Wellington.' },
+      { if: { grade: 'French victory' }, tier: 3, title: 'The field won, the Prussians not destroyed', text: 'You hold the field, as Napoleon did in 1815, but the Prussian army has gone off in order. In 1815 it fell back north on Wavre and reached Napoleon’s flank at Waterloo two days later.' },
+      { if: { unhurt: ['PR', 0.06] }, tier: 4, flat: true, title: 'A day given away', text: 'You never seriously attacked Blücher. He stands unbeaten, with Wellington at Quatre Bras a few miles to the west, and the two can now join. Light losses count for nothing here.' },
+      { tier: 4, title: 'Blücher still in his villages', text: 'Your attacks did not drive Blücher from his position. He and Wellington, a few miles to the west at Quatre Bras, can now join.' },
+    ] },
   corpsNames: { vandamme: "Vandamme's III Corps", gerard: "Gérard's IV Corps", guard: 'the Imperial Guard', guardcav: 'the Guard heavy cavalry', pajol: "Pajol's cavalry", exelmans: "Exelmans' cavalry",
     milhaud: "Milhaud's cuirassiers", derlon: "d'Erlon's I Corps", lobau: "Lobau's VI Corps", zieten: "Zieten's I Corps", pirch: "Pirch's II Corps", thielmann: "Thielmann's III Corps" },
   metrics: [
@@ -6560,6 +6632,239 @@ if (typeof module !== 'undefined' && module.exports) module.exports = root.WRepl
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
 </script>
+<script id="src-view">
+/* The perception layer and the event stream (engine roadmap, B2): the one contract between the sim and whatever draws it.
+   A client (the 2D map today, a 3D headquarters later) needs nothing else from the engine:
+
+     const V = WView.install(E);
+     V.world()            the ground, once: heights, roads, woods, buildings, places (never changes during a battle)
+     V.snapshot('chief')  what the player's commander believes right now: his own brigades as last reported, the enemy as last
+                          seen, who he thinks holds each place, what he hears, the orders he has given as far as he knows
+     V.snapshot('truth')  the umpire's picture: every brigade where it really is (the umpire's map, replays, the end of the battle)
+     V.watch('chief')     start collecting timed events for that viewer ('truth' as well, or instead)
+     V.drain('chief', n)  the events with seq > n: guns firing, volleys, charges, lines breaking, places changing hands, dispatches
+     V.why(ref)           the chain of causes behind a log entry (umpire's knowledge: shown only on the umpire's map and afterwards)
+     V.losses(id, t, m)   what fire cost a unit in the m minutes before t, and from whom (umpire's knowledge, as above)
+
+   Rules the contract keeps (tools/test_view.js checks each):
+   - Plain data. Everything returned survives JSON.stringify and shares no object with the engine.
+   - No dice. Looking never changes the battle: a battle watched every tick ends on the same state hash as one never watched.
+   - Fog is kept. A 'chief' snapshot is built only from the commander's belief record, and a 'chief' event carries a position only
+     if it could be seen from where he stands; one he can only hear carries a bearing, a loudness and a delay, and nothing else.
+     Enemy bodies are named by an opaque key, never by the unit's real id.
+   Values marked (est.) are mine. */
+(function (root) {
+'use strict';
+const hyp = Math.hypot, D2R = Math.PI / 180;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const bearing = (dx, dy) => (Math.atan2(dx, -dy) / D2R + 360) % 360;
+const r1 = v => Math.round(v * 10) / 10;
+const VERSION = 1;
+const TICK_MIN = 2;
+const P = {
+  SOUND_MPS: 340,                 // the bang trails the flash by distance / 340 m a second (physics)
+  HEAR: { cannon: 12000, volley: 4000, charge: 1500, melee: 1200 }, // (est.) metres each kind of noise carries
+  EYE: 2.5,                       // the engine's own eye height for a mounted officer
+  RIDER_SEEN: 800,                // (est.) a rider coming in is noticed this far from headquarters
+  KEEP: 6000,                     // events kept per viewer; older ones are dropped (a client drains far more often)
+};
+// a repeatable number in [0, 1) from a name and a tick: spreads a tick's events over its two minutes without touching the dice
+function spread(name, tick) { let h = 2166136261 ^ tick; for (let i = 0; i < name.length; i++) { h ^= name.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0) % 10000) / 10000; }
+const plain = x => JSON.parse(JSON.stringify(x));
+
+function install(E) {
+  if (E.view) return E.view;
+  const W = E.W, C = () => E.command, arms = E.era.arms;
+  const crewed = u => !!(arms[u.arm] && arms[u.arm].crew);
+  const here = u => u.onMap && !u.gone && u.str > 0;
+  const keys = new Map(); // an enemy unit's real id -> the opaque key the commander's picture uses for it
+  const keyOf = tid => { if (!keys.has(tid)) keys.set(tid, 'c' + (keys.size + 1)); return keys.get(tid); };
+
+  /* ---------- the ground ---------- */
+  let worldCache = null;
+  function world() {
+    if (worldCache) return worldCache;
+    const pick = k => plain(W[k] || []);
+    return (worldCache = {
+      v: VERSION, battle: E.battleId, size: { w: W.WM, h: W.HM },
+      origin: { lat: W.LAT0, lon: W.LON0, mPerLat: W.MLAT, mPerLon: W.MLON },
+      grid: { nx: W.NX, ny: W.NY, cell: W.CELL, heights: Array.from(W.H, r1) },
+      roads: pick('ROADS'), sunken: pick('SUNKEN'), streams: pick('STREAMS'), woods: pick('WOODS'), villages: pick('VILLAGES'),
+      buildings: pick('BUILDINGS'), houses: pick('HOUSES'), enclosures: pick('ENCLOSURES'), hedges: pick('HEDGES'), landmarks: pick('LM'),
+      places: E.sps.map(sp => ({ id: sp.id, name: sp.name, x: r1(sp.x), y: r1(sp.y) })),
+      objectives: Object.values(E.objectives || {}).map(o => ({ id: o.id, name: o.name, x: o.point ? r1(o.point[0]) : null, y: o.point ? r1(o.point[1]) : null })),
+      sides: E.sides.map(s => ({ id: s.id, coalition: E.coalition[s.id] })),
+      light: { sunset: E.light.sunset, dark: E.light.dark },
+    });
+  }
+
+  /* ---------- snapshots ---------- */
+  const common = who => ({ v: VERSION, who, battle: E.battleId, t: E.t, clock: E.fmtT(E.t), over: !!E.over,
+    light: { sun: r1(E.light.sunAt(E.t)), seeing: Math.round(E.bgVis(E.t)) }, ground: { wet: r1(E.wet) }, wind: { dir: Math.round(E.wind.dir), speed: r1(E.wind.speed) } });
+  function truth() {
+    const S = common('truth');
+    S.units = E.units.filter(here).map(u => ({ id: u.id, side: u.side, name: u.name, corps: u.corps || null, arm: u.arm, x: r1(u.x), y: r1(u.y), facing: Math.round(u.facing),
+      form: u.form, front: Math.round(u.F), depth: Math.round(u.D), str: Math.round(u.str), coh: Math.round(u.coh), status: u.status, task: u.task.kind, place: u.spId || null,
+      firing: !!u.firedTick, charging: !!u.charge }));
+    S.places = E.sps.map(sp => ({ id: sp.id, holder: sp.holder || null }));
+    S.morale = Object.fromEntries(E.sideIds.map(s => [s, Math.round(E.morale[s])]));
+    S.riders = C() ? C().riders.filter(r => r.status === 'riding' && r.x != null).map(r => ({ x: r1(r.x), y: r1(r.y), side: r.side, kind: r.kind })) : [];
+    S.smoke = { nx: E.SX, ny: E.SY, cell: 100, a: Array.from(E.smoke, v => Math.round(v * 100) / 100) };
+    S.result = E.result ? { grade: E.result.grade, why: E.result.why, t: E.result.t } : null;
+    return S;
+  }
+  // an order as its writer knows it: written, sent, acknowledged (he learns nothing else until a report tells him)
+  const known = o => o.status === 'cancelled' ? 'cancelled' : o.ackedAt != null ? 'acknowledged' : o.sentAt != null ? 'sent' : 'writing';
+  function chief() {
+    const c = C(); if (!c) throw new Error('view: this battle has no command layer, so there is no commander to see through');
+    const id = c.X.chief, B = c.B[id], L = E.leaders[id], S = common('chief');
+    S.side = c.side; S.commander = id;
+    S.at = { x: r1(L.x), y: r1(L.y), post: c.hq.post || null, moving: !!c.hq.moving };
+    S.own = [...B.own.values()].map(r => { const u = E.byId[r.uid]; return { id: r.uid, name: u.name, corps: u.corps || null, arm: u.arm, x: r1(r.x), y: r1(r.y), form: r.form || null,
+      str: Math.round(r.str), state: r.cohWord || null, task: r.task || null, place: r.sp || null, gone: !!r.gone, seenAt: r.t, reportedAt: r.tState, src: r.src }; });
+    S.enemy = [...B.c.values()].map(r => ({ key: keyOf(r.tid), identified: !!r.idLevel, side: r.side || null, nation: r.nat || null, corps: r.corps || null, kind: r.kind,
+      x: r1(r.x), y: r1(r.y), str: Math.round(r.str), guns: r.guns || 0, form: r.form || null, status: r.status || null, moving: !!r.moving, facing: Math.round(r.dir || 0),
+      place: r.garrison || null, seenAt: r.t, src: r.src }));
+    S.places = Object.entries(B.places).map(([sp, p]) => ({ id: sp, holder: p.holder || null, knownAt: p.t, src: p.src }));
+    S.heard = c.heard(id).map(h => ({ dir: h.dir, kind: h.k, words: h.w, level: r1(h.v) }));
+    S.orders = c.orders.filter(o => o.from === id).map(o => ({ id: o.id, to: o.to, action: o.action, text: c.describe ? c.describe(o) : o.action, state: known(o), issuedAt: o.issuedAt, ackedAt: o.ackedAt ?? null }));
+    S.dispatches = c.inbox.slice(-20).map(m => ({ id: m.id, t: m.t, kind: m.kind, title: m.title || null, text: m.text || null, from: m.from || null }));
+    S.riders = c.riders.filter(r => r.status === 'riding' && r.to === id && r.x != null && hyp(r.x - L.x, r.y - L.y) < P.RIDER_SEEN).map(r => ({ x: r1(r.x), y: r1(r.y) }));
+    return S;
+  }
+  const snapshot = (who = 'chief') => who === 'truth' ? truth() : chief();
+
+  /* ---------- the event stream ---------- */
+  const feeds = {}; let seq = 0, logAt = 0, inboxAt = 0, charging = new Set(), stepping = false;
+  function watch(who = 'chief') {
+    if (who === 'chief' && !C()) throw new Error('view: no command layer to watch through');
+    if (!feeds[who]) feeds[who] = [];
+    if (!stepping) { stepping = true; logAt = E.log.length; inboxAt = C() ? C().inbox.length : 0; const step = E.step; E.step = function () { const t0 = E.t, tick = E.tick, was = E.over; step(); if (!was) collect(t0, tick); }; }
+    return V;
+  }
+  const push = (who, e) => { const f = feeds[who]; e.seq = ++seq; f.push(e); if (f.length > P.KEEP) f.splice(0, f.length - P.KEEP); };
+  // what the commander gets of one event: seen (with its place), only heard (a bearing, a loudness, a delay), or nothing
+  function perceive(e) {
+    const c = C(), L = E.leaders[c.X.chief], d = hyp(e.x - L.x, e.y - L.y), s = E.los(L.x, L.y, P.EYE, e.x, e.y, 2);
+    const seen = s.clear && d <= E.bgVis(E.t) * s.trans; // (est.) smoke on the line shortens the day's seeing
+    const reach = P.HEAR[e.kind] || 0, heard = d < reach;
+    if (!seen && !heard) return null;
+    const out = { t: e.t, kind: e.kind, seen };
+    if (seen) { out.x = e.x; out.y = e.y; out.size = e.size; if (e.side) out.side = e.side; if (e.place) out.place = e.place; }
+    if (heard) { out.bearing = Math.round(bearing(e.x - L.x, e.y - L.y)); out.delay = r1(d / P.SOUND_MPS); out.loud = r1(clamp(Math.sqrt((e.size || 1) / (e.kind === 'cannon' ? 8 : 1500)), 0.2, 3) * Math.pow(1 - d / reach, 2)); } // (est.)
+    return out;
+  }
+  function emit(e) {
+    if (feeds.truth) push('truth', Object.assign({}, e));
+    if (feeds.chief && e.x != null) { const p = perceive(e); if (p) push('chief', p); }
+  }
+  const LOG_KIND = { break: 'break', rally: 'rally', place: 'place', arrival: 'arrival', army: 'army', end: 'end' };
+  function collect(t0, tick) {
+    const now = new Set();
+    for (const u of E.units) {
+      if (!here(u)) continue;
+      if (u.firedTick) emit({ t: r1(t0 + TICK_MIN * spread(u.id, tick)), kind: crewed(u) ? 'cannon' : 'volley', x: r1(u.x), y: r1(u.y), side: u.side, unit: u.id, size: Math.round(u.str) });
+      if (u.charge) { now.add(u.id); if (!charging.has(u.id)) emit({ t: r1(t0 + TICK_MIN * spread(u.id + '!', tick)), kind: 'charge', x: r1(u.x), y: r1(u.y), side: u.side, unit: u.id, size: Math.round(u.str) }); }
+      else if (u.melee && u.meleeAtk) emit({ t: r1(t0 + TICK_MIN * spread(u.id + 'x', tick)), kind: 'melee', x: r1(u.x), y: r1(u.y), side: u.side, unit: u.id, size: Math.round(u.str) });
+    }
+    charging = now;
+    for (; logAt < E.log.length; logAt++) {
+      const l = E.log[logAt], kind = LOG_KIND[l.cat]; if (!kind) continue;
+      const u = l.unit ? E.byId[l.unit] : null, sp = l.sp ? E.spById[l.sp] : null, at = u && u.onMap ? u : sp;
+      emit({ t: l.t, kind, x: at ? r1(at.x) : null, y: at ? r1(at.y) : null, side: l.side || (u && u.side) || null, unit: l.unit || null, place: l.sp || null, size: u ? Math.round(u.str) : 0, text: l.text, log: logAt });
+    }
+    if (C() && feeds.chief) for (; inboxAt < C().inbox.length; inboxAt++) { const m = C().inbox[inboxAt]; push('chief', { t: m.t, kind: 'dispatch', id: m.id, about: m.kind, title: m.title || null }); }
+  }
+  function drain(who = 'chief', since = 0) { const f = feeds[who]; if (!f) return []; let i = f.length; while (i > 0 && f[i - 1].seq > since) i--; return plain(f.slice(i)); }
+
+  /* ---------- why: the chain of causes behind a log entry, nearest first ---------- */
+  function why(ref, depth = 6) {
+    const start = typeof ref === 'number' ? ref : ref && ref.cause;
+    const out = [], seen = new Set();
+    (function walk(i, d) {
+      const c = E.causes[i]; if (c == null || typeof i !== 'number' || seen.has(i) || d > depth) return;
+      seen.add(i); out.push({ t: c.t, text: c.text, depth: d });
+      for (const k of c.links || []) walk(k, d + 1);
+    })(start, 0);
+    return out;
+  }
+
+  /* ---------- who hurt whom: fire losses by firer, kept in ten-minute blocks from the engine's damage hook (no dice) ---------- */
+  const hurt = new Map(); // target id -> Map('block|firer|kind' -> men)
+  const prevHook = E.onDmg;
+  E.onDmg = function (t, cas, kind, src) {
+    if (prevHook) prevHook(t, cas, kind, src);
+    if (!t || !(cas > 0)) return;
+    let m = hurt.get(t.id); if (!m) hurt.set(t.id, (m = new Map()));
+    const k = Math.floor(E.t / 10) + '|' + (src ? src.id : '') + '|' + kind; m.set(k, (m.get(k) || 0) + cas);
+  };
+  // what fire cost a unit in the minutes before t, and from whom (the largest first). Guns count their casualties in men hit.
+  function losses(unitId, t = E.t, minutes = 30) {
+    const m = hurt.get(unitId), by = new Map(); let total = 0; if (!m) return { men: 0, minutes, by: [] };
+    const b1 = Math.floor(t / 10), b0 = Math.floor((t - minutes) / 10);
+    for (const [k, cas] of m) { const [b, src, kind] = k.split('|'); if (+b < b0 || +b > b1) continue; total += cas; const kk = src + '|' + kind; by.set(kk, (by.get(kk) || 0) + cas); }
+    const list = [...by].map(([kk, cas]) => { const [src, kind] = kk.split('|'), u = E.byId[src]; return { from: u ? u.name : null, side: u ? u.side : null, kind: kind === 'art' ? 'guns' : 'musketry', men: Math.round(cas) }; })
+      .filter(x => x.men >= 1).sort((a, b) => b.men - a.men);
+    return { men: Math.round(total), minutes, by: list.slice(0, 4) };
+  }
+
+  const V = { version: VERSION, P, world, snapshot, watch, drain, why, losses };
+  E.view = V;
+  return V;
+}
+
+const api = { version: VERSION, install, P };
+root.WView = api;
+if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script id="src-stakes">
+/* The campaign's verdict: what the day's result meant for the commander's campaign (release 4).
+   The engine grades the field (who held it, who broke). That grade says nothing of what the commander needed: at Waterloo a quiet draw
+   leaves Wellington on his ridge with Blücher beside him, which for Napoleon is a day lost. This module reads the finished battle and
+   the battle pack's `stakes` block and gives a second verdict beside the grade. It changes nothing in the battle and draws no dice;
+   the engine's grades, and the calibration targets judged by them, stand as they were.
+
+   A pack's stakes block:
+     side    the army judged (the one the player commands)
+     brief   what the day demands, shown before the battle
+     rules   read in order; the first whose `if` fits gives the verdict
+               if.ownBroken            this army broke
+               if.enemyBroken: 'AL'    that enemy army broke (true: any enemy army)
+               if.grade: 'text'        the engine's grade contains the text
+               if.unhurt: ['AL', 0.05] that enemy army lost under 5% of its men: this army never seriously attacked it
+             tier 1 (the campaign won) to 5 (the campaign lost), a title and a sentence or two saying why
+             flat: true leaves the exchange out of the score (an army that refused battle earns nothing by its light losses)
+   The score is the tier's base plus up to 8 points either way for the exchange of losses. Bases and the 8 are my estimates (est.):
+   they order results for the player and are not history. */
+(function (root) {
+'use strict';
+const BASE = { 1: 90, 2: 72, 3: 54, 4: 32, 5: 10 }; // (est.)
+const EXCHANGE_PTS = 8;                              // (est.) at two to one for or against
+const TIER = { 1: 'The campaign won', 2: 'The campaign in your favour', 3: 'The campaign undecided', 4: 'The campaign slipping away', 5: 'The campaign lost' };
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+
+function judge(E, stakes) {
+  const S = stakes || (E.stakes || null); if (!S || !E.result) return null;
+  const R = E.result, me = S.side, mine = E.coalition[me], lost = s => (R.cas[s] ? R.cas[s].kw + R.cas[s].cap : 0);
+  const enemies = E.sideIds.filter(s => E.coalition[s] !== mine), broke = s => E.metrics[s.toLowerCase() + 'Break'] != null;
+  const fits = c => !c || ((!c.ownBroken || broke(me)) && (c.enemyBroken == null || (c.enemyBroken === true ? enemies.some(broke) : broke(c.enemyBroken)))
+    && (c.grade == null || R.grade.includes(c.grade)) && (c.unhurt == null || lost(c.unhurt[0]) < c.unhurt[1] * E.armyStr0[c.unhurt[0]]));
+  const rule = S.rules.find(r => fits(r.if)); if (!rule) return null;
+  const own = lost(me), theirs = enemies.reduce((a, s) => a + lost(s), 0), ratio = theirs / Math.max(1, own);
+  const adj = rule.flat ? -EXCHANGE_PTS : clamp(EXCHANGE_PTS * Math.log2(Math.max(0.01, ratio)), -EXCHANGE_PTS, EXCHANGE_PTS);
+  const crew = u => !!(E.era.arms[u.arm] && E.era.arms[u.arm].crew);
+  const left = Math.round(E.units.filter(u => u.side === me && E.formed(u) && !crew(u)).reduce((a, u) => a + u.str, 0));
+  return { tier: rule.tier, tierName: TIER[rule.tier], title: rule.title, text: rule.text, score: Math.round(clamp(BASE[rule.tier] + adj, 0, 100)),
+    exchange: { own: Math.round(own), enemy: Math.round(theirs), ratio: Math.round(ratio * 100) / 100, counted: !rule.flat }, left, start: Math.round(E.armyStr0[me]), side: me };
+}
+const api = { judge, BASE, EXCHANGE_PTS, TIER };
+root.WStakes = api;
+if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
 <script>
 function bootGame(GAME_ID) {
 'use strict';
@@ -7469,8 +7774,9 @@ function newGame(o) {
   // (phase 5, stage 2) set up exactly as the after-action report's re-runs are (replay.js), so a battle fought again from the order log
   // comes out the same: the same engine, commanders, command layer and the recorded orders the computer follows whatever the player does
   SIM = WReplay.setup({ battle: GAME_ID, seed: o.seed, history: o.history, scenario: o.scenario, staff: o.staff, silence: o.silence });
+  WView.install(SIM); // (release 4) the contract (view.js): causes and fire losses for the umpire's log and the verdict; it draws no dice
   G = { umpire: o.mapMode === 'umpire', logShown: 0, selOrder: null, hoverWid: null, dispSel: null, focusCorps: null, focusEnemy: null, opts: o, phase: 'setup', shown: 0, curFrom: 0, current: [], stopT: SIM.t, prevStopT: SIM.t, briefing: true, stopMode: o.stop, runTo: null, newIds: new Set(), pick: false, sent: null, sel: null, latch: {}, gatherUntil: null, scan: 0, orderLog: [], orderIdx: {}, made: {}, t0: SIM.t, knew: [], knewNow: null, samples: [], nextSample: null, stops: [], refoughtFrom: null, toEnd: null, toEndFrom: null };
-  $('endbox').hidden = true;
+  $('endbox').hidden = true; stripClose();
   aarReset();
   OB = freshOB(CORPS[0]);
   viewMode = G.umpire ? 'compare' : 'napoleon'; layers.riders = G.umpire; layers.flashes = G.umpire; selected = null; prevPos.clear(); GLIDE.clear(); frac = 1; flashes = [];
@@ -7587,7 +7893,8 @@ function writeTo(cid) { OB = freshOB(cid); OB.touched = true; G.selOrder = null;
 
 function briefingHTML() {
   const st = GB.starts[G.opts.scenario] || Object.values(GB.starts)[0];
-  return `<div class="brief">${st.brief}</div>`;
+  const stk = GAMEB.battle.stakes;
+  return `<div class="brief">${st.brief}${stk && stk.side === SIDE && stk.brief ? `<p class="brief-stakes">${esc(stk.brief)}</p>` : ''}</div>`;
 }
 function dispHTML(m) {
   const lag = m.writtenAt != null ? Math.round(m.t - m.writtenAt) : 0;
@@ -7918,6 +8225,7 @@ function click(x, y, ptype) {
   if (G && G.pick) {
     const [wx, wy] = screenToWorld(x, y);
     if (wx < 0 || wy < 0 || wx > WM || wy > HM) return;
+    if (STRIP.stage === 'place') { stripPlace(wx, wy); return; } // (release 4) the strip on the map asked for the place
     OB.point = [wx, wy]; OB.place = null; OB.touched = true; G.selOrder = null; cancelPick(); renderOB(); requestDraw();
     if (narrow()) $('obBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
@@ -7930,6 +8238,7 @@ function click(x, y, ptype) {
   if (!u.belief && u.side === SIDE) G.focusCorps = cmdOf(u); // the same on the umpire's map
   if (u.belief === 'enemy') G.focusEnemy = u.c.corps ? { corps: u.c.corps } : { tid: u.c.tid };
   selectUnit(u); renderOrders();
+  if (G.focusCorps && (u.belief === 'own' || (!u.belief && u.side === SIDE))) stripOpen(G.focusCorps); else stripClose(); // (release 4) orders from the map
   if (ptype !== 'mouse') showTip(hoverHTML(u, false), x, y);
 }
 function selHTML(u) {
@@ -7951,7 +8260,7 @@ function clearHighlights(keepTip) {
   if (!G) return;
   G.selOrder = null; G.dispSel = null; G.focusCorps = null; G.focusEnemy = null; G.hoverWid = null;
   if (OB) OB.touched = false; // the draft stays in the form; touching it again puts it back on the map
-  selectUnit(null); if (!keepTip) tip.hidden = true;
+  selectUnit(null); if (!keepTip) { tip.hidden = true; stripClose(); }
   renderOrders(); renderStop(); renderEarlier(); requestDraw();
 }
 function selectUnit(u) {
@@ -7967,12 +8276,12 @@ hook(window, 'keydown', e => {
   else if (e.key === ',' || e.key === '<' || e.key === '.' || e.key === '>') { const i = SPEEDS.indexOf(speed) + (e.key === ',' || e.key === '<' ? -1 : 1); if (i >= 0 && i < SPEEDS.length) setSpeed(SPEEDS[i]); }
   else if (e.key === '+' || e.key === '=') zoomAt(cssW / 2, cssH / 2, 1.4); else if (e.key === '-') zoomAt(cssW / 2, cssH / 2, 1 / 1.4);
   else if (e.key.startsWith('Arrow')) { const d = 60; if (e.key === 'ArrowLeft') view.tx += d; if (e.key === 'ArrowRight') view.tx -= d; if (e.key === 'ArrowUp') view.ty += d; if (e.key === 'ArrowDown') view.ty -= d; clampView(); requestDraw(); scheduleTerrain(false); }
-  else if (e.key === 'Escape') { if (G && G.pick) cancelPick(); else clearHighlights(); }
+  else if (e.key === 'Escape') { if (G && G.pick) { cancelPick(); stripClose(); } else clearHighlights(); }
 });
 
 /* ---------- the end: the umpire opens his map ---------- */
 function endGame() {
-  playing = false; G.phase = 'over';
+  playing = false; G.phase = 'over'; stripClose();
   const C = SIM.command; G.current = C.inbox.slice(G.shown); G.curFrom = G.shown; G.shown = C.inbox.length; G.prevStopT = G.stopT; G.stopT = SIM.t; G.newIds = new Set();
   if (G.pick) cancelPick();
   viewMode = 'compare'; layers.riders = true; $('cartsub').textContent = `${GB.date} · la carte de l’arbitre`;
@@ -7983,6 +8292,19 @@ function endGame() {
   aarStart();
 }
 const VIEWNOTES = { napoleon: 'Your map as it stood at the end: what you believed.', truth: 'The umpire’s map: every brigade where it really was.', compare: 'Your belief drawn over the truth, which is shown faint underneath.' };
+// (release 4) why an entry of the umpire's log happened: the engine's chain of causes, and for a brigade that broke, what fire cost it and
+// from whom. Umpire's knowledge: only the umpire's log (umpire's map mode) and the verdict show it, never Napoleon's map during play.
+function whyHTML(l) {
+  if (!SIM.view || l.cause == null) return '';
+  const chain = SIM.view.why(l).slice(l.cat === 'break' ? 1 : 0), parts = chain.map(c => `<li><time>${hm(c.t)}</time><span>${esc(capF(c.text))}.</span></li>`);
+  const f = l.cat === 'break' && l.unit ? SIM.view.losses(l.unit, l.t) : null;
+  if (f && f.men >= 20) parts.push(`<li><time></time><span>Fire cost it about ${fmt(Math.round(f.men / 10) * 10)} men in the half hour before: ${f.by.filter(b => b.men >= 5).map(b => `${fmt(b.men)} to the ${b.kind} of ${esc(b.from || 'skirmishers')}`).join(', ')}.</span></li>`);
+  return parts.length ? `<details class="why"><summary><span class="vh">Why this happened</span></summary><ol class="hiddenlist">${parts.join('')}</ol></details>` : '';
+}
+function stakesHTML() {
+  const stk = GAMEB.battle.stakes, J = stk && stk.side === SIDE ? WStakes.judge(SIM, stk) : null; if (!J) return '';
+  return `<div class="stakes" id="stakes"><p class="stakes-t"><span class="stakes-k">For the campaign · ${esc(J.tierName.toLowerCase())}</span><span>${esc(J.title)}</span><span class="stakes-s">${J.score} / 100</span></p><p class="small">${esc(J.text)}</p><p class="small">You lost ${fmt(J.exchange.own)} men killed, wounded and taken; the enemy lost ${fmt(J.exchange.enemy)}${J.exchange.counted ? '' : ' (the exchange is not counted for an army that refused battle)'}. ${fmt(J.left)} of your ${fmt(J.start)} are still in the ranks.</p></div>`;
+}
 function renderVerdict() {
   const R = SIM.result, C = SIM.command, t = hm;
   const cas = GB.losses;
@@ -7998,7 +8320,7 @@ function renderVerdict() {
   const mine = C.orders.filter(o => o.from === CHIEF);
   const fate = o => o.status === 'cancelled' ? 'torn up' : o.status === 'lost' ? 'never arrived: every rider was lost' : RKIND(o.to) === 'hq' ? 'done' : RKIND(o.to) === 'offmap' ? (o.receivedAt ? `reached ${SIM.leaders[o.to] ? SIM.leaders[o.to].name : o.to} ${t(o.receivedAt)}` : 'still on the road') : o.actedAt != null ? `arrived ${t(o.receivedAt)}, acted on ${t(o.actedAt)}` : o.receivedAt ? `arrived ${t(o.receivedAt)}, ${o.status === 'waiting' ? 'its conditions were never met' : 'not acted on'}` : 'still on the road';
   const wd = R.withdrawn, retreatTxt = wd ? `<p class="small">You ordered the retreat at ${t(wd.from)}. Marched off the field in order: ${fmt(wd.men)} of the ${fmt(wd.menAtStart)} formed foot and horse you had then, and ${wd.guns} of ${wd.gunsAll} guns.${wd.stillHere > 500 ? ` Still on the field and formed at the end: ${fmt(wd.stillHere)}, who would get away in the dark.` : ''} ${GB.retreatDay ? ' ' + GB.retreatDay : ''}</p>` : '';
-  $('verdict').innerHTML = `<p class="verdict-g">${R.grade}</p><p class="small">The battle ended at ${t(R.t)} (${R.why}). Seed ${SIM.seed}.</p>${retreatTxt}
+  $('verdict').innerHTML = `<p class="verdict-g">${R.grade}</p><p class="small">The battle ended at ${t(R.t)} (${R.why}). Seed ${SIM.seed}.</p>${stakesHTML()}${retreatTxt}
   <div class="seg" id="viewseg" role="group" aria-label="Whose map"><button data-view="napoleon">Your map</button><button data-view="truth">Umpire’s map</button><button data-view="compare">Both</button></div>
   <p class="small" id="viewnote"></p>
   <div class="tscroll"><table class="forces"><thead><tr><th></th><th>Killed &amp; wounded</th><th>Taken &amp; straggled</th><th>1815 (rules doc)</th></tr></thead><tbody>${cas.map(([n, k, h]) => `<tr><td><span class="dot" style="background:var(--p-${k.toLowerCase()})"></span>${n}</td><td>${fmt(R.cas[k].kw)}</td><td>${fmt(R.cas[k].cap)}</td><td class="small">${h}</td></tr>`).join('')}</tbody></table></div>
@@ -8008,7 +8330,7 @@ function renderVerdict() {
   <p style="margin-top:.9em"><b>How your orders went</b></p>
   <ol class="hiddenlist">${mine.map(o => `<li><time>${t(o.issuedAt)}</time><span>${esc(capF(C.describe(o)))}<br><span class="small">${o.byScript ? 'Napoleon’s own order, given for you · ' : ''}${fate(o)}${o.misread ? ' · misread: ' + esc(o.misread) : ''}</span></span></li>`).join('') || '<li><time></time><span class="small">You gave no orders.</span></li>'}</ol>
   <details class="inner"><summary>${GB.enemyDecisions || 'The enemy’s decisions'} (${theirs.length})</summary><ol class="hiddenlist">${theirs.map(l => `<li><time>${t(l.t)}</time><span>${esc(capF(l.text))}</span></li>`).join('')}</ol></details>
-  <details class="inner"><summary>The umpire’s log: turning points</summary><ol class="hiddenlist">${SIM.log.filter(l => l.important || ['break', 'place', 'army', 'end'].includes(l.cat)).map(l => `<li><time>${t(l.t)}</time><span>${esc(capF(l.text))}</span></li>`).join('')}</ol></details>
+  <details class="inner"><summary>The umpire’s log: turning points</summary><ol class="hiddenlist">${SIM.log.filter(l => l.important || ['break', 'place', 'army', 'end'].includes(l.cat)).map(l => `<li><time>${t(l.t)}</time><span>${esc(capF(l.text))}${whyHTML(l)}</span></li>`).join('')}</ol></details>
   <div class="btnrow"><button class="bigbtn" id="aar-open" type="button">The after-action report</button><button class="bigbtn quiet" id="again" type="button">Fight another battle</button></div>`;
   setView(viewMode);
   $('viewseg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setView(b.dataset.view); });
@@ -8024,7 +8346,7 @@ function noteEvent(l) {
 }
 function renderUmpLog() {
   if (!G || !G.umpire) return; const list = $('umplog'), frag = document.createDocumentFragment();
-  for (; G.logShown < SIM.log.length; G.logShown++) { const l = SIM.log[G.logShown]; if (!(l.important || ['break', 'place', 'army', 'end'].includes(l.cat) || l.cat === 'hidden' || (l.cat === 'orders' && l.side !== SIDE))) continue; const li = document.createElement('li'); li.innerHTML = `<time>${hm(l.t)}</time><span>${esc(capF(l.text))}</span>`; frag.prepend(li); }
+  for (; G.logShown < SIM.log.length; G.logShown++) { const l = SIM.log[G.logShown]; if (!(l.important || ['break', 'place', 'army', 'end'].includes(l.cat) || l.cat === 'hidden' || (l.cat === 'orders' && l.side !== SIDE))) continue; const li = document.createElement('li'); li.innerHTML = `<time>${hm(l.t)}</time><span>${esc(capF(l.text))}${whyHTML(l)}</span>`; frag.prepend(li); }
   list.prepend(frag); while (list.children.length > 300) list.lastChild.remove();
 }
 
@@ -8403,6 +8725,70 @@ function renderTimeline() {
   box.innerHTML = svg + '</svg><div class="otlkey"><span><i class="k sw"></i>written</span><span><i class="k sr"></i>riding</span><span><i class="k sp"></i>passed down</span><span><i class="k sc"></i>waiting</span><span><i class="k exd"></i>expected start</span><span><i class="k real"></i>reported doing it</span></div>';
 }
 $('otl') && $('otl').addEventListener('click', e => { const g = e.target.closest('[data-oid]'); if (g) pickOrder(g.dataset.oid); });
+
+/* ================= orders from the map (release 4) ================= */
+// Tap one of your brigades and a strip opens on the map for its commander: Attack, Advance, Hold. Tap the place, and the order is
+// ready to send without leaving the map. The strip writes the same draft the form does (OB), so the form below always shows what the
+// strip holds, and what the strip cannot say (which brigades, formation, conditions, a letter of several steps) is under More.
+// A tap within reach of a named place takes the place; anywhere else it marks the point.
+const STRIP = { to: null, stage: null }; // stage: action, place, ready, sent
+const STRIP_ACTS = [['attack', 'Attack'], ['advance', 'Advance'], ['hold', 'Hold']];
+const STRIP_VERB = { attack: 'to attack', advance: 'to advance to' };
+const STRIP_SNAP = 28; // a tap this many screen pixels from a named place takes the place (and never less than 150 m)
+function stripName(to) { const L = SIM.leaders[to]; return L ? L.name : capF((SIM.command.RECIPIENTS[to] || {}).name || to); }
+function stripOpen(to) {
+  if (!SIM || !G || G.phase !== 'play' || !ORDER_TO.includes(to) || !SIM.command.RECIPIENTS[to]) { stripClose(); return; }
+  if (typeof GLASS !== 'undefined' && GLASS.on) return;
+  if (G.pick) cancelPick();
+  STRIP.to = to; STRIP.stage = 'action'; stripRender();
+}
+function stripClose() { if (STRIP.stage === 'place' && G && G.pick) cancelPick(); STRIP.to = null; STRIP.stage = null; const s = $('strip'); if (s) s.hidden = true; }
+function stripRender() {
+  const s = $('strip'); if (!s) return;
+  if (!STRIP.to || !SIM || !G || G.phase !== 'play') { s.hidden = true; return; }
+  const C = SIM.command, to = STRIP.to, who = `<b>${esc(stripName(to))}</b>`, x = '<button type="button" class="strip-x" data-strip="close" aria-label="Close">×</button>';
+  let h = '';
+  if (STRIP.stage === 'action') {
+    const acts = STRIP_ACTS.filter(([a]) => C.ALLOWED[kindOf(to)].includes(a));
+    h = `<div class="strip-t">${who}${x}</div><div class="strip-b">${acts.map(([a, t]) => `<button type="button" data-strip="act" data-act="${a}">${t}</button>`).join('')}<button type="button" class="quiet" data-strip="more">More…</button></div>`;
+  } else if (STRIP.stage === 'place') {
+    h = `<div class="strip-t"><span>Tap the place for ${who} ${STRIP_VERB[OB.action] || 'to go to'}.</span>${x}</div>`;
+  } else if (STRIP.stage === 'ready') {
+    const spec = specFromOB(), err = C.validate(spec);
+    h = `<div class="strip-t"><span>${who}: ${esc(C.describe({ spec, to }, true))}</span>${x}</div>${err ? `<div class="err">${esc(err)}.</div>` : ''}<div class="strip-b"><button type="button" class="go" data-strip="send"${err ? ' disabled' : ''}>Send</button>${NEEDS_OBJ.includes(OB.action) ? '<button type="button" data-strip="place">Another place</button>' : ''}<button type="button" class="quiet" data-strip="more">More…</button></div>`;
+  } else if (STRIP.stage === 'sent') {
+    h = `<div class="strip-t"><span>Your order to ${esc(G.sent ? G.sent.to : stripName(to))} is with the staff${G.sent ? ` (${esc(G.sent.when)})` : ''}.</span>${x}</div>`;
+  }
+  s.innerHTML = h; s.hidden = false;
+}
+function stripAct(a) {
+  const to = STRIP.to; OB = freshOB(to); OB.action = a; OB.touched = true; G.selOrder = null; G.sent = null;
+  if (NEEDS_OBJ.includes(a)) stripAskPlace(); else { STRIP.stage = 'ready'; renderOB(); stripRender(); requestDraw(); }
+}
+function stripAskPlace() { STRIP.stage = 'place'; G.pick = true; canvas.classList.add('tool'); setHint(null); renderOB(); stripRender(); requestDraw(); }
+// the map was tapped while the strip waited for a place (called from click() in pick mode)
+function stripPlace(wx, wy) {
+  let best = null, bd = Math.max(150, STRIP_SNAP / view.s);
+  for (const [k, o] of Object.entries(SIM.objectives)) { if (!o.point || !PLACE_GROUPS.some(([, keys]) => keys.includes(k)) || ((GB.placeOnlyAt || {})[k] && G.opts.scenario !== GB.placeOnlyAt[k])) continue; const d = Math.hypot(o.point[0] - wx, o.point[1] - wy); if (d < bd) { bd = d; best = k; } }
+  if (best) { OB.place = best; OB.point = null; } else { OB.point = [wx, wy]; OB.place = null; }
+  OB.touched = true; G.selOrder = null; cancelPick(); STRIP.stage = 'ready'; renderOB(); stripRender(); requestDraw();
+}
+$('strip').addEventListener('click', e => {
+  const b = e.target.closest('[data-strip]'); if (!b || !STRIP.to) return;
+  const k = b.dataset.strip;
+  if (k === 'close') { stripClose(); return; }
+  if (k === 'act') { stripAct(b.dataset.act); return; }
+  if (k === 'place') { stripAskPlace(); return; }
+  if (k === 'more') { const to = STRIP.to, drafted = STRIP.stage === 'ready' || STRIP.stage === 'place'; stripClose(); if (!drafted) { OB = freshOB(to); OB.touched = true; } renderOB(); $('obBox').open = true; $('obBox').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+  if (k === 'send') { const before = SIM.command.orders.length; sendOrder(false); if (SIM.command.orders.length > before) { STRIP.stage = 'sent'; stripRender(); } else stripRender(); }
+});
+// test hooks (release4test.py)
+globalThis.WGame && Object.assign(globalThis.WGame, {
+  strip: () => ({ hidden: $('strip').hidden, text: $('strip').innerText, to: STRIP.to, stage: STRIP.stage, pick: !!(G && G.pick), place: OB && OB.place, point: !!(OB && OB.point), act: OB && OB.action, orders: SIM.command.orders.length, logged: G.orderLog.length, last: SIM.command.orders.length ? SIM.command.describe(SIM.command.orders[SIM.command.orders.length - 1]) : null }),
+  tapOf: (corps, place) => { const B = SIM.command.B[CHIEF], o = [...B.own.values()].find(o => cmdOf(SIM.byId[o.uid]) === corps && SIM.byId[o.uid].type === 'inf'), r = canvas.getBoundingClientRect(), [x, y] = P(o.x, o.y), h = SIM.objectives[place].point, [hx, hy] = P(h[0], h[1]); return { x: r.left + x, y: r.top + y, hx: r.left + hx, hy: r.top + hy }; },
+  farTap: () => { const r = canvas.getBoundingClientRect(), need = 2 * Math.max(150, STRIP_SNAP / view.s); for (let i = 2; i < 10; i++) for (let j = 2; j < 9; j++) { const x = r.width * i / 12, y = r.height * j / 12, [wx, wy] = screenToWorld(x, y); if (wx < 0 || wy < 0 || wx > WM || wy > HM) continue; if (Object.values(SIM.objectives).every(o => !o.point || Math.hypot(o.point[0] - wx, o.point[1] - wy) > need)) return { x: r.left + x, y: r.top + y }; } return null; },
+  phase: () => G && G.phase, fightOut: mode => fightToEnd(mode),
+});
 
 /* ================= dispatches on the map: what each piece of news changed ================= */
 // Each dispatch carries refs: the enemy bodies (tids), your brigades (own), farms (sp), moves since the last news, and for sounds the bearings heard from headquarters.
@@ -9243,7 +9629,7 @@ const WApp = (() => {
 </script>
 
 <script>
-// the offline release: keep every file of the game in this device's cache (release d26cce5c27)
+// the offline release: keep every file of the game in this device's cache (release 652fd276dd)
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>

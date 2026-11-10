@@ -17,7 +17,7 @@ async def main():
             print('fonts loaded', fonts)
             await ctx.set_offline(True); await pg.reload(); await pg.wait_for_timeout(1500)
             print('offline reload title', await pg.title(), '| setup visible', await pg.is_visible('#s-go'))
-            await pg.fill('#s-seed', '99'); await pg.click('#s-go'); await pg.wait_for_timeout(500)
+            await pg.evaluate("document.getElementById('s-more').open = true"); await pg.fill('#s-seed', '99'); await pg.click('#s-go'); await pg.wait_for_timeout(500)
             await pg.select_option('#ob-to', 'reille'); await pg.select_option('#ob-act', 'attack'); await pg.select_option('#ob-obj', 'hougoumont')
             await pg.screenshot(path=SITE + '/../off_phone_order.png')
             await pg.click('#ob-send'); await pg.evaluate('WGame.runToEnd()'); await pg.wait_for_timeout(500)

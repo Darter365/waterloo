@@ -295,3 +295,29 @@
 .rv-lab{display:block;font-size:.88rem;color:var(--fg-2);margin-top:8px}
 #rv-notes,.rv-out{width:100%;max-width:80ch;display:block;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:2px;padding:6px 8px;font:inherit;font-size:.92rem}
 .rv-out{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.75rem;margin-top:6px}
+
+/* release 4: the campaign verdict, causes, the order strip on the map, and the fold of settings */
+.stakes{margin:8px 0 10px;padding:9px 11px;border:1px solid var(--line);border-left:4px solid var(--accent);background:color-mix(in srgb,var(--accent) 6%,var(--panel))}
+.stakes-t{font-family:var(--fell);font-size:1.12rem;line-height:1.25;margin:0 0 4px;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+.stakes-k{font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-2);font-family:var(--serif);flex:1 0 100%}
+.stakes-s{margin-left:auto;font-family:var(--serif);font-weight:600;font-size:.98rem;white-space:nowrap}
+.stakes .small{padding-left:0;margin:.25em 0}
+.brief-stakes{margin-top:.6em;padding-top:.55em;border-top:1px solid var(--line)}
+details.why{display:block;margin-top:2px}
+details.why>summary{cursor:pointer;font-size:.8rem;color:var(--accent);padding:2px 0;list-style:none;display:inline-block;min-height:24px}
+details.why>summary::-webkit-details-marker{display:none}
+details.why>summary::before{content:"why? "}
+details.why[open]>summary::before{content:"why: "}
+details.why ol{margin:2px 0 6px;padding:5px 8px;border-left:2px solid var(--line);font-size:.84rem;color:var(--fg-2)}
+details.more{margin:6px 0 2px;border-top:1px solid var(--line)}
+details.more>summary{cursor:pointer;padding:9px 0;font-size:.92rem;color:var(--fg-2);min-height:28px}
+.strip{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;width:min(520px,calc(100% - 110px));background:var(--m-paper);color:var(--m-ink);border:1px solid var(--m-ink);padding:8px 10px;font-size:.92rem;line-height:1.3;z-index:6;box-shadow:2px 3px 0 color-mix(in srgb,var(--m-ink) 22%,transparent)}
+.strip-t{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+.strip-b{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+.strip button{font-family:var(--serif);font-size:.95rem;min-height:40px;padding:6px 12px;border:1px solid var(--m-ink);background:transparent;color:var(--m-ink);border-radius:2px;cursor:pointer;flex:1 1 auto}
+.strip button.go{background:var(--m-ink);color:var(--m-paper);font-weight:600}
+.strip button.quiet{border-color:color-mix(in srgb,var(--m-ink) 40%,transparent);flex:0 1 auto}
+.strip button:disabled{opacity:.45;cursor:default}
+.strip button.strip-x{flex:0 0 auto;min-height:32px;min-width:32px;padding:0 8px;border:0;font-size:1.2rem;line-height:1;margin:-4px -6px 0 0}
+.strip .err{color:var(--m-no);font-size:.86rem;margin-top:4px}
+@media (max-width:640px){.strip{width:calc(100% - 64px);left:8px;transform:none}}

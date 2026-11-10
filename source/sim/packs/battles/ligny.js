@@ -103,6 +103,24 @@ P.register('battle', 'ligny', { version: '0.1', oob: 'ligny', terrain: 'ligny',
   // 600 m; marginal if at the end the French hold the three brook villages the day was fought for, or the Prussians have drawn off. In 1815 the
   // Prussian centre broke at Ligny about 20:00 and the army drew off in the night, in order, toward Wavre: a French victory short of decisive
   victory: { attacker: 'FR', decisive: { holds: 'bussy', within: 600, morale: 40 }, marginal: { holds: ['ligny'] }, drawnOff: true },
+  // (release 4) plans the strategy bench fights beside doing nothing and the historical orders (tools/strategies.js)
+  strategies: {
+    villages: { name: 'Every corps at the villages at once', orders: [
+      { to: 'vandamme', action: 'attack', objective: { place: 'stamand' } }, { to: 'gerard', action: 'attack', objective: { place: 'ligny' } },
+      { to: 'drouot', action: 'attack', objective: { place: 'ligny' } }] },
+    expect: {},
+  },
+  // (release 4) what the day meant for Napoleon's campaign (stakes.js; tiers and the 6% are est.)
+  stakes: { side: 'FR',
+    brief: 'What the day demands: Blücher beaten so thoroughly that he cannot come to Wellington’s help. Holding the villages at nightfall is not enough if his army marches away in order.',
+    rules: [
+      { if: { ownBroken: true }, tier: 5, title: 'The army destroyed', text: 'Your army has broken on the first great day of the campaign. Nothing now stands between the allies and the frontier.' },
+      { if: { enemyBroken: 'PR', grade: 'Decisive' }, tier: 1, title: 'Blücher destroyed', text: 'The Prussian army is broken and its headquarters taken. Wellington must now face you alone.' },
+      { if: { enemyBroken: 'PR' }, tier: 2, title: 'Blücher broken', text: 'The Prussian army has broken. It will be days before it can help Wellington.' },
+      { if: { grade: 'French victory' }, tier: 3, title: 'The field won, the Prussians not destroyed', text: 'You hold the field, as Napoleon did in 1815, but the Prussian army has gone off in order. In 1815 it fell back north on Wavre and reached Napoleon’s flank at Waterloo two days later.' },
+      { if: { unhurt: ['PR', 0.06] }, tier: 4, flat: true, title: 'A day given away', text: 'You never seriously attacked Blücher. He stands unbeaten, with Wellington at Quatre Bras a few miles to the west, and the two can now join. Light losses count for nothing here.' },
+      { tier: 4, title: 'Blücher still in his villages', text: 'Your attacks did not drive Blücher from his position. He and Wellington, a few miles to the west at Quatre Bras, can now join.' },
+    ] },
   corpsNames: { vandamme: "Vandamme's III Corps", gerard: "Gérard's IV Corps", guard: 'the Imperial Guard', guardcav: 'the Guard heavy cavalry', pajol: "Pajol's cavalry", exelmans: "Exelmans' cavalry",
     milhaud: "Milhaud's cuirassiers", derlon: "d'Erlon's I Corps", lobau: "Lobau's VI Corps", zieten: "Zieten's I Corps", pirch: "Pirch's II Corps", thielmann: "Thielmann's III Corps" },
   metrics: [

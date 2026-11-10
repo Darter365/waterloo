@@ -9,7 +9,7 @@ async def main():
         b = await p.chromium.launch(); pg = await (await b.new_context(viewport={'width': 1440, 'height': 900})).new_page()
         errs = []; pg.on('pageerror', lambda e: errs.append('PAGEERR ' + str(e)))
         await pg.goto('file://' + D + 'pd.html'); await pg.wait_for_timeout(800)
-        await pg.select_option('#s-scen', '0500'); await pg.fill('#s-seed', '808'); await pg.click('#s-go'); await pg.wait_for_timeout(400)
+        await pg.select_option('#s-scen', '0500'); await pg.evaluate("document.getElementById('s-more').open = true"); await pg.fill('#s-seed', '808'); await pg.click('#s-go'); await pg.wait_for_timeout(400)
         print('CLOCK', await pg.inner_text('#clock')); print('BRIEF', (await pg.inner_text('#stopcards'))[:400].replace('\n', ' | '))
         await pg.screenshot(path=D + 'pd_0500.png')
         await pg.select_option('#ob-to', 'reille'); await pg.select_option('#ob-act', 'advance'); await pg.select_option('#ob-obj', 'depOwn')

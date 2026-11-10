@@ -602,6 +602,28 @@ P.register('battle', 'waterloo', { version: '1.1', // (4e) versions start at pha
     { what: 'Prussian killed and wounded (median)', losses: 'PR', median: [5000, 8000] },
   ] },
   victory: { attacker: 'FR', decisive: { holds: 'ba', within: 600, morale: 40 }, catastropheBefore: 1080, marginal: 'ridgeCentre' },
+  // (release 4) plans the strategy bench fights beside doing nothing and the historical orders (tools/strategies.js): opening orders, given
+  // at the start as a player would give them. expect.idleLoses is a judgment, not a record: with both allied armies on the field by evening,
+  // an army that sits still should be attacked.
+  strategies: {
+    centre: { name: 'Three corps at the ridge at 11:00', orders: [
+      { to: 'grandBattery', action: 'bombard', objective: { place: 'ridgeCentre' } }, { to: 'reille', action: 'attack', objective: { place: 'ridgeRightCentre' } },
+      { to: 'derlon', action: 'attack', objective: { place: 'ridgeCentre' } }, { to: 'lobau', action: 'attack', objective: { place: 'ridgeCentre' } }] },
+    expect: { idleLoses: true },
+  },
+  // (release 4) what the day meant for Napoleon's campaign, beside the field's grade (stakes.js reads these in order; tiers and the 5% are est.)
+  stakes: { side: 'FR',
+    brief: 'What the day demands: Wellington beaten before Blücher can join him. Together they outnumber you on this field by about two to one. A day that ends with Wellington still on his ridge is a day lost, however few men it costs.',
+    rules: [
+      { if: { ownBroken: true }, tier: 5, title: 'The army destroyed', text: 'Your army has broken and the road to Paris is open. In 1815 Napoleon abdicated four days after such a day.' },
+      { if: { grade: 'catastrophe' }, tier: 5, title: 'The army destroyed', text: 'Your army has broken and the road to Paris is open. In 1815 Napoleon abdicated four days after such a day.' },
+      { if: { enemyBroken: 'AL', grade: 'Decisive' }, tier: 1, title: 'Wellington destroyed', text: 'Wellington’s army is broken and you stand across the Brussels road. Blücher must now fight you alone or fall back.' },
+      { if: { enemyBroken: 'AL' }, tier: 2, title: 'Wellington beaten', text: 'Wellington’s army has broken. Blücher is still on your flank, but the allies are no longer joined.' },
+      { if: { grade: 'Marginal French' }, tier: 3, title: 'The ridge won, the armies unbeaten', text: 'You hold the centre of Wellington’s ridge at nightfall, but his army is unbroken and the Prussians are on your flank. Nothing is settled.' },
+      { if: { grade: 'Marginal Allied' }, tier: 4, title: 'The army saved, the field given up', text: 'You drew the army off in order. Wellington and Blücher have joined, and the campaign of separating them has failed.' },
+      { if: { unhurt: ['AL', 0.05] }, tier: 4, flat: true, title: 'A day given away', text: 'You never seriously attacked Wellington. He still holds his ridge, Blücher has joined him, and tomorrow you face both. Light losses count for nothing here: the day was the one thing you could not spare.' },
+      { tier: 4, title: 'Wellington still on his ridge', text: 'Your attacks did not break Wellington, and Blücher has joined him. Tomorrow you face both armies with the men you have left.' },
+    ] },
   // the corps by name, for the log
   corpsNames: { bulow: "Bülow's IV Corps", pirch: "Pirch's II Corps", zieten: "Zieten's I Corps", hal: "Prince Frederik's corps from Hal", grouchy: "Grouchy's wing" },
   /* (phase 2) the turning points the after-action report and the calibration watch, by when: taken (a place passes to a side; after: only
