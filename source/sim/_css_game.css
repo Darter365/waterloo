@@ -321,3 +321,11 @@ details.more>summary{cursor:pointer;padding:9px 0;font-size:.92rem;color:var(--f
 .strip button.strip-x{flex:0 0 auto;min-height:32px;min-width:32px;padding:0 8px;border:0;font-size:1.2rem;line-height:1;margin:-4px -6px 0 0}
 .strip .err{color:var(--m-no);font-size:.86rem;margin-top:4px}
 @media (max-width:640px){.strip{width:calc(100% - 64px);left:8px;transform:none}}
+
+/* the field in relief (3D umpire's view) */
+#v3btn{font-size:.8rem;font-weight:600;font-family:var(--serif)}
+#v3btn[aria-pressed="true"]{background:var(--m-ink);color:var(--m-paper)}
+.v3{position:absolute;inset:0;z-index:8;background:#cfe6f2}
+.v3 canvas{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+.v3cap{position:absolute;left:8px;top:8px;right:8px;max-width:520px;background:var(--m-paper);color:var(--m-ink);border:1px solid var(--m-ink);padding:5px 9px;font-size:.84rem;line-height:1.3;pointer-events:none}
+#v3x{position:absolute;right:10px;bottom:12px;min-height:40px;padding:6px 12px;font-family:var(--serif);font-size:.92rem;border:1px solid var(--m-ink);background:var(--m-paper);color:var(--m-ink);border-radius:2px;cursor:pointer}
