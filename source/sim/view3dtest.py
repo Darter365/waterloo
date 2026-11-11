@@ -52,6 +52,8 @@ async def main():
         # on the ground: the eye comes down to a rider's height, looks level, and walks forward on a pinch or scroll
         await pg.evaluate("WGame.v3Stand(3350, 5250, 0.05)"); await pg.tap('#v3g'); await pg.wait_for_timeout(1500); e = await pg.evaluate("WGame.v3Eye()")
         print('GROUND', 'OK' if e['ground'] and abs(e['y'] - e['floor'] - 2.5) < 0.01 and e['ex'] == 1 and e['treeH'] <= 25 and e['blockH'] <= 2 and e['fov'] == 60 and e['trees'] > 2000 and e['shrubs'] > 300 else 'BAD', {k: round(v, 1) if isinstance(v, float) else v for k, v in e.items()})
+        k = await pg.evaluate("WGame.v3Sky()")
+        print('LIGHT', 'OK' if k['alt'] > 50 and 120 < k['bearing'] < 240 and k['sun'] > 0.4 and k['tufts'] == 4096 and k['step'] == 1 and 3000 < k['fogFar'] <= 20000 else 'BAD', {a: (round(b, 2) if isinstance(b, float) else b) for a, b in k.items()})
         await shot('v3_4_ground'); await pg.evaluate("WGame.v3Stand(2470, 4760, 0.0)"); await pg.wait_for_timeout(400); await shot('v3_5_ground_wood')
         pr = await pg.evaluate("WGame.v3Probe(0, -0.6)"); print('INSIDE', 'OK' if pr and pr['unit'] is None else 'BAD', pr)  # standing in a brigade's block, the block is not drawn
         await pg.tap('#v3g'); await pg.wait_for_timeout(1200); e = await pg.evaluate("WGame.v3Eye()"); print('ABOVE', 'OK' if not e['ground'] and e['y'] - e['floor'] > 300 and e['ex'] == 3 and e['trees'] < 1000 else 'BAD', e['ex'], e['trees'])
@@ -64,7 +66,8 @@ async def main():
             if await pg.evaluate("WGame.phase() === 'over'"): break
         await pg.wait_for_timeout(300); r = await pg.evaluate("WGame.v3Open()"); await pg.wait_for_timeout(1200); v = await pg.evaluate("WGame.v3()")
         print('AFTER', 'OK' if v['button'] and r and v['on'] and v['units'] > 30 else 'BAD', v['button'], r, v['units'], v['err'])
-        await pg.evaluate("document.getElementById('mapbox').scrollIntoView({block: 'start'})"); await pg.evaluate("WGame.v3Cam(-0.4, 1.0, 5200)"); await pg.wait_for_timeout(500); await shot('v3_3_after')
+        k = await pg.evaluate("WGame.v3Sky()"); print('NIGHT', 'OK' if k['alt'] < 0 and k['sun'] == 0 and k['sky'] < 0.3 and k['murk'] == 0 else 'BAD', {a: (round(b, 2) if isinstance(b, float) else b) for a, b in k.items()})
+        await pg.evaluate("document.getElementById('mapbox').scrollIntoView({block: 'start'})"); await pg.evaluate("WGame.v3Cam(-0.4, 1.0, 5200)"); await pg.wait_for_timeout(500); await shot('v3_3_after'); await pg.evaluate("WGame.v3Stand(3350, 5250, 0.05)"); await pg.tap('#v3g'); await pg.wait_for_timeout(1500); await shot('v3_7_ground_dusk')
         print('errors', errs[:6])
         await b.close()
 asyncio.run(main())
