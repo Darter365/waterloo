@@ -10,12 +10,14 @@ fights every battle; battles and eras are data. A 3D view of the field exists fo
 **Where things are.**
 - The code, tests and built site: this repository. `CLAUDE.md` holds the rules and commands.
 - What has been decided, what was Claude's choice, and what is open: `docs/DECISIONS.md`. Read it first.
-- The plan: `docs/ROADMAP.md` (a condensed copy; the full roadmap doc is in Chris's Claude account).
+- The plan: `docs/ROADMAP.md` (a condensed copy; the full text is beside it and the live doc is in Chris's Claude account).
+- How the work is checked and which tools to use: `docs/METHOD.md`. Every calibration value: `docs/RULES.md` (a snapshot).
 - The game itself: the repository's GitHub Pages site.
 
 **How Chris likes to work.** Direct answers. Accuracy over speculation: say what is verified and what is not, and ask before
 filling a gap. Explain design choices and name assumptions. Iterative, conversational sessions. Desktop first.
 
 **How to use this in a planning conversation.** Discuss and decide here; when something is settled, it goes into
-`docs/DECISIONS.md` through a Claude Code session, so the next conversation starts from it. A planning chat does not
+`docs/DECISIONS.md` through a pull request (a planning conversation with a shell may open one itself, under `CLAUDE.md`'s
+Merging rules), so the next conversation starts from it. A planning chat does not
 reliably see what was said in other chats or in Claude Code sessions, so the repository is the shared memory.

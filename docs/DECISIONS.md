@@ -17,11 +17,29 @@ Never record a guess as a decision.
   ancient to the 1870s. Sieges and naval actions are out of the core.
 - **Either side playable, a page per battle, nights summarised, all four Gettysburg starts (Oct).** Not built yet: one side is
   playable per battle today.
+- **A dice stream per purpose (12 Nov).** Approved, on the research (common random numbers). It changes results, so it is a
+  class 3 task and the references are re-recorded once. Its acceptance test is under "Claude's choices" until Chris confirms it.
+- **Measures of the core loop come before a performance baseline (12 Nov).** Belief error, report staleness, order latency,
+  orders overtaken and decision gaps, computed from the contract alone (`docs/METHOD.md`, section 5). Not built.
+- **Agent playtests through every view (12 Nov):** Napoleon's, the umpire's and Wellington's. Wellington's waits until the
+  allied side is playable. Not built.
 - **Long-term aim.** A 3D game set at the generals' historical headquarters, with sound, riders arriving and a spotting glass,
   later on an engine suited to large asset counts. The map interface and core mechanics come first.
 
 ## How we work
 
+- **Claude may merge its own pull requests (12 Nov).** Chris approves the task and the gates decide the merge: the classes and
+  gates are in `CLAUDE.md` under Merging. This replaces "`main` changes only on Chris's say" for classes 1 to 3. A brief that
+  says "show me first" still wins.
+- **Use every tool Claude has (12 Nov).** Skills, connectors, subagents, scheduled tasks and the browser on Chris's desktop, for
+  research, building, testing and release. `docs/METHOD.md`, section 8, says which for what.
+- **Instructions for the planning project (12 Nov).** Chris adopted the proposed text for the project's instructions field; he
+  may change it. A revision for merging and tools is in the project (`claude/INSTRUCTIONS_PROPOSAL.md`).
+- **The rules doc and the full roadmap are in the repository and the project (12 Nov).** `docs/RULES.md` is the "Simulation
+  rules" tab of "Waterloo Game: Simulation Rules" as exported on 12 Nov (revision 37, dated 23 Oct). Its "Order of battle" tab
+  is not copied yet.
+- **Confidence keeps the packs' words (12 Nov):** `doc`, `approx`, `low`, `none`. No new scale.
+- **Seeds and a battle held back from tuning: set aside (12 Nov).** Proposed by Claude; Chris said to ignore it for now.
 - **Desktop first (12 Nov).** Develop and judge on a desktop browser from now on, to make things easier. The page must still
   load and play on a phone and offline, but the phone no longer drives design, and phone-only polish waits.
 - **Repository layout (12 Nov).** The plan and these decisions live in `docs/`; browser tests live in `source/sim/tests/`.
@@ -59,18 +77,30 @@ These were made to keep moving and are easy to change. Raise them when the subje
 - A tap within 28 screen pixels of a named place takes the place when ordering from the map.
 - Life-size object sizes in the ground view (tree 18 m, wall 2 m, cottage 5 m, farm 7 m, men 1.8 m), and the 14 m tree spacing.
 - Sky and light colours, and reading short seeing as overcast only while the sun is up (the game has no cloud data).
+- **The merge classes and gates** in `CLAUDE.md` (12 Nov): which changes are class 1, 2, 3 or Chris only; the fresh-context
+  reviewer; the live-site check after a merge; the standing permission to revert.
+- **The acceptance test for the dice streams** (12 Nov): Waterloo in its band over seeds 1000 to 1499; `tune.js` with no check
+  that is in band today leaving it; the strategy bench with no new failure; the fuzz clean; and a new test that, with one
+  order changed, draws the order does not touch stay identical. Also open: a stream per purpose only, or each draw keyed by
+  purpose, unit and tick (`docs/METHOD.md`, section 4).
+- **`docs/METHOD.md` as a whole, and the four kinds of number in rule 4** (sourced, derived, calibrated, estimated) (12 Nov).
+- **`docs/RULES.md` is a snapshot and the Claude doc stays the master** (12 Nov). The other way round is possible.
+- **What `doc`, `approx`, `low` and `none` mean** (`docs/METHOD.md`, section 2), read off today's packs.
 - Slopes are steepened tenfold for the shading painted on the ground; the view from above draws heights three times life size.
 
 ## Open questions (not decided)
 
 - **The idle-army gap.** The allies never attack a French army that sits still, so the field ends a draw. Fixing it changes
   how battles fight.
-- **One shared dice sequence.** Changing one order shifts all later luck. A stream per purpose would let what-ifs share luck,
-  but changes results.
+- **Determinism across browsers.** Verified in Node and Chromium only. The simulation uses `Math.sin`, `cos`, `pow`, `exp` and
+  `log`, which other engines may round differently, so a battle may not replay identically in Safari or Firefox. Not tested.
+- **Sources behind the rules doc.** Some sourced values rest on Wikipedia, web articles and a "research brief" that is not in
+  the repository. A source pass is proposed (`docs/METHOD.md`, section 2).
 - **Generic commanders on every side win Waterloo for the French** (a marginal French victory in 29 battles of 30, roadmap,
   27 Oct; not re-run since). Fair counterfactual, or an attacker that is too strong?
   A battle outside June 1815 is needed to tell.
 - **Brigades in the ground view are flat slabs.** Ranks of simple figures is the suggested next step; shadows are another.
 - **Vegetation exists only where the map data has it.** Ligny has none recorded.
-- **Never measured:** frame rate of the 3D view on a real GPU or phone (tests use software rendering).
+- **Never measured:** frame rate of the 3D view on a real GPU or phone (tests use software rendering). The roadmap's budget of
+  under 20 ms a tick has no check in `check.sh`.
 - **Which comes next:** moving the 2D map onto the contract, or the idle-army rule. Chris has not chosen.
