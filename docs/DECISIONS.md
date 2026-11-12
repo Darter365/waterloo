@@ -94,6 +94,10 @@ These were made to keep moving and are easy to change. Raise them when the subje
 - **`docs/METHOD.md` as a whole, and the four kinds of number in rule 4** (sourced, derived, calibrated, estimated) (12 Nov).
 - **`docs/RULES.md` is a snapshot and the Claude doc stays the master** (12 Nov). The other way round is possible.
 - **What `doc`, `approx`, `low` and `none` mean** (`docs/METHOD.md`, section 2), read off today's packs.
+- **How simulation speed is measured** (`tools/ticktime.js`, 12 Nov). Seeds 1 to 6 of Waterloo and Ligny under the historical
+  orders (1 and 2 in `check.sh`), because those are reference seeds and each Waterloo battle is held to `ref/p2_hist.json` as it
+  is timed; every tick counts, the cold first ones included; the baseline in `results/ticktime_baseline.json` is the middle of
+  three fresh processes; the warning is at 1.5 times the baseline (est.) and never fails the check.
 - Slopes are steepened tenfold for the shading painted on the ground; the view from above draws heights three times life size.
 
 ## Open questions (not decided)
@@ -115,6 +119,8 @@ These were made to keep moving and are easy to change. Raise them when the subje
   A battle outside June 1815 is needed to tell.
 - **Brigades in the ground view are flat slabs.** Ranks of simple figures is the suggested next step; shadows are another.
 - **Vegetation exists only where the map data has it.** Ligny has none recorded.
-- **Never measured:** frame rate of the 3D view on a real GPU or phone (tests use software rendering). The roadmap's budget of
-  under 20 ms a tick has no check in `check.sh`.
+- **Never measured:** frame rate of the 3D view on a real GPU or phone (tests use software rendering), and the time a tick takes
+  on a phone or in a browser. Simulation speed is now measured on every change, in Node on the machine that runs `check.sh`
+  (`tools/ticktime.js`, 12 Nov: Waterloo about 5 ms a tick, 95th centile 12 ms, on a two-core cloud Xeon), which shows a
+  slowdown but says nothing about the roadmap's budget of under 20 ms on the phone.
 - **Which comes next:** moving the 2D map onto the contract, or the idle-army rule. Chris has not chosen.

@@ -30,6 +30,7 @@ not in your context, read that file before anything else.**
 | Waterloo against its 1815 band | `node tools/band.js 500` | long |
 | The contract's tests | `node tools/test_view.js waterloo 1003` | 20 s |
 | Strategy bench | `node tools/strategies.js --n 6` | 1 min |
+| Simulation speed beside its baseline | `node tools/ticktime.js` (`--verify`, `--record`) | 20 s |
 | Browser suite (builds first) | `sh regress.sh` | 10 min |
 | UI audit: contrast, overflow, console | `python3 tools/pw.py tests/uiaudit.py` | 3 min |
 | Offline build test | `python3 tools/pw.py ../offline/offtest.py` (after `python3 ../offline/build_offline.py`) | 1 min |

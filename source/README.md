@@ -10,10 +10,10 @@ The game served at the repository root (GitHub Pages) is built from here, with t
 | `sim/_game_3d.js`, `sim/vendor/` | The field in relief: a 3D view of the umpire's picture, the first client drawn from the contract alone (`view.world()` and `view.snapshot('truth')`). Flat colour and few polygons; every colour and size is a constant at the top of the file. `vendor/three.min.js` is three.js 0.149.0 (MIT, licence beside it), carried in the page as text and started only when the view first opens. `tests/view3dtest.py` tests it at phone size |
 | `sim/stakes.js` | The campaign's verdict beside the field's grade, from each battle pack's `stakes` block; the engine's grades and the calibration targets are untouched |
 | `sim/packs/` | Everything a battle is, as data: eras (`eras/`), nations, leaders, battles (`battles/`), orders of battle (`oob/`, made from CSV), terrain (`maps/`, made from survey files); `validate.js` checks them |
-| `sim/tools/` | `fight.js` (any battle, generic commanders), `tune.js` (era constants against every battle's targets), `band.js` (Waterloo's band), `bench.js` (single-situation tests), `oob.js` (CSV armies, and `chain <battle>`: the chain of command), `map.js` (the map pipeline), `replay.js` (replay files), `lint.js` (no battle or era names in the engine), `build_lab.py` |
+| `sim/tools/` | `fight.js` (any battle, generic commanders), `tune.js` (era constants against every battle's targets), `band.js` (Waterloo's band), `bench.js` (single-situation tests), `oob.js` (CSV armies, and `chain <battle>`: the chain of command), `map.js` (the map pipeline), `replay.js` (replay files), `lint.js` (no battle or era names in the engine), `ticktime.js` (milliseconds per tick and battles a minute, beside `results/ticktime_baseline.json`), `build_lab.py` |
 | `sim/lab/` | The battle lab page (built into `sim/lab.html` and the site's `lab.html`) |
 | `sim/ref/` | Reference battles: release 3's (`ref_*`) and phase 2's (`p2_*`), a state hash every 30 game minutes |
-| `sim/results/` | Calibration batches |
+| `sim/results/` | Calibration batches, and the simulation-speed baseline (`ticktime_baseline.json`) |
 | `map/` | The map template and the scripts that built Waterloo's terrain |
 | `offline/` | The offline home-screen build, with its fonts |
 
