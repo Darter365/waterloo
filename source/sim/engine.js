@@ -789,7 +789,7 @@ function create(opts = {}) {
     if (E.command) E.command.onFire(sp, sec);
     const g = E.byId[sp.garrison];
     if (g && g.spSec === sec) { const nxt = sp.secs.find(s => s.held === sideKey(g) && !s.burnt); if (nxt) { g.spSec = nxt; g.x = nxt.x; g.y = nxt.y; } else evictGarrison(sp, g, 'fire'); }
-    if (g) g.coh -= 7;
+    if (g) g.coh -= 6;
     refreshHolder(sp, null, c);
   }
 
