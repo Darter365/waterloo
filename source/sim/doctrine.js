@@ -234,7 +234,7 @@ function attack(E, side, st, chief) {
     const gk = Object.keys(E.objectives).find(k => { const o = E.objectives[k]; return o.line && o.takenAt != null && o.by === coal; }), gained = gk && { k: gk, o: E.objectives[gk] };
     const last = !inFight && E.t < E.light.sunset - 60 && E.morale[side] >= 40;
     const tgt = gained || weak || (last ? objs[0] : null), ready = chief.reserve ?? 0.5;
-    if (tgt && E.rnd('commit the reserve') < ready * (gained ? 0.6 : weak ? 0.3 : 0.5)) {
+    if (tgt && E.rnd('commit the reserve', side) < ready * (gained ? 0.6 : weak ? 0.3 : 0.5)) {
       for (const u of res) st.reserve.delete(u.id); // its horse now comes up behind the attack with the rest (horseUp)
       const foot = res.filter(u => isFoot(E, u)), byCorps = groupBy(foot, u => u.corps || side);
       for (const [corps, us] of Object.entries(byCorps)) { const id = order(E, side, corps, { kind: 'attack', obj: tgt.k, units: us.map(u => u.id), form: 'attack', maxAttempts: 2 }); st.orderObj[id] = tgt.k; st.attack[corps] = { k: tgt.k, n: 1, t: E.t, ids: [id] }; }
@@ -246,7 +246,7 @@ function attack(E, side, st, chief) {
   // unless his men stand on a line he came to take (he holds what he won into the night)
   const holding = Object.values(E.objectives).some(o => o.line && o.takenAt != null && o.by === E.coalition[side]);
   if (!inFight && !st.withdrawn && !holding && !mine.some(u => u.task.kind === 'attack' || u.task.kind === 'support') && (E.morale[side] < GIVE_UP_MORALE || E.t > E.light.sunset - 30)
-    && (!res.length || E.t > E.light.sunset) && E.sides.find(x => x.id === side).exit && E.rnd('call off the attack') < 0.3) {
+    && (!res.length || E.t > E.light.sunset) && E.sides.find(x => x.id === side).exit && E.rnd('call off the attack', side) < 0.3) {
     E.logEvent('orders', `${chief ? chief.name : 'The commander'} calls off the attack.`, { side, important: true });
     withdraw(E, side, st);
   }
@@ -359,7 +359,7 @@ function defend(E, side, st, chief) {
       const by = mine.filter(u => isFoot(E, u) && u.task.kind === 'hold' && u.coh > rtCoh && u.str > rtStr && hyp(u.x - sp.x, u.y - sp.y) < rtNear).sort((a, b) => hyp(a.x - sp.x, a.y - sp.y) - hyp(b.x - sp.x, b.y - sp.y)).slice(0, 2);
       if (!by.length) continue;
       st.retakeAt = E.t;
-      if (E.rnd('retake') >= (RT.chance != null ? RT.chance * chief.agg : 0.3 * (chief.agg + 0.3))) break;
+      if (E.rnd('retake', side, sp.id) >= (RT.chance != null ? RT.chance * chief.agg : 0.3 * (chief.agg + 0.3))) break;
       const k = Object.keys(E.objectives).find(k => E.objectives[k].sp === sp.id); if (!k) break;
       for (const u of by) st.reserve.delete(u.id);
       order(E, side, by[0].corps || side, { kind: 'attack', obj: k, units: [by[0].id], supports: by.slice(1).map(u => u.id), form: 'attack', maxAttempts: 2 });
@@ -466,7 +466,7 @@ function counterTick(E, side, cfg, line, st) {
   for (const tg of targets) {
     if (st.counterCharged[tg.id] && E.t - st.counterCharged[tg.id] < cfg.every) continue;
     const cavs = E.units.filter(c => mineHorse(c) && c.wind > cfg.wind && c.coh > cfg.coh && hyp(c.x - tg.x, c.y - tg.y) < cfg.reach).sort((a, b) => hyp(a.x - tg.x, a.y - tg.y) - hyp(b.x - tg.x, b.y - tg.y));
-    if (cavs.length && E.rnd('counter-charge') < cfg.chance * agg) {
+    if (cavs.length && E.rnd('counter-charge', side, tg.id) < cfg.chance * agg) {
       const c = cavs[0]; E.charge(c, tg, E.cause(`${cc ? cc.name : 'The cavalry'} launched ${c.name} at ${tg.name}`)); st.counterCharged[tg.id] = E.t;
       E.logEvent('combat', `${c.name} charges ${tg.name}.`, { side, unit: c.id, important: true });
       if (cfg.second && cavs[1] && cavs[1].cavKind === cfg.second) E.charge(cavs[1], tg); break;
@@ -476,7 +476,7 @@ function counterTick(E, side, cfg, line, st) {
   const f = E.frontFacing(side) * Math.PI / 180, fw = [Math.round(Math.sin(f) * 1e9) / 1e9, Math.round(-Math.cos(f) * 1e9) / 1e9], o = line[0];
   for (const fc of E.units.filter(u => E.coalition[u.side] !== E.coalition[side] && isHorse(E, u) && E.formed(u) && poly(u.x, u.y, line) < sp.near && (u.x - o[0]) * fw[0] + (u.y - o[1]) * fw[1] < sp.ahead && (u.wind < sp.wind || u.coh < sp.coh))) {
     const c = E.units.find(c => mineHorse(c) && c.wind > cfg.wind && c.coh > sp.cohOwn && hyp(c.x - fc.x, c.y - fc.y) < sp.reach);
-    if (c && E.rnd('cavalry counter') < sp.chance) { E.charge(c, fc, E.cause(`${c.name} counter-charged blown enemy horse`)); break; }
+    if (c && E.rnd('cavalry counter', side, fc.id) < sp.chance) { E.charge(c, fc, E.cause(`${c.name} counter-charged blown enemy horse`)); break; }
   }
 }
 
@@ -577,7 +577,7 @@ function callTick(E, side, calls, st) {
     if (st.called[c.force]) continue;
     const w = c.when, xw = w.west && E.ll2m(...w.west)[0], xe = w.east && E.ll2m(...w.east)[0];
     if (!seen(w.age, k => (xw == null || k.x < xw) && (xe == null || k.x > xe) && k.str > w.over).length) continue;
-    st.called[c.force] = true; const base = E.t + E.rnd.range(c.delay[0], c.delay[1], 'force called up');
+    st.called[c.force] = true; const base = E.t + E.rnd.range(c.delay[0], c.delay[1], 'force called up', side, c.force);
     for (const u of E.offmap.filter(o => o.group === c.force)) { u.arriveAt = base + (u.baseArrive || 0); u.marchThen = { kind: 'hold' }; }
     if (c.says) E.logEvent('orders', c.says, { side, hidden: true });
   }
@@ -625,14 +625,14 @@ function garrisonTick(E, side, list, st) {
       : E.units.some(u => g.sides.includes(u.side) && E.formed(u) && hyp(u.x - sp.x, u.y - sp.y) < g.within);
     if (!near || sp.garrison || st.garrisoned[i]) return;
     const cand = g.units.map(id => E.byId[id]).find(u => u && E.formed(u) && u.task.kind !== 'garrison');
-    if (cand && E.rnd('initiative') < g.chance) { st.garrisoned[i] = E.t; E.setTask(cand, { kind: 'garrisonGo', sp: sp.id }); E.routeTo(cand, [sp.secs[0].x, sp.secs[0].y], true); if (g.says) E.logEvent('orders', g.says.replace('{unit}', cand.name), { side, hidden: true }); }
+    if (cand && E.rnd('initiative', side, sp.id) < g.chance) { st.garrisoned[i] = E.t; E.setTask(cand, { kind: 'garrisonGo', sp: sp.id }); E.routeTo(cand, [sp.secs[0].x, sp.secs[0].y], true); if (g.says) E.logEvent('orders', g.says.replace('{unit}', cand.name), { side, hidden: true }); }
   });
 }
 function escalateOnRepulse(E, side, list, a, tgt, st) {
   for (const g of list) {
     if (a.side !== side || !tgt.sp || tgt.sp.id !== g.place) continue;
     const L = E.leaders[g.leader]; st.repulses = st.repulses || {}; st.repulses[g.place] = (st.repulses[g.place] || 0) + 1;
-    if (E.rnd('escalate') < (L ? L.agg : 0.5) * g.chance) {
+    if (E.rnd('escalate', side, g.place) < (L ? L.agg : 0.5) * g.chance) {
       const next = g.units.map(id => E.byId[id]).find(u => u && E.formed(u) && u.task.kind !== 'attack' && u.task.sp !== g.place);
       if (next) { E.sendOrder({ id: g.place.slice(0, 4) + '_' + next.id, from: g.leader, to: g.to, kind: 'attack', obj: g.place, units: [next.id], form: 'attack', maxAttempts: g.maxAttempts, direct: true, rideMin: g.rideMin, cause: E.cause(`${L ? L.name : 'Its general'} threw ${next.name} into ${E.spById[g.place].name} after ${a.name} was repulsed`) }); if (g.says) E.logEvent('orders', g.says.replace('{unit}', next.name), { side, hidden: true }); }
     }
@@ -651,8 +651,8 @@ function chargeTick(E, side, cfg, line, st) {
   if (!st.charge1 && front && E.flags[g.flag] && t > tm(g.after) && E.tick % g.every === 0) {
     const np = E.leaderPos(L), s = g.sees;
     const seen = A.known(E, g.leader, s.age, c => s.sides.includes(c.side) && (!s.moving || c.moving) && A.polyDist(c.x, c.y, line) < s.nearLine && np && hyp(c.x - np[0], c.y - np[1]) < s.within);
-    if (seen.length && E.rnd('a retreat is misread') < L[g.chance.trait] * g.chance.times) launchWave(E, side, g, g.waves[0], st, 'charge1');
-    else if (t > tm(g.patience.after) && E.rnd('patience') < L[g.patience.trait] * g.patience.times) launchWave(E, side, g, g.waves[0], st, 'charge1');
+    if (seen.length && E.rnd('a retreat is misread', side, g.leader) < L[g.chance.trait] * g.chance.times) launchWave(E, side, g, g.waves[0], st, 'charge1');
+    else if (t > tm(g.patience.after) && E.rnd('patience', side, g.leader) < L[g.patience.trait] * g.patience.times) launchWave(E, side, g, g.waves[0], st, 'charge1');
   }
   const x = g.exploit;
   if (x && !st.exploit && front && A.placeHolder(E, g.leader, x.place) === E.coalition[side] && t < tm(x.before) && E.tick % g.every === 0) {
@@ -666,7 +666,7 @@ function chargeTick(E, side, cfg, line, st) {
   }
   const w2 = g.waves[1];
   if (w2 && st.charge1 && !st.charge2 && front && t - st.charge1 > w2.after && E.flags[w2.block] !== false) {
-    if (E.rnd('more cavalry') < L[w2.trait] * w2.times) launchWave(E, side, g, w2, st, 'charge2');
+    if (E.rnd('more cavalry', side, g.leader) < L[w2.trait] * w2.times) launchWave(E, side, g, w2, st, 'charge2');
   }
 }
 function launchWave(E, side, g, w, st, key) {
@@ -693,7 +693,7 @@ function cavalry(E, side, st) {
   for (const tg of targets) {
     if (st['cc' + tg.id] && E.t - st['cc' + tg.id] < 40) continue;
     const c = horse.filter(h => !h.charge).sort((a, b) => hyp(a.x - tg.x, a.y - tg.y) - hyp(b.x - tg.x, b.y - tg.y))[0];
-    if (c && E.rnd('counter-charge') < 0.25 * agg) { E.charge(c, tg, E.cause(`${c.name} charged ${tg.name}`)); st['cc' + tg.id] = E.t; E.logEvent('combat', `${c.name} charges ${tg.name}.`, { side, unit: c.id, important: true }); break; }
+    if (c && E.rnd('counter-charge', side, tg.id) < 0.25 * agg) { E.charge(c, tg, E.cause(`${c.name} charged ${tg.name}`)); st['cc' + tg.id] = E.t; E.logEvent('combat', `${c.name} charges ${tg.name}.`, { side, unit: c.id, important: true }); break; }
   }
 }
 
@@ -757,8 +757,8 @@ function approachInit(E, side, sd, st) {
     const v = st.draws, centre = {};
     for (const g of d.draws) {
       centre[g.key] = g.centre || 0;
-      v[g.key] = g.tri ? (strict ? g.strict : rnd.tri(g.tri[0], g.tri[1], g.tri[2] * (open ? g.openHi || 1 : 1), g.roll))
-        : !strict && rnd(g.roll) < g.chance * (open ? g.open || 1 : 1) ? rnd.range(g.range[0], g.range[1], g.rangeRoll) : 0;
+      v[g.key] = g.tri ? (strict ? g.strict : rnd.tri(g.tri[0], g.tri[1], g.tri[2] * (open ? g.openHi || 1 : 1), g.roll, side))
+        : !strict && rnd(g.roll, side) < g.chance * (open ? g.open || 1 : 1) ? rnd.range(g.range[0], g.range[1], g.rangeRoll, side) : 0;
     }
     for (const g of d.draws) if (g.says && (g.tri || v[g.key])) E.logEvent('hidden', g.says.replace('{min}', Math.round(v[g.key])), { side, hidden: true });
     for (const u of E.offmap.filter(o => o.group === d.force)) for (const r of d.units) {
@@ -766,14 +766,14 @@ function approachInit(E, side, sd, st) {
       const lead = r.lead && r.lead.units.includes(u.id) ? r.lead.add : {}, nz = r.noise;
       let at = u.baseArrive;
       for (const [k, w] of Object.entries(r.add)) at += (v[k] - centre[k]) * (lead[k] ?? w);
-      const n = rnd.normal(nz.roll);
+      const n = rnd.normal(nz.roll, side, u.id);
       u.arriveAt = at + (open && nz.openSd != null ? n * nz.openSd : n * nz.sd * (open ? nz.openTimes || 1 : 1));
     }
   }
   // waits: the minutes a corps may lose getting out of its cover (assemble.exit: { roll, ok (the chance the way out goes well), lost (min), says })
   for (const w of sd.waits || []) {
     const x = w.assemble.exit, ws = st.waits[w.corps] = { release: null, attack: null, ready: null, exitDelay: 0 };
-    if (x) { ws.exitDelay = strict ? 0 : (rnd(x.roll) < x.ok ? 0 : x.lost); if (ws.exitDelay && x.says) E.logEvent('hidden', x.says, { side, hidden: true }); }
+    if (x) { ws.exitDelay = strict ? 0 : (rnd(x.roll, side, w.corps) < x.ok ? 0 : x.lost); if (ws.exitDelay && x.says) E.logEvent('hidden', x.says, { side, hidden: true }); }
   }
   for (const g of sd.toGuns || []) st.toGuns[g.force] = { decided: false, comes: false };
   return st;
@@ -853,7 +853,7 @@ function approachTick(E, side, sd, st) {
     for (const u of mine[i]) {
       if (u.task.kind !== 'hold' || !u.task.muster) continue;
       if (isFoot(E, u)) { attackAt(E, u, at.foot.find(x => !x.units || x.units.includes(u.id))); E.setForm(u, 'attack'); }
-      else if (isGuns(E, u)) { const s = at.guns.site, site = E.ll2m(s.lat + E.rnd('gun site') * s.spread, s.lon); E.setTask(u, { kind: 'bombard', area: E.objectives[at.guns.area].line, site }); E.routeTo(u, site, true); }
+      else if (isGuns(E, u)) { const s = at.guns.site, site = E.ll2m(s.lat + E.rnd('gun site', u.id) * s.spread, s.lon); E.setTask(u, { kind: 'bombard', area: E.objectives[at.guns.area].line, site }); E.routeTo(u, site, true); }
       else if (isHorse(E, u)) E.setTask(u, { kind: 'cavRaid', area: E.objectives[at.horse.area].line, home: [u.x, u.y], charges: 0, maxCharges: at.horse.maxCharges });
     }
     const p = sd.press;
@@ -897,9 +897,9 @@ function approachTick(E, side, sd, st) {
       const crisis = N ? !!N.crisis : foeHolds(hp.holder) && hw.attack && t - hw.attack > dv.after;
       if (lead && crisis) {
         fs.check = t;
-        if (!strict && E.rnd(dv.roll) < dv.chance * (histOpen(E) ? dv.openTimes || 1 : 1)) {
+        if (!strict && E.rnd(dv.roll, side) < dv.chance * (histOpen(E) ? dv.openTimes || 1 : 1)) {
           fs.diverted = t; if (dv.says) E.logEvent('hidden', dv.says, { side, hidden: true, important: true });
-          const rc = dv.recall; if (rc) { fs.recallAt = t + E.rnd.range(rc.ride[0], rc.ride[1], rc.rideRoll); fs.recallOk = E.rnd(rc.roll) < rc.chance; }
+          const rc = dv.recall; if (rc) { fs.recallAt = t + E.rnd.range(rc.ride[0], rc.ride[1], rc.rideRoll, side); fs.recallOk = E.rnd(rc.roll, side) < rc.chance; }
         }
       }
     }
@@ -923,9 +923,9 @@ function toGunsTick(E, side, sd, st) {
     const gs = st.toGuns[g.force];
     if (gs.decided || !E.flags[g.flag] || E.t < tm(g.at)) continue;
     gs.decided = true;
-    if (!histStrict(E) && E.rnd(g.roll) < g.chance * (histOpen(E) ? g.openTimes || 1 : 1)) {
-      gs.comes = true; const block = E.rnd(g.blockRoll);
-      const arr = block < g.blocked ? null : E.t + E.rnd.tri(g.march[0], g.march[1], g.march[2], g.marchRoll);
+    if (!histStrict(E) && E.rnd(g.roll, side, g.force) < g.chance * (histOpen(E) ? g.openTimes || 1 : 1)) {
+      gs.comes = true; const block = E.rnd(g.blockRoll, side, g.force);
+      const arr = block < g.blocked ? null : E.t + E.rnd.tri(g.march[0], g.march[1], g.march[2], g.marchRoll, side, g.force);
       E.logEvent('hidden', arr ? g.says.comes.replace('{at}', E.fmtT(arr)) : g.says.blocked, { side, hidden: true, important: true });
       if (arr) for (const u of E.offmap.filter(o => o.group === g.force)) u.arriveAt = arr + u.baseArrive;
     } else E.logEvent('hidden', g.says.stays, { side, hidden: true });

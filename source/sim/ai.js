@@ -97,7 +97,7 @@ function apply(E, o) {
   const L = E.leaders[o.to];
   // interpretation: misreading risk = (1 - clarity) x (1 - skill) x 0.5
   const clarity = o.clarity ?? 0.9, skill = L ? L.skill : 0.7;
-  if (clarity < 1 && o.kind === 'attack' && o.form && L && E.rnd('misread order') < (1 - clarity) * (1 - skill) * 0.5) {
+  if (clarity < 1 && o.kind === 'attack' && o.form && L && E.rnd('misread order', L.id) < (1 - clarity) * (1 - skill) * 0.5) {
     const alt = o.form === 'attack' ? 'mass' : o.form === 'mass' ? 'attack' : o.form;
     E.logEvent('orders', `${L.name} reads the order differently and forms ${alt === 'mass' ? 'the massed division columns' : 'columns of attack'}.`, { side: L.side, hidden: true });
     o.form = alt;
@@ -142,8 +142,8 @@ function unitControl(E) {
       else if (!tgt && !t.sp) { // reached the objective with no enemy in front
         E.setTask(u, { kind: 'hold', reached: t.order }); u.path = null; E.setForm(u, 'line');
       }
-      if (t.engineers && t.sp && E.rnd && u.contactTicks === 1) { const sp = E.spById[t.sp]; const sec = sp.secs.find(s => s.held && s.held !== E.coalition[u.side]); if (sec && sec.cover <= 0.3 && E.rnd('gate broken') < 0.1) { u.gateBonus = true; u.gateAt = E.tick; E.logEvent('event', `Sappers with axes break a gate at ${sp.name}!`, { side: u.side, unit: u.id, important: true }); } }
-      if (t.sp === 'hougoumont' && u.side === 'FR' && u.contactTicks === 1 && E.spById.hougoumont.secs.find(s => s.held === 'AL' && !s.burnt && s.cover <= 0.3) === E.spById.hougoumont.secs.find(s => s.held === 'AL' && !s.burnt) && E.rnd('gate broken') < 0.08) { u.gateBonus = true; u.gateAt = E.tick; E.logEvent('event', 'A sous-lieutenant with an axe smashes through the north gate of Hougoumont!', { side: 'FR', unit: u.id, important: true }); }
+      if (t.engineers && t.sp && E.rnd && u.contactTicks === 1) { const sp = E.spById[t.sp]; const sec = sp.secs.find(s => s.held && s.held !== E.coalition[u.side]); if (sec && sec.cover <= 0.3 && E.rnd('gate broken', u.id) < 0.1) { u.gateBonus = true; u.gateAt = E.tick; E.logEvent('event', `Sappers with axes break a gate at ${sp.name}!`, { side: u.side, unit: u.id, important: true }); } }
+      if (t.sp === 'hougoumont' && u.side === 'FR' && u.contactTicks === 1 && E.spById.hougoumont.secs.find(s => s.held === 'AL' && !s.burnt && s.cover <= 0.3) === E.spById.hougoumont.secs.find(s => s.held === 'AL' && !s.burnt) && E.rnd('gate broken', u.id) < 0.08) { u.gateBonus = true; u.gateAt = E.tick; E.logEvent('event', 'A sous-lieutenant with an axe smashes through the north gate of Hougoumont!', { side: 'FR', unit: u.id, important: true }); }
     } else if (t.kind === 'support') {
       const lead = E.byId[t.of];
       if (!lead || !E.formed(lead) || lead.task.kind === 'rally' || lead.status === 'disordered') {
@@ -162,7 +162,7 @@ function unitControl(E) {
         if (prev && (prev.kind === 'retire' || prev.kind === 'rearguard')) { E.setTask(u, prev); E.routeTo(u, prev.kind === 'retire' ? E.retreatExit(u.side) : prev.dest, true); }
         else if (prev && prev.kind === 'attack' && u.coh >= 55 && (prev.attempts || 0) + 1 < (prev.maxAttempts ?? 3) && E.t < E.light.dark && u.type === 'inf') {
           const L = u.corps && E.leaders[u.corps]; const keen = L ? L.agg : 0.6;
-          if (E.rnd('renew attack') < 0.15 + 0.25 * keen) { E.setTask(u, Object.assign({}, prev, { attempts: (prev.attempts || 0) + 1 })); u.path = [prev.point]; E.setForm(u, prev.form || 'attack'); E.logEvent('combat', `${u.name} goes forward again.`, { side: u.side, unit: u.id }); }
+          if (E.rnd('renew attack', u.id) < 0.15 + 0.25 * keen) { E.setTask(u, Object.assign({}, prev, { attempts: (prev.attempts || 0) + 1 })); u.path = [prev.point]; E.setForm(u, prev.form || 'attack'); E.logEvent('combat', `${u.name} goes forward again.`, { side: u.side, unit: u.id }); }
         } else if (u.type === 'cav' && prev && prev.kind === 'cavRaid') { u.task = prev; }
         else if (E.t - t.since > 30 && u.type !== 'cav') { E.setTask(u, { kind: 'hold' }); }
         else if (u.type === 'cav' && E.t - t.since > 10 && !(prev && prev.kind === 'cavRaid')) { E.setTask(u, { kind: 'hold' }); }

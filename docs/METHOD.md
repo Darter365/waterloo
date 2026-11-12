@@ -35,7 +35,7 @@ Four questions, after Sargent: is the idea of the model sound, does the code do 
 world, is the data good.
 
 **Exists.** Determinism, 120 reference battles replayed by state hash, the invariants fuzzer, the lint, the contract's fog
-tests, the band, the multi-battle tuner, the strategy bench. `docs/RULES.md` ("Calibration and testing") also plans a
+tests, the band, the multi-battle tuner, the strategy bench, the dice's tests. `docs/RULES.md` ("Calibration and testing") also plans a
 bad-play suite, a skilled-play suite (should win 25 to 40%) and a sensitivity sweep. Look there and in `tools/` before adding
 a check.
 
@@ -59,10 +59,16 @@ a check.
 - Same seeds, enough battles, and the spread with an interval, not one battle or one median. Say which seeds, and whether
   they are the calibration seeds (1000 to 1499).
 - State what a run is expected to show before running it.
-- **Dice** (approved 12 Nov, not built). Today one sequence feeds every draw, labelled by purpose (`rnd('shock')`) only for
-  counting, so one changed order re-rolls all later luck. Two designs: a stream per purpose, or each draw keyed by seed,
-  purpose, unit and tick. The second is what the literature on agent models recommends, because within one purpose a changed
-  order still shifts who gets which draw. The task measures both before choosing. Until it lands, compare distributions.
+- **Dice** (built 12 Nov, engine 0.5). A draw is a hash of the seed, its purpose, whose draw it is, the tick, and how many
+  times that draw was asked for in the tick: `rnd('shock', attacker.id, defender.id)`. Change one order and a draw that both
+  battles ask for keeps its value, so two plans can be compared battle by battle on the same seeds, not only as
+  distributions. The battles still part where the order reaches: compare paired differences, with their spread.
+  Measured before choosing (30 battles, seeds 1000 to 1029, one order's objective changed at 16:30, draws that occur in both
+  battles from then on): one sequence re-rolled a median 72% of them, a stream per purpose 70%, keyed draws none; of the
+  unchanged battle's later log events, 40%, 53% and about 80% still happened word for word. `node tools/dice_compare.js`
+  repeats it; `node tools/test_dice.js` (in `check.sh`) holds the engine to it.
+- **A new draw says whose it is,** with ids that mean the same in two battles (a unit, a leader, a side, a place, an order's
+  recipient), never a running number. Two draws with the same purpose, owner and tick take turns, and are tied to each other.
 
 ## 5. Measures of the core loop (approved 12 Nov; built 12 Nov as `tools/loop.js`)
 

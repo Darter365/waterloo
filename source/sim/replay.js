@@ -10,7 +10,7 @@ const START = 660;
 
 // a battle set up exactly as the game sets one up
 function setup(o) {
-  const E = En().create({ battle: o.battle, seed: o.seed, history: o.history, scenario: o.scenario }); // (phase 5) o.battle: the game page's battle (else the default)
+  const E = En().create({ battle: o.battle, seed: o.seed, history: o.history, scenario: o.scenario, dice: o.dice, diceTrace: o.diceTrace }); // (phase 5) o.battle: the game page's battle (else the default); o.dice and o.diceTrace are for the dice tools (engine.js, makeRng)
   AI().make({ plan: 'script' }).init(E);
   Cmd().install(E, { staff: o.staff, silence: o.silence }); Ord().install(E);
   // (phase 5, stage 2) what the computer does whatever the player does: orders that are part of the battle (always: Ligny's recall of

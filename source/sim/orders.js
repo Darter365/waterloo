@@ -99,13 +99,13 @@ function install(E) {
   const followers = o => C.orders.filter(x => x.carrier === o.id);
   function write(o) {
     const s = o.spec, staff = C.opts.staff, range = s.from === CHIEF ? CK.WRITE[staff] : s.from === FC ? CK.WRITE.field : CK.WRITE.corps;
-    const w = rnd.range(range[0], range[1], 'order writing') * (s.urgent ? 0.5 : 1) * (C.hq.wounded && s.from === CHIEF ? 1.5 : 1) * (o.seq ? 1 + SEQ_WRITE * (o.seq.n - 1) : 1);
+    const w = rnd.range(range[0], range[1], 'order writing', o.to, o.seq ? o.seq.index : 0) * (s.urgent ? 0.5 : 1) * (C.hq.wounded && s.from === CHIEF ? 1.5 : 1) * (o.seq ? 1 + SEQ_WRITE * (o.seq.n - 1) : 1);
     o.writtenAt = E.t + w; o.sentAt = o.writtenAt; o.status = 'writing';
     for (const f of followers(o)) { f.writtenAt = o.writtenAt; f.sentAt = o.sentAt; f.status = 'writing'; }
     const toName = RECIPIENTS[o.to] ? RECIPIENTS[o.to].name : o.to;
     const r = { kind: 'order', from: s.from, to: kindOf(o.to) === 'battery' || OFF(o.to) ? null : o.to, side: SIDE, label: `the order to ${toName.replace(/ \(.*\)/, '')} of ${fmtT(o.writtenAt)}`, text: o.seq ? describeLetter(o) : describe(o), payload: o, group: 'g' + o.id };
     if (kindOf(o.to) === 'battery') { const g = batteryUnits(); r.toPos = g.length ? [g.reduce((a, u) => a + u.x, 0) / g.length, g.reduce((a, u) => a + u.y, 0) / g.length] : null; }
-    const off = OFF(o.to); if (off) { r.toPos = offPos(off); r.offmapRide = Math.max(30, rnd.tri(...off.ride, 'ride to Grouchy') - 60); } // (the dice keep Waterloo's name)
+    const off = OFF(o.to); if (off) { r.toPos = offPos(off); r.offmapRide = Math.max(30, rnd.tri(...off.ride, 'ride to Grouchy', o.to) - 60); } // (the dice keep Waterloo's name)
     r.onDeliver = rr => { received(rr.payload); for (const f of followers(rr.payload)) received(f); };
     r.onLost = rr => { for (const oo of [rr.payload].concat(followers(rr.payload))) { oo.status = 'lost'; oo.log.push(`${fmtT(E.t)} every rider lost`); } };
     r.onLaunch = rr => { for (const oo of [rr.payload].concat(followers(rr.payload))) if (oo.status === 'writing') oo.status = 'riding'; }; // (7) on the road: 'writing' meant both before
@@ -167,11 +167,11 @@ function install(E) {
     if (OFF(o.to)) return offmapReceives(o);
     const L = recipientLeader(o), skill = L ? L.skill : 0.7;
     const direct = kindOf(o.to) === 'marshal' || kindOf(o.to) === 'battery' || (FC && o.spec.from === FC) || o.spec.direct;
-    o.actAt = E.t + rnd.range(...(direct ? CK.INTERP_DIRECT : CK.INTERP), 'interpretation');
+    o.actAt = E.t + rnd.range(...(direct ? CK.INTERP_DIRECT : CK.INTERP), 'interpretation', o.to);
     // misreading (rules doc): chance = (1 - clarity) x (1 - skill) x 0.5; picks the wrong formation or objective
     o.understood = {};
     const p = (1 - o.clarity) * (1 - skill) * 0.5;
-    if (rnd('misread order') < p) {
+    if (rnd('misread order', o.to) < p) {
       const m = o.spec.manner || {}, form = m.formation || PREF_FORM[o.to] || null;
       if (form && ['attack', 'mass', 'line'].includes(form) && o.spec.action === 'attack') { o.understood.form = form === 'attack' ? 'mass' : form === 'mass' ? 'attack' : 'attack'; o.misread = `${L ? L.name : 'The recipient'} understands ${o.understood.form === 'mass' ? 'massed division columns' : 'columns of attack'}`; }
       else if (o.spec.objective && o.spec.objective.place) { const alt = neighbourObjective(o.spec.objective.place); if (alt) { o.understood.obj = alt; o.misread = `${L ? L.name : 'The recipient'} takes the objective to be ${E.objectives[alt].name}`; } }
@@ -259,7 +259,7 @@ function install(E) {
     const ob = E.objectives[o.understood.obj || o.spec.objective.place] || E.objectives['pt' + o.id]; if (!ob) return false;
     const c = centre(ob), foes = [...B.c.values()].filter(x => E.t - x.t < 40 && x.side !== SIDE && hyp(x.x - c[0], x.y - c[1]) < 700).reduce((a, x) => a + x.str, 0);
     const mine = pick(o, 'attack').lead.reduce((a, u) => a + u.str, 0);
-    if (foes > 1.5 * mine && rnd('commander hesitates') < (1 - L.obe) * 0.6) {
+    if (foes > 1.5 * mine && rnd('commander hesitates', o.to) < (1 - L.obe) * 0.6) {
       o.deviated = true; o.actAt = E.t + 30; o.log.push(`${fmtT(E.t)} ${L.name} doubts the attack and asks for confirmation`);
       C.flag(o.to, { kind: 'doubt', urgent: true, text: `The enemy is in great strength at ${C.objName(o.spec)}, about ${Math.round(foes / 500) * 500} men. I will wait half an hour for Your Majesty's confirmation before I attack.` });
       return true;
@@ -417,7 +417,7 @@ function install(E) {
       if (!e.onMap || e.gone || e.str <= 0 || E.coalition[e.side] === E.coalition[SIDE]) continue;
       const d = hyp(e.x - p[0], e.y - p[1]); if (d > 5000) continue;
       const l = E.los(p[0], p[1], 2.5, e.x, e.y, e.type === 'cav' ? 2.6 : e.lying ? 0.5 : 1.8); if (!l.clear) continue;
-      if (rnd('aide sighting') < E.detectP(d / CK.TELESCOPE, l.trans, e.type === 'art' ? e.str * 15 : e.str)) seen.push(e);
+      if (rnd('aide sighting', o.to, e.id) < E.detectP(d / CK.TELESCOPE, l.trans, e.type === 'art' ? e.str * 15 : e.str)) seen.push(e);
     }
     const places = {}; for (const sp of E.sps) if (hyp(sp.x - p[0], sp.y - p[1]) < 1500) places[sp.id] = sp.holder;
     const lookedAt = E.t;
@@ -457,10 +457,10 @@ function install(E) {
     let reply;
     if (o.spec.action === 'marchToGuns') {
       if (Gs && Gs.comes) reply = S.already;
-      else if (rnd('Grouchy obeys') < o.clarity * G.obe + 0.05) { // (the dice keep Waterloo's names)
+      else if (rnd('Grouchy obeys', o.to) < o.clarity * G.obe + 0.05) { // (the dice keep Waterloo's names)
         if (Gs) Gs.comes = true;
-        const blocked = rnd('Dyle crossings') < (off.blocked ?? 0);
-        const arr = blocked ? null : E.t + rnd.tri(...off.march, 'Grouchy march');
+        const blocked = rnd('Dyle crossings', o.to) < (off.blocked ?? 0);
+        const arr = blocked ? null : E.t + rnd.tri(...off.march, 'Grouchy march', o.to);
         if (arr) for (const u of E.offmap.filter(x => x.group === off.force)) u.arriveAt = arr + (u.baseArrive || 0);
         E.logEvent('hidden', arr ? S.logComing.replace('{t}', fmtT(arr)) : S.logBarred, { side: SIDE, hidden: true, important: true });
         reply = arr ? S.coming : S.barred;
@@ -470,7 +470,7 @@ function install(E) {
     const back = { kind: 'report', from: null, fromPos: offPos(off), to: CHIEF, side: SIDE, label: `${nm}'s reply of ${fmtT(E.t)}`, group: 'gr' + o.id };
     const written = E.t;
     back.onDeliver = () => C.inboxPush({ kind: 'report', from: id, title: `${nm}, ${fmtT(written)}`, text: reply, decision: true, writtenAt: written });
-    C.pendingLaunch.push({ at: E.t + Math.max(30, rnd.tri(...off.ride, 'ride from Grouchy') - 60), r: back });
+    C.pendingLaunch.push({ at: E.t + Math.max(30, rnd.tri(...off.ride, 'ride from Grouchy', o.to) - 60), r: back });
   }
 
   /* ---------- Ney in command of a sector ---------- */
@@ -494,13 +494,13 @@ function install(E) {
     const from = x.from, us = (x.units || []).map(id => E.byId[id]).filter(Boolean);
     const target = us.length ? [us.reduce((a, u) => a + u.x, 0) / us.length, us.reduce((a, u) => a + u.y, 0) / us.length] : (C.posOf(x.to) || null);
     const range = FC && from === FC ? CK.WRITE.field : from === CHIEF ? CK.WRITE[C.opts.staff] : CK.WRITE.corps;
-    const w = x.writeMin ?? rnd.range(range[0], range[1], 'order writing') * (x.direct ? 0.5 : 1);
+    const w = x.writeMin ?? rnd.range(range[0], range[1], 'order writing', x.to) * (x.direct ? 0.5 : 1);
     x.sentAt = E.t; x.status = 'carried'; E.orders.push(x);
     // (phase 5, stage 2) an order from a commander off this map (Ligny: Ney's recall of d'Erlon) crosses no ground here: no rider on the map,
     // it arrives after its writing and riding minutes and is read as any order is
-    if (x.offField) { const at = E.t + w + (x.rideMin || 0) + rnd.range(...(x.direct ? CK.INTERP_DIRECT : CK.INTERP), 'interpretation') * (x.direct ? 0.5 : 1); x.status = 'interpreting'; C.legacy.push({ at, x }); return x; }
+    if (x.offField) { const at = E.t + w + (x.rideMin || 0) + rnd.range(...(x.direct ? CK.INTERP_DIRECT : CK.INTERP), 'interpretation', x.to) * (x.direct ? 0.5 : 1); x.status = 'interpreting'; C.legacy.push({ at, x }); return x; }
     const r = { kind: 'order', from, to: null, toPos: target, side: E.leaders[from] ? E.leaders[from].side : SIDE, label: `${E.leaders[from] ? E.leaders[from].name : from}'s order`, text: x.text || '', payload: x, group: 'g' + (x.id || C.nextId++) + 'x' + C.nextId++ };
-    r.onDeliver = () => { x.status = 'interpreting'; const at = E.t + rnd.range(...(x.direct ? CK.INTERP_DIRECT : CK.INTERP), 'interpretation') * (x.direct ? 0.5 : 1); C.legacy.push({ at, x }); };
+    r.onDeliver = () => { x.status = 'interpreting'; const at = E.t + rnd.range(...(x.direct ? CK.INTERP_DIRECT : CK.INTERP), 'interpretation', x.to) * (x.direct ? 0.5 : 1); C.legacy.push({ at, x }); };
     r.onLost = () => { x.status = 'lost'; };
     C.pendingLaunch.push({ at: E.t + w, r });
     return x;
