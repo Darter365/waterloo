@@ -10,10 +10,10 @@ The game served at the repository root (GitHub Pages) is built from here, with t
 | `sim/_game_3d.js`, `sim/vendor/` | The field in relief: a 3D view of the umpire's picture, the first client drawn from the contract alone (`view.world()` and `view.snapshot('truth')`). Flat colour and few polygons; every colour and size is a constant at the top of the file. `vendor/three.min.js` is three.js 0.149.0 (MIT, licence beside it), carried in the page as text and started only when the view first opens. `tests/view3dtest.py` tests it at phone size |
 | `sim/stakes.js` | The campaign's verdict beside the field's grade, from each battle pack's `stakes` block; the engine's grades and the calibration targets are untouched |
 | `sim/packs/` | Everything a battle is, as data: eras (`eras/`), nations, leaders, battles (`battles/`), orders of battle (`oob/`, made from CSV), terrain (`maps/`, made from survey files); `validate.js` checks them |
-| `sim/tools/` | `fight.js` (any battle, generic commanders), `tune.js` (era constants against every battle's targets), `band.js` (Waterloo's band), `bench.js` (single-situation tests), `oob.js` (CSV armies, and `chain <battle>`: the chain of command), `map.js` (the map pipeline), `replay.js` (replay files), `lint.js` (no battle or era names in the engine), `build_lab.py` |
+| `sim/tools/` | `fight.js` (any battle, generic commanders), `tune.js` (era constants against every battle's targets), `band.js` (Waterloo's band), `bench.js` (single-situation tests), `oob.js` (CSV armies, and `chain <battle>`: the chain of command), `map.js` (the map pipeline), `replay.js` (replay files), `lint.js` (no battle or era names in the engine), `ticktime.js` (milliseconds per tick and battles a minute, beside `results/ticktime_baseline.json`), `build_lab.py` |
 | `sim/lab/` | The battle lab page (built into `sim/lab.html` and the site's `lab.html`) |
 | `sim/ref/` | Reference battles: release 3's (`ref_*`) and phase 2's (`p2_*`), a state hash every 30 game minutes |
-| `sim/results/` | Calibration batches |
+| `sim/results/` | Calibration batches, the simulation-speed baseline (`ticktime_baseline.json`), and in `engines/` one recording per JavaScript engine |
 | `map/` | The map template and the scripts that built Waterloo's terrain |
 | `offline/` | The offline home-screen build, with its fonts |
 
@@ -45,6 +45,11 @@ The validator checks the table and holds `corpsCmd` to it. Nothing in the simula
 - `node sim/tools/band.js 500` checks Waterloo against its band; `node sim/tools/tune.js --n 60` checks every battle with targets.
 - `node sim/tools/test_view.js [battle] [seed]` tests the contract: plain data, a watched battle ends on the same state hashes as an unwatched one, and nothing the commander did not know reaches his snapshot or his events.
 - `node sim/tools/strategies.js --n 6` is the strategy bench: every battle with a `stakes` block fought with no orders, the historical orders and the pack's `strategies`, held to expectations (idle play is never rewarded, plans differ, losses are sane). Known gaps are listed, not failed.
+- `node sim/tools/agentplay.js new|next|umpire|verify <folder>` lets an agent play a battle through one view, a stop at a time
+  (`docs/playtests/README.md`): Napoleon's view is written from the contract's `snapshot('chief')` and drained events alone, orders go
+  in as the order builder's specs, and the finished battle is saved as a replay file. `node sim/tools/test_agentplay.js` fails if any
+  truth reaches a turn of Napoleon's view, or if the saved replay does not end on the state that was played.
+- `node sim/tools/engines.js record <out.json>` hashes every tick of three Waterloo battles and each Math function the simulation calls, in whichever engine runs it (Node, Bun, a page's console); `compare` sets the recordings side by side. `sim/results/engines/` holds 12 November 2026's: the same seed is the same battle within an engine, not across engines (`docs/METHOD.md`, section 7).
 - `node sim/tools/loop.js <battle> [--n 30]` measures the core loop from the contract alone: belief error, report staleness, order latency against the staff's estimate, orders overtaken and decision gaps, under no orders, the historical orders and the pack's `strategies`. It prints medians with the 10th to 90th centile and saves `results/loop_<battle>.json`. `--check` shows that a measured battle ends on the same state hashes as one not measured. Definitions, thresholds (all est.) and limits: `docs/METHOD.md`, section 5.
 - `sh sim/regress.sh` runs the browser suite (needs Playwright and a Chromium: `sim/tools/pw.py` runs each test with Playwright's own, or failing that with the Chrome a Claude Code cloud session ships). One test alone: `python3 tools/pw.py tests/<name>.py` from `sim/`. `tests/release4test.py` is the phone-size test of the start, the order strip, the verdict and the causes.
 

@@ -22,8 +22,10 @@ Never record a guess as a decision.
 - **Measures of the core loop come before a performance baseline (12 Nov).** Belief error, report staleness, order latency,
   orders overtaken and decision gaps, computed from the contract alone (`docs/METHOD.md`, section 5). Built 12 Nov as
   `tools/loop.js`; its definitions and thresholds are Claude's (below).
-- **Agent playtests through every view (12 Nov):** Napoleon's, the umpire's and Wellington's. Wellington's waits until the
-  allied side is playable. Not built.
+- **Agent playtests through every view (12 Nov):** Napoleon's, the umpire's and Wellington's. The harness is built
+  (`tools/agentplay.js`, Napoleon's view and the umpire's; `docs/playtests/`). Wellington's waits until the allied side is
+  playable: what that needs is listed in `docs/playtests/wellington-headless.md`. **The first playtest has not been run:** the
+  player agent was stopped by the model's safeguards before its first move (12 Nov), and it is Chris's call how to try again.
 - **Long-term aim.** A 3D game set at the generals' historical headquarters, with sound, riders arriving and a spotting glass,
   later on an engine suited to large asset counts. The map interface and core mechanics come first.
 
@@ -37,8 +39,9 @@ Never record a guess as a decision.
 - **Instructions for the planning project (12 Nov).** Chris adopted the proposed text for the project's instructions field; he
   may change it. A revision for merging and tools is in the project (`claude/INSTRUCTIONS_PROPOSAL.md`).
 - **The rules doc and the full roadmap are in the repository and the project (12 Nov).** `docs/RULES.md` is the "Simulation
-  rules" tab of "Waterloo Game: Simulation Rules" as exported on 12 Nov (revision 37, dated 23 Oct). Its "Order of battle" tab
-  is not copied yet.
+  rules" tab of "Waterloo Game: Simulation Rules" as exported on 12 Nov (revision 37, dated 23 Oct). Its "Order of battle" tab,
+  the research brief (both tabs) and "Adding a battle: lessons from Ligny" were copied on 12 Nov by the source pass
+  (`docs/SOURCES.md`, "Snapshots"). "Engine split: Waterloo to Gettysburg" is not copied: it waits for Chris's own export.
 - **Confidence keeps the packs' words (12 Nov):** `doc`, `approx`, `low`, `none`. No new scale.
 - **Seeds and a battle held back from tuning: set aside (12 Nov).** Proposed by Claude; Chris said to ignore it for now.
 - **Desktop first (12 Nov).** Develop and judge on a desktop browser from now on, to make things easier. The page must still
@@ -84,6 +87,10 @@ These were made to keep moving and are easy to change. Raise them when the subje
   and the staff's estimate, and whether a dispatch is starred; on the umpire's side every order's real times and status, and
   beside each unit its key in the commander's picture and whether it is a crewed arm. The estimate is a second copy of the
   order form's until the page moves onto the contract, and unlike the form it does not use the writing time already rolled.
+- **The reviewer subagent and three skills (12 Nov).** Chris asked for them; the wording is Claude's. The reviewer has `Read`,
+  `Grep` and `Glob` only, so the session writes the diff to a file for it; it adds two standards of its own (a change is the
+  highest class of anything in it; "blocking" means a rule broken, a gate weakened or a class set too low). `add-battle` puts a
+  pack with `targets` or `stakes` in class 4; `results-change` asks Chris to confirm an acceptance test that is still Claude's.
 - **The chain of command as one table (12 Nov).** Chris asked for Claude's recommendation to be built (corps and divisions as objects with a commander); the
   shape is Claude's. Every army, wing, corps and division is an entry in `battle.chain` (`P.chain`, `source/README.md`), and a battle's
   `chain` block states only what the rule "a leader commands the corps or division that carries his id" cannot know. Results are
@@ -102,7 +109,33 @@ These were made to keep moving and are easy to change. Raise them when the subje
 - **`docs/METHOD.md` as a whole, and the four kinds of number in rule 4** (sourced, derived, calibrated, estimated) (12 Nov).
 - **`docs/RULES.md` is a snapshot and the Claude doc stays the master** (12 Nov). The other way round is possible.
 - **What `doc`, `approx`, `low` and `none` mean** (`docs/METHOD.md`, section 2), read off today's packs.
+- **How simulation speed is measured** (`tools/ticktime.js`, 12 Nov). Seeds 1 to 6 of Waterloo and Ligny under the historical
+  orders (1 and 2 in `check.sh`), because those are reference seeds and each Waterloo battle is held to `ref/p2_hist.json` as it
+  is timed; every tick counts, the cold first ones included; the baseline in `results/ticktime_baseline.json` is the middle of
+  three fresh processes; the warning is at 1.5 times the baseline (est.) and never fails the check.
+- **How the desktop was measured (12 Nov):** frame times at clock speed 120 with one order given, 60 s a view; engines compared on
+  seeds 1 to 3 with the historical orders, against Node; `tools/engines.js` as the standing way to repeat it.
 - Slopes are steepened tenfold for the shading painted on the ground; the view from above draws heights three times life size.
+- **The source pass's conventions** (12 Nov, `docs/SOURCES.md`): one row per number; today's sourcing graded in the packs'
+  words; an outcome of improved, part or none; no page numbers until someone has checked them against the scan (the
+  pages were read through the fetch tool's summary, not by eye); estimates left out unless a source turned up.
+- **Snapshots made by converting the connector's read of a tab, not from its Markdown export** (12 Nov). The export
+  arrives as inline base64 that cannot be written exactly. The conversion reproduces `docs/RULES.md` byte for byte, and
+  matches the size of the brief's own export. Chris asked for his own export where exactness could not be had; that is
+  what "Engine split" waits for.
+- **The agent harness's stops (12 Nov):** fifteen minutes after the first dispatch since the last stop, or sixty minutes with
+  none, or the minute the player names, or the end. The game page's own stops need the ★ and !! marks, which the contract
+  does not carry, so the harness cannot copy them. Both figures are estimates.
+- **What a turn of Napoleon's view holds (12 Nov):** the contract's snapshot and events rendered as text (dispatches, things
+  seen and heard, his orders, his army by corps, the enemy list with ages, a sketch map), with the JSON beside it. Positions
+  are given against the nearest named place. Brigades are listed only where a report has come since the last stop.
+- **What "cannot leak" is taken to mean (12 Nov):** the turns are byte for byte the same when every unit, place and army
+  morale is falsified whenever the harness is looking (`tools/test_agentplay.js`). It does not stop an agent with a shell from
+  reading the code or the packs: the player's brief forbids that, and nothing enforces it.
+- **The umpire's record reads two things outside the contract (12 Nov),** read only and after the battle: which true unit each
+  of the commander's contacts is, and each order's real history. Section 5's measures will need both from the contract.
+- **A playtest's folder** (12 Nov): `question.md` written first, `replay.json`, `session.json`, the player's journal and report
+  and the reader's notes unedited, and a summary (`docs/playtests/README.md`).
 
 ## Open questions (not decided)
 
@@ -124,15 +157,34 @@ These were made to keep moving and are easy to change. Raise them when the subje
   and in rallying. Separating them changes results.
 - **The idle-army gap.** The allies never attack a French army that sits still, so the field ends a draw. Fixing it changes
   how battles fight.
-- **Determinism across browsers.** Verified in Node and Chromium only. The simulation uses `Math.sin`, `cos`, `pow`, `exp` and
-  `log`, which other engines may round differently, so a battle may not replay identically in Safari or Firefox. Not tested.
-- **Sources behind the rules doc.** Some sourced values rest on Wikipedia, web articles and a "research brief" that is not in
-  the repository. A source pass is proposed (`docs/METHOD.md`, section 2).
+- **Determinism across browsers: measured 12 Nov, and it does not hold.** The same seed and orders give the same battle within
+  one engine, not across engines. Against Node, on seeds 1 to 3 with the historical orders: Chromium (Chris's desktop and the
+  cloud) parts from Node in the last bit from about 14:00 and ends the same; SpiderMonkey and JavaScriptCore end seed 1 four
+  minutes early with 3,656 more allied left. Grade and reason matched in all twelve. `docs/METHOD.md`, section 7, has the table.
+  Open: does a seed need to mean the same battle on every device? If so the simulation needs its own Math functions, which
+  changes results (class 3). Rule 6 in `CLAUDE.md` still says "verified in Node and Chromium"; its wording is Chris's to change.
+- **Sources behind the rules doc.** The source pass of 12 Nov (`docs/SOURCES.md`) checked 107 numbers against primary
+  documents and standard histories: 65 now have an openable source, 29 have one in part, 13 have none. It changed no value.
+  Its 26 proposals are open: values that look wrong (the wind, the time an order takes to reach Grouchy, the Wavre fire,
+  Zieten's and Bülow's strengths, some order-of-battle totals), targets that should be ranges, and works to obtain. No
+  Dutch-Belgian source was opened, and no figure was checked by eye against a page image.
 - **Generic commanders on every side win Waterloo for the French** (a marginal French victory in 29 battles of 30, roadmap,
   27 Oct; not re-run since). Fair counterfactual, or an attacker that is too strong?
   A battle outside June 1815 is needed to tell.
 - **Brigades in the ground view are flat slabs.** Ranks of simple figures is the suggested next step; shadows are another.
 - **Vegetation exists only where the map data has it.** Ligny has none recorded.
-- **Never measured:** frame rate of the 3D view on a real GPU or phone (tests use software rendering). The roadmap's budget of
-  under 20 ms a tick has no check in `check.sh`.
+- **Frame rate: measured on the desktop 12 Nov; the phone and the tick budget are not.** On Chris's RTX 4070 Ti at 144 Hz the 3D
+  view from above never missed its slot in 60 s (the pane capped it at 72 a second), and on the ground it held 144 a second with
+  one 132 ms hitch (`docs/METHOD.md`, section 7). Still unmeasured: a phone; a full-size window; frame cost under the cap; the
+  time a tick takes on a phone or in a browser. Simulation speed is measured on every change, in Node on the machine that runs
+  `check.sh` (`tools/ticktime.js`, 12 Nov: Waterloo about 5 ms a tick, 95th centile 12 ms, on a two-core cloud Xeon), which
+  shows a slowdown but says nothing about the roadmap's budget of under 20 ms on the phone.
+- **Four things the contract does not tell a client** (found building the agent harness, 12 Nov; changing `view.js` is a class 2
+  task of its own): an order reads "sent" from the minute it is given, while it is still being written (11:02 for an order
+  written until 11:11, seed 1815), so a client cannot say when an order can still be torn up; dispatches carry no ★ or !!
+  mark, so a client cannot stop the clock as the game page does; a snapshot holds only the last twenty dispatches; and the
+  truth has no orders in it, so "written, received, acted on" must be read from the command layer.
+- **How to run the first agent playtest.** The player's brief asked for a journal written before every move, and the model's
+  safeguards stopped the agent on it. Options: a brief that asks only for an after-action report; a different model for the
+  player; or Chris plays the first one through the harness himself.
 - **Which comes next:** moving the 2D map onto the contract, or the idle-army rule. Chris has not chosen.

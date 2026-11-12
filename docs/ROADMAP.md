@@ -35,6 +35,10 @@ It serves a command game that is engaging, immersive and true to its period, goo
   staff's estimate, orders overtaken and decision gaps from the contract alone, per plan, and saves them in `results/`
   (`METHOD.md`, section 5). The contract gained plain values for it; no change to results.
 
+- **The agent harness (12 Nov):** `tools/agentplay.js` plays a battle headless through Napoleon's view or the umpire's, a stop
+  at a time, and saves it as a replay; `tools/test_agentplay.js` fails if truth reaches Napoleon's turns. The first agent
+  playtest has not been run yet (`docs/playtests/`). Wellington's view waits on the allied side being playable.
+
 ## What is next (order not yet chosen by Chris)
 
 1. Move the 2D map onto the contract (no change to results). Prerequisite for a headquarters view from Napoleon's beliefs.

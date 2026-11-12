@@ -29,7 +29,9 @@ not in your context, read that file before anything else.**
 | All 120 reference battles | `for m in hist chaos dawn dry; do node refset.js check ref/p2_$m.json; done` | 4 min |
 | Waterloo against its 1815 band | `node tools/band.js 500` | long |
 | The contract's tests | `node tools/test_view.js waterloo 1003` | 20 s |
+| The agent harness's tests | `node tools/test_agentplay.js` | 15 s |
 | Strategy bench | `node tools/strategies.js --n 6` | 1 min |
+| Simulation speed beside its baseline | `node tools/ticktime.js` (`--verify`, `--record`) | 20 s |
 | Measures of the core loop | `node tools/loop.js waterloo --n 30` | 4 min |
 | Browser suite (builds first) | `sh regress.sh` | 10 min |
 | UI audit: contrast, overflow, console | `python3 tools/pw.py tests/uiaudit.py` | 3 min |
