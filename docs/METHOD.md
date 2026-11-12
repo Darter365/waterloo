@@ -90,8 +90,13 @@ roadmap's "rules the loop must keep".
 ## 7. Performance and execution
 
 - **The budget exists.** The roadmap gives about 13 ms per 2-minute tick (27 Oct) and a budget of under 20 ms on the phone.
-  No tool was found that checks it on each change. Add one to `check.sh`: median and 95th centile over fixed seeds, on a
-  named machine, with the result kept in `results/`.
+  `tools/ticktime.js` (12 Nov) measures the simulation on each change: median and 95th centile per tick and battles a minute,
+  Waterloo and Ligny over fixed seeds, with the Node version and the machine, beside `results/ticktime_baseline.json`.
+  `check.sh` runs the short version and warns, never fails, past 1.5 times the baseline (est.). After a change meant to alter
+  speed, or on a new machine or Node, `node tools/ticktime.js --record` and commit the baseline with the reason.
+- **It does not check the budget.** The figure is Node on whatever machine ran it: it compares one commit with another there.
+  A phone's tick has not been measured, and the machine behind the roadmap's 13 ms is not recorded. Measure the page itself on
+  a phone or on Chris's desktop browser (section 8) before saying the budget is kept.
 - Simulation speed sets how much validation is affordable: `band.js 500` is listed as "long".
 - **Frame rate on a real GPU has never been measured** (the tests use software rendering). The built-in browser on Chris's
   desktop can measure it (section 8).
