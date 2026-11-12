@@ -1,0 +1,111 @@
+# The merge gates of CLAUDE.md (Merging), run by GitHub on every pull request and on every push to main, so that a gate no
+# longer rests on the word of the session that wrote the change. Three jobs: quick, references, browser. Their names are the
+# status checks a branch rule on main can require.
+#
+# The gates themselves are the repository's own scripts, run as CLAUDE.md gives them. Several of them print their result for a
+# reader and exit 0 whatever happened, so each is followed by source/sim/tools/ci_verdict.js, which reads the printed output and
+# fails the job when the gate did not pass. No secrets and nothing installed into the repository.
+name: gates
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gates-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # The Node the 120 reference battles replay on (docs/METHOD.md, section 7). The simulation uses Math functions whose last
+  # digit the language leaves to the engine, so this is exact, not "22". Change it here, in nightly.yml and in METHOD.md together.
+  NODE_VERSION: '22.23.4'
+
+defaults:
+  run:
+    working-directory: source/sim
+
+jobs:
+  quick:
+    name: quick
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: The verdict tool checks itself
+        run: node tools/ci_verdict.js selftest
+      # bash -o pipefail runs check.sh unchanged, but a check piped through tail or sed can no longer fail unseen (under plain
+      # sh the pipe's exit code is tail's)
+      - name: sh check.sh
+        run: bash -o pipefail check.sh 2>&1 | tee check.log
+      - name: The sample of reference battles replayed exactly
+        run: node tools/ci_verdict.js refs check.log 11
+
+  references:
+    name: references
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: All 120 reference battles
+        run: for m in hist chaos dawn dry; do node refset.js check ref/p2_$m.json; done 2>&1 | tee refs.log
+      - name: All 120 replayed exactly
+        run: node tools/ci_verdict.js refs refs.log 120
+
+  browser:
+    name: browser
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      # what source/claude-setup.sh installs for the builds and the browser tests, at the versions the gates last passed on
+      - name: Python packages and Playwright's Chromium
+        run: |
+          pip install --quiet playwright==1.63.0 brotli==1.2.1 pillow==12.3.0 fonttools==4.67.0
+          python3 -m playwright install --with-deps chromium
+      - name: Build the game page
+        run: python3 build_game.py
+      - name: sh regress.sh
+        run: sh regress.sh 2>&1 | tee regress.log
+      - name: The browser suite passed
+        run: node tools/ci_verdict.js regress regress.log
+      - name: UI audit
+        if: ${{ !cancelled() }}
+        run: python3 tools/pw.py tests/uiaudit.py 2>&1 | tee uiaudit.log
+      - name: The UI audit found nothing
+        if: ${{ !cancelled() }}
+        run: node tools/ci_verdict.js uiaudit uiaudit.log
+      - name: Offline build test
+        if: ${{ !cancelled() }}
+        run: |
+          python3 ../offline/build_offline.py 2>&1 | tee offline.log
+          python3 tools/pw.py ../offline/offtest.py 2>&1 | tee -a offline.log
+      - name: The offline build played with no external request
+        if: ${{ !cancelled() }}
+        run: node tools/ci_verdict.js offline offline.log
+      - name: Keep the output
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-gates
+          path: |
+            source/sim/regress.log
+            source/sim/uiaudit.log
+            source/sim/uiaudit.json
+            source/sim/offline.log
+          if-no-files-found: warn

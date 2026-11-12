@@ -1,0 +1,59 @@
+# The long checks no pull request waits for, once a night on main: Waterloo against its 1815 band over the 500 calibration
+# seeds (tools/band.js) and the invariants fuzz (fuzz.sh). The run fails if Waterloo leaves its band or the fuzz reports a
+# finding; the batch, the fuzz files and both logs are kept as an artifact either way. No secrets.
+#
+# GitHub pauses a scheduled workflow after 60 days without a commit to the repository, and says so by e-mail; "Run workflow"
+# on the Actions page starts it by hand at any time.
+name: nightly
+
+on:
+  schedule:
+    - cron: '17 7 * * *'   # 07:17 UTC, about two in the morning in Virginia; off the hour, when GitHub's queue is shortest
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22.23.4'   # the Node the references replay on: keep in step with gates.yml and docs/METHOD.md, section 7
+
+defaults:
+  run:
+    working-directory: source/sim
+
+jobs:
+  band-and-fuzz:
+    name: band and fuzz
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: node tools/band.js 500
+        run: node tools/band.js 500 nightly 2>&1 | tee band.log
+      - name: Waterloo is in its band
+        run: node tools/ci_verdict.js band band.log 500
+      - name: sh fuzz.sh
+        if: ${{ !cancelled() }}
+        run: sh fuzz.sh 2>&1 | tee fuzz.log
+      - name: The fuzz found nothing
+        if: ${{ !cancelled() }}
+        run: node tools/ci_verdict.js fuzz fuzz.log
+      - name: Keep the results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-${{ github.run_id }}
+          path: |
+            source/sim/band.log
+            source/sim/fuzz.log
+            source/sim/results/nightly.json
+            source/sim/f4_*.json
+          if-no-files-found: warn
+          retention-days: 30

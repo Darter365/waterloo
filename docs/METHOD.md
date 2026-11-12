@@ -102,8 +102,18 @@ roadmap's "rules the loop must keep".
   desktop can measure it (section 8).
 - **Determinism is verified in Node and Chromium only.** The simulation calls `Math.sin`, `cos`, `pow`, `exp`, `log`,
   `atan2` and `hypot`, whose results the language leaves to each engine. A battle may not replay identically in Safari or
-  Firefox, and a Node upgrade could move the references. Test before relying on seeds across devices; record the Node
-  version the references were made on. (Read from the code; not tested.)
+  Firefox, and a Node upgrade could move the references. Test before relying on seeds across devices. (Read from the
+  code; not tested.)
+- **The references replay on Node 22.23.4** (V8 12.4.254.21-node.57): all 120 identical on 12 Nov 2026, in a Claude Code
+  cloud session and on GitHub's Ubuntu 24.04 runners. The workflows pin that exact version (`NODE_VERSION` in
+  `.github/workflows/gates.yml` and `nightly.yml`). The version they were recorded on (27 Oct) was not written down; it is
+  only known that this one reproduces them. To move to another Node: change the pin in its own pull request and let the
+  references job say whether the 120 still replay. If they do not, that is a results question for Chris, not a re-record.
+- **GitHub runs the gates** (12 Nov). `gates.yml`, on every pull request and push to `main`: `quick` (`check.sh`),
+  `references` (all 120), `browser` (`regress.sh`, the UI audit, the offline test, on Playwright's Chromium). `nightly.yml`:
+  the band over 500 and the fuzz, kept as an artifact. Several gates print a result and exit 0 whatever happened, so each is
+  followed by `node tools/ci_verdict.js <gate> <log>`, which reads the output and fails the job; `ci_verdict.js selftest`
+  checks its rules. The same command gives a session a verdict it cannot misread.
 
 ## 8. Claude's tools and what each is for
 
@@ -117,9 +127,9 @@ Decided 12 Nov: use them fully. Check what the session actually has before assum
 | What was said before | Search past conversations in the project | Before asking Chris to repeat himself |
 | Build work | A Claude Code session on the repository, one task per branch | `CLAUDE.md`, Merging |
 | Parallel or independent work | Subagents | Two battles' data at once; the reviewer before a merge; the tuning-blind review |
-| Long builds and standing checks | Scheduled tasks | A build that ends in a pull request; a nightly band and fuzz; a weekly source pass; copying `docs/` into the project |
+| Long builds and standing checks | Scheduled tasks | A build that ends in a pull request; a weekly source pass; copying `docs/` into the project. The nightly band and fuzz run in GitHub Actions (`nightly.yml`) |
 | Repeated procedures | Skills | Add a battle, a results-changing change, a release. Repository skills do not load in a project thread, so the procedure itself lives in `docs/` |
-| Gates Claude cannot skip | GitHub Actions on every pull request, as required checks | Not set up. Needs Chris to change a repository setting |
+| Gates Claude cannot skip | GitHub Actions on every pull request, as required checks | Running since 12 Nov (section 7). Required only once Chris turns on the branch rule for `main` naming `quick`, `references` and `browser` |
 | What the cloud cannot measure | The built-in browser and computer use on Chris's desktop | Frame rate on his GPU; other browser engines; a native editor later |
 | Showing Chris a result | Artifacts | A dashboard for a batch of runs; the branch's built page to try before it merges |
 | Telling Chris | A push notification | After a merge, a revert or a failed gate |
