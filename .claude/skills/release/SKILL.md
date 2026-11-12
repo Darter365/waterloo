@@ -30,5 +30,5 @@ disagree, they are right: fix this file in the same pull request.
 7. **Merge or wait.** Merge only if the class is 1, 2 or 3 and every gate passed in this session. Otherwise wait. A gate
    that fails stops the merge; never edit a test, a band, a `KNOWN` list or the lint allow-list to pass one.
 8. **After a merge.** Label the pull request `self-merged`. Wait for the site to publish, load the live page and play one
-   order through. If that fails, revert the merge at once and tell Chris.
+   order through. If that fails, revert the merge at once and tell Chris; a revert needs no approval.
 9. **Tell Chris.** A push notification after a merge, a revert or a failed gate, and a short report.

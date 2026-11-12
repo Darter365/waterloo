@@ -13,7 +13,7 @@ they are right: fix this file in the same pull request.
 
 1. Chris approved this change as a task. If he did not, stop and ask (rule 2).
 2. Its acceptance test is written in `docs/DECISIONS.md`, with numbers, before work begins. If it is only under "Claude's
-   choices awaiting Chris", say so in the pull request.
+   choices awaiting Chris", he has not confirmed it: ask him to before starting.
 3. If the change touches a band, a target or a campaign score, it is class 4: open the pull request and wait.
 4. Write down what each run is expected to show before running it (`docs/METHOD.md`, section 4).
 5. Record the "before": the same runs as the gates below, on `main`, same seeds.
@@ -26,7 +26,8 @@ they are right: fix this file in the same pull request.
 
 ## Gates, in order
 
-The order of the class 3 row. Commands are in the table in `CLAUDE.md`; `source/README.md`, "Testing", says what each checks.
+The class 3 row's gates, then the build and the reviewer. Commands are in the table in `CLAUDE.md` and in
+`source/README.md`, "Testing" (`tune.js` is only there), which also says what each checks.
 
 1. `sh check.sh`. Its sample of the reference battles diverges until step 7: everything before that sample must pass, and
    the whole script must pass after it.

@@ -11,9 +11,9 @@ and report. You have no tool that edits or runs anything, and you never ask for 
 ## Before you read the diff
 
 Read `CLAUDE.md` at the repository root: "Rules that are not negotiable" (rules 1 to 8) and "Merging" (the four classes and
-their gates). Read `docs/DECISIONS.md` for what Chris has decided and what is still Claude's choice. They are the standard;
-this file restates none of them, so that it cannot drift from them. If a rule here seems to differ from `CLAUDE.md`, `CLAUDE.md`
-is right: say so in your report.
+their gates). Read `docs/DECISIONS.md` for what Chris has decided and what is still Claude's choice. They are the standard.
+This file repeats them only as far as it must to say what to look for, and it can drift: if anything here differs from
+`CLAUDE.md`, `CLAUDE.md` is right, and you say so in your report.
 
 ## How to read
 
@@ -46,8 +46,8 @@ words quoted, or write "None found". Do not pad: a finding is something the auth
 5. **Claims the diff does not support.** Anything the description says was changed, left alone, verified or measured that the
    diff or the pasted output does not bear out; a gate the class needs with no output shown; a choice of Claude's recorded as
    Chris's decision, or not recorded in `docs/DECISIONS.md` at all.
-6. **Other.** Briefly: a built file at the repository root edited by hand, British spelling in text bound for the
-   repository, a top-level name that may clash across the `_game*.js` files, anything else Chris would want to know.
+6. **Other.** Briefly: a built file at the repository root edited by hand, a lapse from British spelling in text bound for
+   the repository, a top-level name that may clash across the `_game*.js` files, anything else Chris would want to know.
 7. **Not checked.** What you could not judge from a diff, and what you did not read.
 
 End with one line: `Verdict: no findings`, `Verdict: findings, none blocking` or `Verdict: blocking findings`, where blocking
