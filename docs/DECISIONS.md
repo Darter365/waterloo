@@ -88,6 +88,9 @@ These were made to keep moving and are easy to change. Raise them when the subje
   (2) The quick job runs `bash -o pipefail check.sh`, not `sh check.sh`: under `sh` a check piped through `tail` cannot fail.
   (3) Node is pinned to 22.23.4, the version the 120 replay on today; the version they were recorded on is not known.
   (4) Python packages are pinned in the workflow to the versions the gates passed on. (5) The nightly runs at 07:17 UTC.
+  (6) GitHub's own actions (checkout, setup-node, setup-python, upload-artifact) are named by major version, `v7`, not by
+  commit; naming the commit is stricter and costs an edit at each update. Found on the way and left alone: `fzsum.js` reads
+  `fz_*.json` but `fuzz.sh` writes `f4_*.json`, so it sums nothing today.
 - **The chain of command as one table (12 Nov).** Chris asked for Claude's recommendation to be built (corps and divisions as objects with a commander); the
   shape is Claude's. Every army, wing, corps and division is an entry in `battle.chain` (`P.chain`, `source/README.md`), and a battle's
   `chain` block states only what the rule "a leader commands the corps or division that carries his id" cannot know. Results are
