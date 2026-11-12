@@ -18,7 +18,13 @@ Never record a guess as a decision.
 - **Either side playable, a page per battle, nights summarised, all four Gettysburg starts (Oct).** Not built yet: one side is
   playable per battle today.
 - **A dice stream per purpose (12 Nov).** Approved, on the research (common random numbers). It changes results, so it is a
-  class 3 task and the references are re-recorded once. Its acceptance test is under "Claude's choices" until Chris confirms it.
+  class 3 task and the references are re-recorded once.
+- **The acceptance test for the dice streams (confirmed by Chris, 12 Nov, in the task brief).** Waterloo in its band over seeds
+  1000 to 1499, with a before-and-after table; `tune.js` with no check that is in band today leaving it; the strategy bench
+  with no new failure; the fuzz with no finding; a new test that, with one order changed, draws the order does not touch stay
+  identical; same seed and same orders still give the same battle, and the reference hash still counts dice drawn or the pull
+  request says what replaced it; class 2's other gates; the 120 references re-recorded once, after everything else passes; a
+  fresh-context reviewer's findings in the pull request. If Waterloo leaves its band: no retuning, stop and report.
 - **Measures of the core loop come before a performance baseline (12 Nov).** Belief error, report staleness, order latency,
   orders overtaken and decision gaps, computed from the contract alone (`docs/METHOD.md`, section 5). Built 12 Nov as
   `tools/loop.js`; its definitions and thresholds are Claude's (below).
@@ -114,10 +120,8 @@ These were made to keep moving and are easy to change. Raise them when the subje
 - Sky and light colours, and reading short seeing as overcast only while the sun is up (the game has no cloud data).
 - **The merge classes and gates** in `CLAUDE.md` (12 Nov): which changes are class 1, 2, 3 or Chris only; the fresh-context
   reviewer; the live-site check after a merge; the standing permission to revert.
-- **The acceptance test for the dice streams** (12 Nov): Waterloo in its band over seeds 1000 to 1499; `tune.js` with no check
-  that is in band today leaving it; the strategy bench with no new failure; the fuzz clean; and a new test that, with one
-  order changed, draws the order does not touch stay identical. Also open: a stream per purpose only, or each draw keyed by
-  purpose, unit and tick (`docs/METHOD.md`, section 4).
+- **Which dice design** (12 Nov): a stream per purpose only, or each draw keyed by seed, purpose, unit and tick
+  (`docs/METHOD.md`, section 4). The dice task measures both before choosing; the choice will be recorded here.
 - **`docs/METHOD.md` as a whole, and the four kinds of number in rule 4** (sourced, derived, calibrated, estimated) (12 Nov).
 - **`docs/RULES.md` is a snapshot and the Claude doc stays the master** (12 Nov). The other way round is possible.
 - **What `doc`, `approx`, `low` and `none` mean** (`docs/METHOD.md`, section 2), read off today's packs.
