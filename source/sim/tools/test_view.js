@@ -25,6 +25,15 @@ const world = V.world();
 ok(JSON.stringify(JSON.parse(JSON.stringify(world))) === JSON.stringify(world), 'the world is plain data');
 ok(world.grid.heights.length === world.grid.nx * world.grid.ny, 'the height grid is whole');
 let lastC = 0, lastT = 0, nC = 0, nT = 0, leak = 0, keyLeak = 0, posOnUnseen = 0, extraOnUnseen = 0, order = 0, subTick = 0, staleShown = 0, enemySeen = 0, ownFromBelief = 0, ownChecked = 0, kinds = {}, heardOnly = 0, moved = 0, tampered = 0;
+// the values the loop's measures read (tools/loop.js): orders, the staff's estimate, starred dispatches, the keys beside the truth
+let ordKnows = 0, ordShape = 0, ordSeen = 0, expSeen = 0, starShape = 0, stars = 0, keyWrong = 0, keyOwn = 0, keysMatched = 0, truthOrd = 0, truthOrdBad = 0;
+function checkOrders(S) {
+  for (const o of S.orders) { ordSeen++;
+    if (SECRET.some(k => k in o)) ordKnows++;                              // when it truly arrived and was acted on is the umpire's to know
+    if (!(o.objective === null || (num(o.objective.x) && num(o.objective.y))) || !Number.isInteger(o.conditions)) ordShape++;
+    if (o.expect !== null) { expSeen++; if (!pair(o.expect.arrive) || !(o.expect.act === null || pair(o.expect.act)) || o.expect.arrive[0] < o.issuedAt) ordShape++; } }
+}
+const SECRET = ['receivedAt', 'actedAt', 'sentAt', 'status', 'misread'], num = v => typeof v === 'number' && isFinite(v), pair = a => Array.isArray(a) && a.length === 2 && num(a[0]) && num(a[1]) && a[0] <= a[1];
 const side = B.command.side, chiefId = B.command.X.chief, Bel = B.command.B[chiefId];
 while (!B.over) {
   B.step();
@@ -50,10 +59,21 @@ while (!B.over) {
     if (JSON.stringify(V.snapshot('chief')) !== js) moved++;
     unseen.forEach((u, i) => { [u.x, u.y, u.str, u.status] = keep[i]; }); tampered += unseen.length;
   }
+  checkOrders(S);
+  for (const d of S.dispatches) if (typeof d.starred !== 'boolean') starShape++;
+  if (T) {
+    const shown = new Map(S.enemy.map(e => [e.key, e]));
+    for (const u of T.units) { if (u.key == null) continue;
+      if (B.coalition[u.side] === B.coalition[side]) keyOwn++;
+      const e = shown.get(u.key), rec = Bel.c.get(u.id); if (!e) continue;                 // a key outlives a contact that has been dropped
+      keysMatched++; if (!rec || Math.abs(e.x - rec.x) > 0.06 || Math.abs(e.y - rec.y) > 0.06) keyWrong++; }
+    truthOrd = T.orders.length;
+    for (const o of T.orders) if (!num(o.issuedAt) || (o.receivedAt != null && o.receivedAt < o.issuedAt) || (o.actedAt != null && o.receivedAt != null && o.actedAt < o.receivedAt) || typeof o.status !== 'string') truthOrdBad++;
+  }
   for (const o of S.own) { const rec = Bel.own.get(o.id); ownChecked++; if (rec && Math.abs(o.x - rec.x) < 0.06 && Math.abs(o.y - rec.y) < 0.06) ownFromBelief++; }
   const ec = V.drain('chief', lastC), et = V.drain('truth', lastT);
   for (const e of ec) { if (e.seq <= lastC) order++; lastC = e.seq; nC++; kinds[e.kind] = (kinds[e.kind] || 0) + 1;
-    if (e.kind === 'dispatch') continue;
+    if (e.kind === 'dispatch') { if (typeof e.starred !== 'boolean') starShape++; else if (e.starred) stars++; continue; }
     if (!e.seen && (e.x != null || e.y != null)) posOnUnseen++;
     if (!e.seen && (e.side != null || e.size != null || e.place != null)) extraOnUnseen++;
     if (e.unit != null || e.text != null) extraOnUnseen++;
@@ -74,6 +94,23 @@ ok(order === 0, 'event sequence numbers only rise');
 ok(subTick === 0, `every event is timed inside its own tick (${subTick} outside)`);
 ok(nT > 1000 && nC > 100 && nC < nT, `the commander perceives part of what happens (${nC} of ${nT} events; ${heardOnly} only heard)`);
 ok(kinds.dispatch > 10 && kinds.cannon > 0, `the chief's stream carries dispatches and gunfire (${JSON.stringify(kinds)})`);
+
+// what the loop's measures read. A battle whose historical orders go straight to the engine (Ligny's) shows the commander no orders
+// of his own, so the order values are checked there on three hours of the pack's first plan given through the order builder
+let actedSeen = 0;
+if (!ordSeen) { const pack = require(path.join(SIM, 'packs', 'all.js')).battle(battle).battle, plan = Object.keys(pack.strategies || {}).find(k => k !== 'expect');
+  if (plan) { const E2 = R.setup({ battle, seed, history: 'uncertain' }), V2 = View.install(E2), until = E2.t + 180;
+    for (const spec of pack.strategies[plan].orders) E2.command.order(JSON.parse(JSON.stringify(spec)));
+    while (!E2.over && E2.t < until) { E2.step(); checkOrders(V2.snapshot('chief')); }
+    const T2 = V2.snapshot('truth'); actedSeen = T2.orders.filter(o => o.actedAt != null).length;
+    for (const o of T2.orders) if (!num(o.issuedAt) || (o.receivedAt != null && o.receivedAt < o.issuedAt) || (o.actedAt != null && o.receivedAt != null && o.actedAt < o.receivedAt)) truthOrdBad++; } }
+ok(ordSeen > 0 && ordKnows === 0, `the commander's orders never carry when they truly arrived or were acted on (${ordKnows} of ${ordSeen})`);
+ok(ordShape === 0 && expSeen > 0, `every order shown has an objective or none, a count of conditions and a well-formed estimate (${expSeen} estimates, ${ordShape} malformed)`);
+ok(starShape === 0 && stars === B.command.inbox.filter(m => m.decision).length, `every dispatch says whether the staff starred it, and the stream stars the same ones (${stars})`);
+{ const T = V.snapshot('truth'), all = B.command.orders;
+  ok(T.orders.length === all.length && truthOrdBad === 0, `the truth lists every order with its real times in order (${T.orders.length} orders)`);
+  ok(T.orders.filter(o => o.actedAt != null).length === all.filter(o => o.actedAt != null).length && (actedSeen > 0 || T.orders.some(o => o.actedAt != null)), 'the truth says which orders were acted on'); }
+ok(keysMatched > 0 && keyWrong === 0 && keyOwn === 0, `a key beside a true unit is the key of the commander's contact for that unit, and only the enemy has one (${keysMatched} matched)`);
 
 // the light: the sun's height by the contract's own formula agrees with the engine's, and its bearing swings east to west through south
 { const L = B.light; let worst = 0; for (let t = 300; t <= 1260; t += 30) worst = Math.max(worst, Math.abs(View.sunPos(L.date, L.lat, L.lon, t).alt - L.sunAt(t)));

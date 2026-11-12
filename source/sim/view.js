@@ -13,6 +13,12 @@
      V.why(ref)           the chain of causes behind a log entry (umpire's knowledge: shown only on the umpire's map and afterwards)
      V.losses(id, t, m)   what fire cost a unit in the m minutes before t, and from whom (umpire's knowledge, as above)
 
+   For measuring the core loop (tools/loop.js, docs/METHOD.md section 5) the snapshots also carry, as plain values:
+     chief  each order's objective as he wrote it, how many conditions it has, and the staff's estimate of when it will arrive and
+            be acted on (the order form's own ranges); each dispatch, and its event, says whether the staff starred it as news
+     truth  every order with the minutes it was really sent, received and acted on, and its status; and beside each unit the
+            opaque key the commander's picture uses for it, if he has one, so that belief can be set against truth
+
    Rules the contract keeps (tools/test_view.js checks each):
    - Plain data. Everything returned survives JSON.stringify and shares no object with the engine.
    - No dice. Looking never changes the battle: a battle watched every tick ends on the same state hash as one never watched.
@@ -84,13 +90,43 @@ function install(E) {
     const S = common('truth');
     S.units = E.units.filter(here).map(u => ({ id: u.id, side: u.side, name: u.name, corps: u.corps || null, arm: u.arm, x: r1(u.x), y: r1(u.y), facing: Math.round(u.facing),
       form: u.form, front: Math.round(u.F), depth: Math.round(u.D), str: Math.round(u.str), coh: Math.round(u.coh), status: u.status, task: u.task.kind, place: u.spId || null,
-      firing: !!u.firedTick, charging: !!u.charge }));
+      firing: !!u.firedTick, charging: !!u.charge, key: keys.get(u.id) || null }));
     S.places = E.sps.map(sp => ({ id: sp.id, holder: sp.holder || null }));
     S.morale = Object.fromEntries(E.sideIds.map(s => [s, Math.round(E.morale[s])]));
     S.riders = C() ? C().riders.filter(r => r.status === 'riding' && r.x != null).map(r => ({ x: r1(r.x), y: r1(r.y), side: r.side, kind: r.kind })) : [];
     S.smoke = { nx: E.SX, ny: E.SY, cell: 100, a: Array.from(E.smoke, v => Math.round(v * 100) / 100) };
     S.result = E.result ? { grade: E.result.grade, why: E.result.why, t: E.result.t } : null;
+    // every order as it really went (the umpire's knowledge): the commander's own picture of his orders is in chief().orders
+    S.orders = C() && C().orders ? C().orders.map(o => ({ id: o.id, from: o.from, to: o.to, action: o.action, status: o.status, objective: objective(o), conditions: (o.spec.conditions || []).length,
+      issuedAt: o.issuedAt, sentAt: at(o.sentAt), receivedAt: at(o.receivedAt), actedAt: at(o.actedAt), misread: !!o.misread })) : [];
     return S;
+  }
+  const at = v => v == null ? null : r1(v);
+  // where an order points, as it was written: the named place (and the strongpoint it stands for, if any) or the point on the map
+  function objective(o) {
+    const ob = (o.spec && o.spec.objective) || {}, named = ob.place ? E.objectives[ob.place] : null;
+    const p = named && C().centre ? C().centre(named) : ob.point || null;
+    return p ? { place: ob.place || null, sp: (named && named.sp) || null, x: r1(p[0]), y: r1(p[1]) } : null;
+  }
+  // The staff's estimate of when an order will reach its man and when he will act on it: the earliest and the latest minute, by the
+  // ranges the order form shows the player (_game_orders.js, expectSpec): the staff's writing time, a rider by road or across wet
+  // country to where the recipient's troops are believed to stand, and the time to pass an order down. Built from the commander's
+  // beliefs and the rules' own ranges, never from the dice already drawn for this order. `act` is null when a condition cannot be
+  // timed (a place changing hands, another order done); the whole estimate is null for headquarters' own tasks and for a
+  // recipient off the map. It is the estimate as the staff would give it now: a client that wants it as given takes it at once.
+  function expected(c, B, L, o) {
+    const CK = c.CK, s = o.spec || {}, kind = c.RECIPIENTS && c.RECIPIENTS[o.to] ? c.RECIPIENTS[o.to].kind : null;
+    if (!CK || !kind || kind === 'hq' || kind === 'offmap' || kind === 'army') return null;
+    const X = c.X, fc = X.front ? X.front.cmd : null, gb = c.GRAND_BATTERY || [];
+    const recs = [...B.own.values()].filter(r => { const u = E.byId[r.uid]; if (!u || r.gone) return false; const k = c.cmdOf(u);
+      return o.to === fc ? (X.frontCorps || []).includes(k) : kind === 'battery' ? gb.includes(u.id) || !!u.gbattery : k === o.to; });
+    const d = recs.length ? hyp(recs.reduce((a, r) => a + r.x, 0) / recs.length - L.x, recs.reduce((a, r) => a + r.y, 0) / recs.length - L.y) : 2500; // the order form's fallback
+    const w = CK.WRITE[c.opts.staff] || CK.WRITE.soult, f = (s.urgent ? 0.5 : 1) * (c.hq.wounded ? 1.5 : 1) * (o.seq ? 1 + 0.3 * (o.seq.n - 1) : 1);
+    const pass = kind === 'marshal' || kind === 'battery' || s.direct ? CK.INTERP_DIRECT : CK.INTERP;
+    const arrive = [o.issuedAt + w[0] * f + d / CK.RIDER_ROAD, o.issuedAt + w[1] * f + d * 1.25 / (CK.RIDER_CROSS * (1 - 0.4 * E.wet))];
+    let act = [arrive[0] + pass[0], arrive[1] + pass[1]], open = false;
+    for (const k of s.conditions || []) { if (k.type === 'time') act = act.map(v => Math.max(v, k.after)); else open = true; }
+    return { arrive: arrive.map(r1), act: open ? null : act.map(r1) };
   }
   // an order as its writer knows it: written, sent, acknowledged (he learns nothing else until a report tells him)
   const known = o => o.status === 'cancelled' ? 'cancelled' : o.ackedAt != null ? 'acknowledged' : o.sentAt != null ? 'sent' : 'writing';
@@ -106,8 +142,9 @@ function install(E) {
       place: r.garrison || null, seenAt: r.t, src: r.src }));
     S.places = Object.entries(B.places).map(([sp, p]) => ({ id: sp, holder: p.holder || null, knownAt: p.t, src: p.src }));
     S.heard = c.heard(id).map(h => ({ dir: h.dir, kind: h.k, words: h.w, level: r1(h.v) }));
-    S.orders = c.orders.filter(o => o.from === id).map(o => ({ id: o.id, to: o.to, action: o.action, text: c.describe ? c.describe(o) : o.action, state: known(o), issuedAt: o.issuedAt, ackedAt: o.ackedAt ?? null }));
-    S.dispatches = c.inbox.slice(-20).map(m => ({ id: m.id, t: m.t, kind: m.kind, title: m.title || null, text: m.text || null, from: m.from || null }));
+    S.orders = c.orders.filter(o => o.from === id).map(o => ({ id: o.id, to: o.to, action: o.action, text: c.describe ? c.describe(o) : o.action, state: known(o), issuedAt: o.issuedAt, ackedAt: o.ackedAt ?? null,
+      objective: objective(o), conditions: (o.spec.conditions || []).length, expect: expected(c, B, L, o) }));
+    S.dispatches = c.inbox.slice(-20).map(m => ({ id: m.id, t: m.t, kind: m.kind, title: m.title || null, text: m.text || null, from: m.from || null, starred: !!m.decision }));
     S.riders = c.riders.filter(r => r.status === 'riding' && r.to === id && r.x != null && hyp(r.x - L.x, r.y - L.y) < P.RIDER_SEEN).map(r => ({ x: r1(r.x), y: r1(r.y) }));
     return S;
   }
@@ -152,7 +189,7 @@ function install(E) {
       const u = l.unit ? E.byId[l.unit] : null, sp = l.sp ? E.spById[l.sp] : null, at = u && u.onMap ? u : sp;
       emit({ t: l.t, kind, x: at ? r1(at.x) : null, y: at ? r1(at.y) : null, side: l.side || (u && u.side) || null, unit: l.unit || null, place: l.sp || null, size: u ? Math.round(u.str) : 0, text: l.text, log: logAt });
     }
-    if (C() && feeds.chief) for (; inboxAt < C().inbox.length; inboxAt++) { const m = C().inbox[inboxAt]; push('chief', { t: m.t, kind: 'dispatch', id: m.id, about: m.kind, title: m.title || null }); }
+    if (C() && feeds.chief) for (; inboxAt < C().inbox.length; inboxAt++) { const m = C().inbox[inboxAt]; push('chief', { t: m.t, kind: 'dispatch', id: m.id, about: m.kind, title: m.title || null, starred: !!m.decision }); }
   }
   function drain(who = 'chief', since = 0) { const f = feeds[who]; if (!f) return []; let i = f.length; while (i > 0 && f[i - 1].seq > since) i--; return plain(f.slice(i)); }
 
