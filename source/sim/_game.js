@@ -119,6 +119,7 @@ function loop(now) {
     if (playing && (n || iv >= 200)) { requestDraw(); const c = clockText(); if (c !== shownClock) { shownClock = c; clockEl.textContent = c; const b = $('runtxt').querySelector('b'); if (b) b.textContent = c; } }
   }
   if (!playing) frac = 1;
+  v3Frame(); // the field in relief (_game_3d.js): nothing unless it is open
   if (flashes.length || glideBusy) requestDraw();
   requestAnimationFrame(loop);
 }

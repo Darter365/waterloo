@@ -75,6 +75,12 @@ ok(subTick === 0, `every event is timed inside its own tick (${subTick} outside)
 ok(nT > 1000 && nC > 100 && nC < nT, `the commander perceives part of what happens (${nC} of ${nT} events; ${heardOnly} only heard)`);
 ok(kinds.dispatch > 10 && kinds.cannon > 0, `the chief's stream carries dispatches and gunfire (${JSON.stringify(kinds)})`);
 
+// the light: the sun's height by the contract's own formula agrees with the engine's, and its bearing swings east to west through south
+{ const L = B.light; let worst = 0; for (let t = 300; t <= 1260; t += 30) worst = Math.max(worst, Math.abs(View.sunPos(L.date, L.lat, L.lon, t).alt - L.sunAt(t)));
+  ok(worst < 0.05, `the sun's height agrees with the engine's to ${worst.toFixed(3)} degrees`);
+  const az = t => View.sunPos(L.date, L.lat, L.lon, t).az; ok(az(480) > 60 && az(480) < 120 && Math.abs(az(720) - 180) < 12 && az(1080) > 250 && az(1080) < 300, `the sun bears east at 08:00, south at noon, west at 18:00 (${Math.round(az(480))}, ${Math.round(az(720))}, ${Math.round(az(1080))})`);
+  const S = V.snapshot('truth'); ok(typeof S.light.bearing === 'number' && typeof S.light.damp === 'boolean' && S.light.seeing > 0, 'a snapshot carries the sun\'s bearing, the damp and the seeing'); }
+
 // 3. causes
 const breaks = B.log.filter(l => l.cat === 'break' && l.cause != null), chains = breaks.map(l => V.why(l));
 ok(breaks.length > 0 && chains.every(c => c.length >= 1), `every break has a cause (${breaks.length})`);

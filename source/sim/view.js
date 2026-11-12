@@ -6,6 +6,8 @@
      V.snapshot('chief')  what the player's commander believes right now: his own brigades as last reported, the enemy as last
                           seen, who he thinks holds each place, what he hears, the orders he has given as far as he knows
      V.snapshot('truth')  the umpire's picture: every brigade where it really is (the umpire's map, replays, the end of the battle)
+                          every snapshot carries the light: the sun's height and bearing, how far the day lets a man see
+                          (the weather's haze included), whether the air has turned damp, the wind and the wet of the ground
      V.watch('chief')     start collecting timed events for that viewer ('truth' as well, or instead)
      V.drain('chief', n)  the events with seq > n: guns firing, volleys, charges, lines breaking, places changing hands, dispatches
      V.why(ref)           the chain of causes behind a log entry (umpire's knowledge: shown only on the umpire's map and afterwards)
@@ -37,6 +39,18 @@ const P = {
 function spread(name, tick) { let h = 2166136261 ^ tick; for (let i = 0; i < name.length; i++) { h ^= name.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0) % 10000) / 10000; }
 const plain = x => JSON.parse(JSON.stringify(x));
 
+// where the sun stands, by the same approximation the engine uses for its height (NOAA's; local mean time): height and bearing in
+// degrees, the bearing clockwise from north
+function sunPos(date, lat, lon, tLMT) {
+  const [Y, Mo, D] = date.split('-').map(Number), leap = (Y % 4 === 0 && Y % 100 !== 0) || Y % 400 === 0;
+  const n = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334][Mo - 1] + D + (leap && Mo > 2 ? 1 : 0), utc = tLMT - 4 * lon;
+  const g = 2 * Math.PI / (leap ? 366 : 365) * (n - 1 + (utc / 60 - 12) / 24);
+  const eq = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+  const dec = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+  const ha = ((tLMT + eq) / 4 - 180) * D2R, phi = lat * D2R, sa = clamp(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(ha), -1, 1), alt = Math.asin(sa);
+  let az = Math.acos(clamp((Math.sin(dec) - sa * Math.sin(phi)) / Math.max(1e-9, Math.cos(alt) * Math.cos(phi)), -1, 1)) / D2R; if (ha > 0) az = 360 - az;
+  return { alt: alt / D2R, az };
+}
 function install(E) {
   if (E.view) return E.view;
   const W = E.W, C = () => E.command, arms = E.era.arms;
@@ -65,7 +79,7 @@ function install(E) {
 
   /* ---------- snapshots ---------- */
   const common = who => ({ v: VERSION, who, battle: E.battleId, t: E.t, clock: E.fmtT(E.t), over: !!E.over,
-    light: { sun: r1(E.light.sunAt(E.t)), seeing: Math.round(E.bgVis(E.t)) }, ground: { wet: r1(E.wet) }, wind: { dir: Math.round(E.wind.dir), speed: r1(E.wind.speed) } });
+    light: { sun: r1(E.light.sunAt(E.t)), bearing: r1(sunPos(E.light.date, E.light.lat, E.light.lon, E.t).az), seeing: Math.round(E.bgVis(E.t)), damp: E.light.humidFrom != null && E.t > E.light.humidFrom }, ground: { wet: r1(E.wet) }, wind: { dir: Math.round(E.wind.dir), speed: r1(E.wind.speed) } });
   function truth() {
     const S = common('truth');
     S.units = E.units.filter(here).map(u => ({ id: u.id, side: u.side, name: u.name, corps: u.corps || null, arm: u.arm, x: r1(u.x), y: r1(u.y), facing: Math.round(u.facing),
@@ -178,7 +192,7 @@ function install(E) {
   return V;
 }
 
-const api = { version: VERSION, install, P };
+const api = { version: VERSION, install, P, sunPos };
 root.WView = api;
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
