@@ -104,12 +104,53 @@ roadmap's "rules the loop must keep".
   A phone's tick has not been measured, and the machine behind the roadmap's 13 ms is not recorded. Measure the page itself on
   a phone or on Chris's desktop browser (section 8) before saying the budget is kept.
 - Simulation speed sets how much validation is affordable: `band.js 500` is listed as "long".
-- **Frame rate on a real GPU has never been measured** (the tests use software rendering). The built-in browser on Chris's
-  desktop can measure it (section 8).
-- **Determinism is verified in Node and Chromium only.** The simulation calls `Math.sin`, `cos`, `pow`, `exp`, `log`,
-  `atan2` and `hypot`, whose results the language leaves to each engine. A battle may not replay identically in Safari or
-  Firefox, and a Node upgrade could move the references. Test before relying on seeds across devices; record the Node
-  version the references were made on. (Read from the code; not tested.)
+- **Frame rate of the 3D view on Chris's desktop** (measured 12 Nov 2026, the live page at 51010cf). RTX 4070 Ti through
+  ANGLE and Direct3D 11; Chromium 156.0.8078.75 in the Claude desktop app's browser pane (5.1231.2), Windows; a 2560 by 1440
+  display at 144 Hz (6.9 ms a refresh); viewport 1133 by 1267, the 3D canvas 716 by 1055, one device pixel a CSS pixel.
+  Waterloo, seed 1, the umpire's map, one order (d'Erlon to attack the ridge), the clock at 120 (a tick a second), riding on
+  at every stop. Times between `requestAnimationFrame` calls over 60 s:
+
+  | View | Frames | Median | 95th centile | Worst | Scene |
+  | --- | --- | --- | --- | --- | --- |
+  | From above, 12:18 to 14:32 | 4,320 | 13.9 ms | 14.0 ms | 14.1 ms | 126 brigades, 15,246 triangles |
+  | On the ground, 15:30 to 17:40 | 7,522 | 7.0 ms | 13.9 ms | 131.9 ms | 129 brigades, 61,380 triangles, 5,143 trees |
+
+  Read these with care. The pane paces a page at either one refresh or two, whatever the page costs: from above every one
+  of the 4,320 intervals was exactly two refreshes, and so were 863 of 864 afterwards with the clock stopped and 0.4 ms of
+  script a frame. On the ground the first 45 s ran at one refresh (6,545 frames, two slow: one of 132 ms, not on a tick,
+  cause unknown, while Chris was moving the eye), then the pane fell to two for the rest, where 120 of 977 frames
+  took three. So: no frame from above missed its slot; the ground view holds 144 a second with one hitch; a tick never
+  showed as a long frame in either. Not measured: the cost of a frame under the cap (it needs the cap lifted or a GPU
+  timer); a full-size window (the canvas was 0.76 megapixels); a late-battle scene with the most smoke; a phone. An
+  earlier ground run from a fixed spot was cut off at 9.6 s when the pane was hidden (691 frames, 690 at two refreshes).
+  How: the pane must be showing, since a hidden page gets no frames at all, and the browser tool times out at 45 s, so the
+  recorder is armed in the page and read back afterwards.
+- **Determinism holds within an engine, not across engines** (measured 12 Nov 2026; `tools/engines.js`,
+  `results/engines/`). Waterloo, 11:00, the historical orders, seeds 1 to 3 of `ref/p2_hist.json`, every tick hashed as
+  `refset.js` hashes it, each engine against Node 22.23.4 (V8 12.4), which replays the references exactly:
+
+  | Engine | Ticks that differ (seeds 1, 2, 3) | First difference | End of battle |
+  | --- | --- | --- | --- |
+  | Chromium 156, the built-in browser on Chris's desktop (Windows) | 174 of 311, 207 of 303, 239 of 317 | 14:40, 14:14, 13:38 | Same grade, reason, minute and dice drawn; strengths agree to 15 figures |
+  | Chrome 153, headless, the cloud session (Linux) | The same as Chromium 156, tick for tick | The same | The same |
+  | SpiderMonkey (PythonMonkey 1.4.1, Linux) | 259 of 311, 259 of 303, 296 of 317 | 12:46, 12:30, 11:44 | Seed 1 ends at 21:18, not 21:22, with 3,656 more allied and 991 more French left; seeds 2 and 3 as Node |
+  | JavaScriptCore (Bun 1.4.4, Linux) | 206 of 311, 259 of 303, 296 of 317 | 14:20, 12:30, 11:44 | Seed 1 as SpiderMonkey; seeds 2 and 3 as Node |
+
+  The grade and its reason were the same in all twelve battles. The two Chromiums differ from each other in general
+  `pow` and still fought the three battles identically. Over 200,000 fixed inputs a function, Chromium rounds
+  `sin`, `cos`, `exp`, `log`, `pow`, `atan2` and `acos` differently from Node (1 to 13% of results, never by more than one
+  unit in the last place); SpiderMonkey differs from Node in `sin`, `cos`, `pow` and `hypot`; JavaScriptCore in all of
+  those. `sqrt`, `pow(x, 0.5)` and `pow(x, 2)` agreed everywhere. The two engines that changed seed 1 are the two whose
+  `hypot` differs, which suggests `hypot` (est.; not isolated).
+- **What follows.** A seed names a battle only together with an engine. The references are Node's: a Node upgrade that
+  changes its Math library would move them, so record the Node version with them (22.23.4 replays them today; the version
+  they were recorded on, 27 Oct, was not noted). The page's own re-runs (the after-action report) stay exact, because
+  they run in the engine that fought the battle. Sharing a seed between a phone and a desktop, or checking a browser
+  battle against Node, is not exact. Not tested: Firefox and Safari themselves (SpiderMonkey and JavaScriptCore were run
+  as engines in the cloud, and JavaScriptCore takes some Math functions from the system, so Safari may differ from Bun);
+  more than three seeds; the other three modes. The fix, if one is wanted, is the simulation's own `sin`, `cos`, `exp`,
+  `log`, `pow`, `atan2`, `acos` and `hypot` written in plain arithmetic, which every engine must round the same way. That
+  changes results in every engine but the one it is matched to: Chris's call.
 
 ## 8. Claude's tools and what each is for
 

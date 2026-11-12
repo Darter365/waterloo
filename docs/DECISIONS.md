@@ -101,6 +101,8 @@ These were made to keep moving and are easy to change. Raise them when the subje
   orders (1 and 2 in `check.sh`), because those are reference seeds and each Waterloo battle is held to `ref/p2_hist.json` as it
   is timed; every tick counts, the cold first ones included; the baseline in `results/ticktime_baseline.json` is the middle of
   three fresh processes; the warning is at 1.5 times the baseline (est.) and never fails the check.
+- **How the desktop was measured (12 Nov):** frame times at clock speed 120 with one order given, 60 s a view; engines compared on
+  seeds 1 to 3 with the historical orders, against Node; `tools/engines.js` as the standing way to repeat it.
 - Slopes are steepened tenfold for the shading painted on the ground; the view from above draws heights three times life size.
 - **The source pass's conventions** (12 Nov, `docs/SOURCES.md`): one row per number; today's sourcing graded in the packs'
   words; an outcome of improved, part or none; no page numbers until someone has checked them against the scan (the
@@ -120,8 +122,12 @@ These were made to keep moving and are easy to change. Raise them when the subje
   and in rallying. Separating them changes results.
 - **The idle-army gap.** The allies never attack a French army that sits still, so the field ends a draw. Fixing it changes
   how battles fight.
-- **Determinism across browsers.** Verified in Node and Chromium only. The simulation uses `Math.sin`, `cos`, `pow`, `exp` and
-  `log`, which other engines may round differently, so a battle may not replay identically in Safari or Firefox. Not tested.
+- **Determinism across browsers: measured 12 Nov, and it does not hold.** The same seed and orders give the same battle within
+  one engine, not across engines. Against Node, on seeds 1 to 3 with the historical orders: Chromium (Chris's desktop and the
+  cloud) parts from Node in the last bit from about 14:00 and ends the same; SpiderMonkey and JavaScriptCore end seed 1 four
+  minutes early with 3,656 more allied left. Grade and reason matched in all twelve. `docs/METHOD.md`, section 7, has the table.
+  Open: does a seed need to mean the same battle on every device? If so the simulation needs its own Math functions, which
+  changes results (class 3). Rule 6 in `CLAUDE.md` still says "verified in Node and Chromium"; its wording is Chris's to change.
 - **Sources behind the rules doc.** The source pass of 12 Nov (`docs/SOURCES.md`) checked 107 numbers against primary
   documents and standard histories: 65 now have an openable source, 29 have one in part, 13 have none. It changed no value.
   Its 26 proposals are open: values that look wrong (the wind, the time an order takes to reach Grouchy, the Wavre fire,
@@ -132,8 +138,10 @@ These were made to keep moving and are easy to change. Raise them when the subje
   A battle outside June 1815 is needed to tell.
 - **Brigades in the ground view are flat slabs.** Ranks of simple figures is the suggested next step; shadows are another.
 - **Vegetation exists only where the map data has it.** Ligny has none recorded.
-- **Never measured:** frame rate of the 3D view on a real GPU or phone (tests use software rendering), and the time a tick takes
-  on a phone or in a browser. Simulation speed is now measured on every change, in Node on the machine that runs `check.sh`
-  (`tools/ticktime.js`, 12 Nov: Waterloo about 5 ms a tick, 95th centile 12 ms, on a two-core cloud Xeon), which shows a
-  slowdown but says nothing about the roadmap's budget of under 20 ms on the phone.
+- **Frame rate: measured on the desktop 12 Nov; the phone and the tick budget are not.** On Chris's RTX 4070 Ti at 144 Hz the 3D
+  view from above never missed its slot in 60 s (the pane capped it at 72 a second), and on the ground it held 144 a second with
+  one 132 ms hitch (`docs/METHOD.md`, section 7). Still unmeasured: a phone; a full-size window; frame cost under the cap; the
+  time a tick takes on a phone or in a browser. Simulation speed is measured on every change, in Node on the machine that runs
+  `check.sh` (`tools/ticktime.js`, 12 Nov: Waterloo about 5 ms a tick, 95th centile 12 ms, on a two-core cloud Xeon), which
+  shows a slowdown but says nothing about the roadmap's budget of under 20 ms on the phone.
 - **Which comes next:** moving the 2D map onto the contract, or the idle-army rule. Chris has not chosen.
