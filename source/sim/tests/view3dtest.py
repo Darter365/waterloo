@@ -117,6 +117,13 @@ async def desktop():
         await pg.evaluate(f"WGame.v3Stand({mid[1]}, {mid[2]}, {math.pi - math.radians(u['facing'])})"); await pg.wait_for_timeout(900); mi = await pg.evaluate("WGame.v3Men()"); fi = await pg.evaluate(f"WGame.v3Figures('{u['id']}')")
         print('AMONG', 'OK' if mi['nearest'] is not None and mi['hide'] == 2 and mi['hide'] <= mi['nearest'] < 4 and u['id'] in mi['asMen'] and not any(p[0] == 'block' for p in fi) else 'BAD', {'body': u['id'], 'nearest man m': round(mi['nearest'], 2) if mi['nearest'] else None})
         await shot('v3d_5_among'); await pg.evaluate("WGame.v3Post()"); await pg.click('#v3g'); await pg.wait_for_timeout(1200)
+        # scenery: on the ground the fine ground texture, the field plots, the grass and a staff group of five beside the standpoint are drawn,
+        # and the caption says they are scenery; from above none of them is, and the caption has no such line
+        sa = await pg.evaluate("WGame.v3Scene()"); await pg.click('#v3g'); await pg.wait_for_timeout(2500); sg = await pg.evaluate("WGame.v3Scene()"); hq2 = await pg.evaluate("WGame.v3At()"); st = [p for p in await pg.evaluate("WGame.v3Figures('(staff)')")]
+        far = max(math.hypot(p[1] - hq2['x'], p[2] - hq2['z']) for p in st) if st else 999
+        print('SCENERY', 'OK' if not sa['ground'] and not sa['detail'] and sa['note'] is None and sa['staff'] == 0 and sg['detail'] and sg['plots'] and sg['staff'] == 5 and len(st) == 5 and 3 < far < 20 and sg['note'] and sg['note'].startswith('Scenery, not survey') and 'staff' in sg['note'] and 'field plots' in sg['note'] else 'BAD',
+              {'ground texture': sg['detail'], 'field plots': sg['plots'], 'staff figures': sg['staff'], 'furthest from the eye m': round(far, 1), 'note': sg['note'][:42], 'from above': [sa['detail'], sa['staff'], sa['note']]})
+        await shot('v3d_6_scenery'); await pg.click('#v3g'); await pg.wait_for_timeout(1500)
         # walking leaves headquarters (the caption stops saying so); the second button goes back; and from above the second button steps down
         # where the view is centred, as the ground view first worked
         await pg.click('#v3g'); await pg.wait_for_timeout(1200); await pg.mouse.move(box[0], box[1]); await pg.mouse.wheel(0, -100); await pg.wait_for_timeout(200); w1 = await pg.evaluate("WGame.v3At()")
@@ -124,6 +131,41 @@ async def desktop():
         await pg.click('#v3g'); await pg.wait_for_timeout(1200); up = await pg.evaluate("WGame.v3At()"); await pg.evaluate("WGame.v3Stand(3350, 5250, 0.05)"); await pg.click('#v3h'); await pg.wait_for_timeout(1500); w3 = await pg.evaluate("WGame.v3At()"); e3 = await pg.evaluate("WGame.v3Eye()")
         print('WALK', 'OK' if not w1['atPost'] and math.hypot(w1['x'] - at['x'], w1['z'] - at['z']) > 50 and 'headquarters' not in w1['caption'] and w2['atPost'] and math.hypot(w2['x'] - at['x'], w2['z'] - at['z']) < 0.01 and abs(w2['az'] - az) < 1e-6 else 'BAD', {'walked m': r3(math.hypot(w1['x'] - at['x'], w1['z'] - at['z'])), 'back at post': w2['atPost']})
         print('STEPDOWN', 'OK' if up['second'] == 'Step down here' and not up['ground'] and w3['ground'] and not w3['atPost'] and abs(w3['x'] - 3350) < 0.01 and abs(w3['z'] - 5250) < 0.01 and abs(w3['az'] - 0.05) < 1e-9 and abs(e3['y'] - e3['floor'] - 2.5) < 0.01 else 'BAD', [w3['x'], w3['z'], w3['az'], w3['atPost']])
+        # events: an attack is ordered from the map, the clock runs, and the firing the umpire's stream reports is drawn: flashes and smoke
+        # appear only after ticks, inside their caps, each on the front of the body that fired (as it was drawn at that moment) and at
+        # its own minute within the tick. No sound is made (the page creates no audio).
+        await pg.click('#v3g'); await pg.wait_for_timeout(1500)  # back above: the firing is checked from above first, where it is drawn enlarged like the rest
+        await pg.evaluate("WGame.v3Close()"); f0 = await pg.evaluate("WGame.v3Fx()"); pos = await pg.evaluate("WGame.tapOf('derlon', 'ridgeCentre')")
+        await pg.mouse.click(pos['x'], pos['y']); await pg.wait_for_timeout(250); await pg.click('#strip [data-act=attack]'); await pg.wait_for_timeout(150)
+        await pg.mouse.click(pos['hx'], pos['hy']); await pg.wait_for_timeout(250); await pg.click('#strip [data-strip=send]'); await pg.wait_for_timeout(200)
+        await pg.select_option('#r-speed', '240'); await pg.evaluate("WGame.v3Open()"); await pg.wait_for_timeout(800); t0 = (await pg.evaluate("WGame.v3()"))['tick']; await pg.click('#go', timeout=20000); f = None
+        for i in range(400):
+            await pg.wait_for_timeout(150); f = await pg.evaluate("WGame.v3Fx()")
+            if f['shot']['cannon'] + f['shot']['volley'] >= 12 and f['puffs'] > 0: break
+            if not (await pg.evaluate("WGame.clock()"))['playing']:  # the clock stopped for news: ride on
+                try: await pg.click('#go', timeout=20000)
+                except Exception: pass
+        await pg.evaluate("WGame.v3FxHold(true)"); await pg.wait_for_timeout(1500); f = await pg.evaluate("WGame.v3Fx()"); v = await pg.evaluate("WGame.v3()"); c = await pg.evaluate("WGame.v3Contract()"); U = {u['id']: u for u in c['units']}
+        def on_front(r):  # in the firing body's own frame: across its front, and no deeper than its depth plus the muzzle's reach
+            x, y, fd, F, Dp = r['body']; a = math.radians(fd); dx, dz = r['x'] - x, r['z'] - y; lx, lz = dx * math.cos(a) + dz * math.sin(a), -dx * math.sin(a) + dz * math.cos(a)
+            u = U.get(r['unit']); near = u is not None and math.hypot(u['x'] - x, u['y'] - y) < 250
+            return abs(lx) <= F / 2 + r['out'] + 1 and abs(lz) <= Dp / 2 + r['out'] + 1 and near and r['t'] <= r['shown'] + 1e-6 and r['t'] > r['shown'] - 2.5
+        good = [on_front(r) for r in f['recent']]; arms = {r['kind']: c['arms'][U[r['unit']]['arm']]['crew'] > 0 for r in f['recent'] if r['unit'] in U}
+        print('EVENTS', 'OK' if f0 is not None and f0['drained'] == 0 and f0['shot'] == {'cannon': 0, 'volley': 0} and v['tick'] > t0 and f['drained'] > 0 and f['shot']['cannon'] + f['shot']['volley'] >= 12 and 0 < f['puffs'] <= f['caps']['puff'] and 0 <= f['flashes'] <= f['caps']['flash'] and good and all(good) and arms.get('cannon', True) and not arms.get('volley', False) and f['scale'] == 14 and not await pg.evaluate("'v3Audio' in WGame || !!globalThis.__v3audio") else 'BAD',
+              {'ticks': [t0, v['tick']], 'events read': f['drained'], 'shots drawn': f['shot'], 'flashes now': f['flashes'], 'smoke puffs now': f['puffs'], 'shots checked on their body\'s front': len(good), 'all on it': all(good), 'drawn at scale': f['scale'], 'caps': f['caps']})
+        await pg.evaluate("WGame.v3Cam(0.2, 1.0, 3000)"); await pg.wait_for_timeout(800); await shot('v3d_7_events_above')
+        # and on the ground at life size: the same stream, drawn at a scale of one
+        await pg.evaluate("WGame.v3FxHold(false)"); await pg.click('#v3g', timeout=20000); await pg.wait_for_timeout(2500); n0 = (await pg.evaluate("WGame.v3Fx()"))['shot']
+        for i in range(120):
+            await pg.wait_for_timeout(400); f = await pg.evaluate("WGame.v3Fx()")
+            if f['shot']['cannon'] + f['shot']['volley'] >= n0['cannon'] + n0['volley'] + 6: break
+            if not (await pg.evaluate("WGame.clock()"))['playing']:
+                try: await pg.click('#go', timeout=20000)
+                except Exception: pass
+        await pg.evaluate("WGame.v3FxHold(true)"); await pg.wait_for_timeout(2000); f = await pg.evaluate("WGame.v3Fx()"); r = f['recent'][-1] if f['recent'] else None
+        if r: await pg.evaluate("WGame.v3Field('eye')"); await pg.evaluate(f"WGame.v3Look({r['x']}, {r['z']}, 1.5)"); await pg.wait_for_timeout(2500)
+        print('EVENTS-GROUND', 'OK' if f['scale'] == 1 and f['shot']['cannon'] + f['shot']['volley'] >= n0['cannon'] + n0['volley'] + 6 and f['puffs'] > 0 and r else 'BAD', {'shots drawn': f['shot'], 'smoke puffs now': f['puffs'], 'flashes now': f['flashes']})
+        await shot('v3d_8_events_ground')
         print('errors', errs[:6])
         await b.close()
 async def main():
@@ -163,6 +205,8 @@ async def main():
             if mids >= 5: break
         v = await pg.evaluate("WGame.v3()")
         print('TICKS', 'OK' if v['tick'] > t0 and v['on'] and mids > 0 else 'BAD', t0, '->', v['tick'], '| frames', v['frames'], '| seen mid-glide', mids, '| smoke lumps', v['smoke'])
+        f = await pg.evaluate("WGame.v3Fx()")  # the firing of those ticks was read from the event stream and drawn (flashes and smoke, inside their caps)
+        print('EVENTS', 'OK' if f['drained'] > 0 and f['shot']['cannon'] + f['shot']['volley'] > 0 and f['puffs'] <= f['caps']['puff'] and f['flashes'] <= f['caps']['flash'] else 'BAD', {'events read': f['drained'], 'shots drawn': f['shot'], 'smoke puffs now': f['puffs']})
         await pg.evaluate("WGame.v3Cam(0.5, 1.15, 3600)"); await pg.wait_for_timeout(400); await shot('v3_2_running')
         # on the ground: the eye comes down to a rider's height, looks level, and walks forward on a pinch or scroll
         await pg.evaluate("WGame.v3Stand(3350, 5250, 0.05)"); await pg.tap('#v3g'); await pg.wait_for_timeout(1500); e = await pg.evaluate("WGame.v3Eye()")

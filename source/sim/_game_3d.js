@@ -59,15 +59,36 @@ const V3K = {
     ORDERED: ['steady', 'shaken', 'disordered'], LOOSE: { steady: 0.08, shaken: 0.25, disordered: 0.7, _: 0.3 }, MOB_TURN: 2.2, MOB_H: 0.6,
     SEG: 40, THIN: 1.5, TEETH: 6, NOTCH: 0.22, BAND: 0.12,
     COL: { SKIN: 0xd9a781, HAT: 0x1c1b1a, TROUSER: 0xd8d2c4, PACK: 0x3a2f24, MUSKET: 0x4a3626, BOOT: 0x24201c, CARRIAGE: 0x6f7355, BARREL: 0xb08d3c, HORSES: [0x6b4226, 0x4a2f1c, 0x2a221d, 0x8a6a48, 0x9a958c] } },
+  // Scenery, not survey (like the far hills and the tufts): none of it is in the map data, none of it is read by the simulation, and the
+  // caption says so. All est., chosen so that the ground has something on it between the eye and the armies.
+  //  DETAIL  a fine mottled texture multiplied into the ground's picture near the eye: a tile SIZE pixels square, repeated every FINE
+  //          metres (fading out between FINE_FADE metres) and again every COARSE metres (fading between COARSE_FADE), AMT strong.
+  //  PLOTS   a patchwork of field plots painted into the ground's picture for the ground view only: blocks about CELL metres across,
+  //          each cut into strips STRIP metres wide on its own bearing, each strip one of TINTS (multipliers on the ground's colour), AMT strong.
+  //  STAFF   a few figures beside the standpoint at headquarters: metres to the right and forward of the eye as it first looks, the way
+  //          each is turned (radians), and whether he is mounted.
+  DETAIL: { SIZE: 256, FINE: 5, FINE_FADE: [20, 110], COARSE: 90, COARSE_FADE: [300, 2200], AMT: [0.42, 0.34] },
+  PLOTS: { CELL: 430, STRIP: [45, 120], AMT: 0.7, TINTS: [[1.07, 1.04, 0.84], [0.9, 1.0, 0.84], [1.0, 0.91, 0.78], [0.95, 1.04, 0.9], [1.1, 1.06, 0.8], [1, 1, 1], [0.86, 0.95, 0.8]] },
+  STAFF: [[-6, 9, 0.25, 1], [-8.2, 12.5, -0.3, 1], [7, 10.5, -0.45, 1], [4.4, 11.5, 0.9, 0], [5.6, 12.1, -2.3, 0]],
+  // Firing, from the event stream (est. throughout: sizes chosen to read, not measured). KINDS is keyed by the contract's own event kinds:
+  //  n      fewest and most flashes drawn for one event; per, metres of front to a flash (else one for each piece, the event's size);
+  //  roll   the game minutes over which one event's flashes are spread, so a volley rolls along the line;
+  //  flash  its radius; puff, the smoke's radius as it leaves the muzzle and when it has spread; up and out, metres above the ground and before the front rank.
+  // BACK: firing more than this many game minutes old when it is read is not drawn (the battle was hurried on, or the view was shut).
+  // FLASH_MS and PUFF_MS are how long each lasts on the screen (real time); RISE, metres a second the smoke lifts; TIERS, the opacities a
+  // puff passes through as it thins. From above everything is drawn V3K.ABOVE.FX times larger, like the rest of that view.
+  FX: { FLASH_MAX: 300, PUFF_MAX: 480, QUEUE: 1500, BACK: 4, FLASH_MS: 150, PUFF_MS: 5200, RISE: 0.45, TIERS: [0.55, 0.4, 0.26, 0.13], FLASH: 0xffd98a,
+    KINDS: { cannon: { n: [1, 6], per: 0, roll: 0.5, flash: 1.5, puff: [1.8, 7], up: 1.1, out: 2 }, volley: { n: [3, 10], per: 30, roll: 0.8, flash: 0.45, puff: [0.9, 3.6], up: 1.4, out: 0.8 } } },
+  NOTE: 'Scenery, not survey: the far hills, field plots, grass and the staff. Ranks are set out by rule inside each body’s true footprint.',
   MASK: { RIM: '#0b0a09', SHADE: 'rgba(11,10,9,.38)', SOFT: 0.86 }, // the eyepiece: its dark surround, and the shading that begins at SOFT of its radius
   // Two scales. From above, heights, trees and blocks are drawn large so the field reads at five kilometres; every figure is (est.)
   // and chosen for legibility. On the ground everything is life size: heights as surveyed, the eye at the engine's own 2.5 m for a
   // mounted officer, and the rest my estimates of ordinary sizes (est.): a mature tree 18 m, a fruit tree 4 m, a hedge 2 m, a garden
   // wall 2 m, a cottage 5 m to the eaves, a farm 7 m, men 1.8 m, horsemen 2.6 m, guns and crews 1.7 m.
   ABOVE: { STEP: 2, EX: 3, TREE_H: 150, TREE_R: 46, TREE_GAP: 55, TREE_JIT: 56, TRUNK: [6, 8], ORCH: { gap: 30, th: 22, tr: [3, 4], cr: 15, ch: 13, lift: 30 }, BUSH: { gap: 26, r: 17, h: 14, lift: 10, jit: 8 },
-    WALL_H: 14, WALL_T: 8, HOUSE: { k: 1.6, w: 22, d: 16, h: 16 }, FARM: { h: 24, roof: 18 }, H: { inf: 40, cav: 55, art: 30 }, SMOKE: 1, MIN_F: 60, MIN_D: 40, LIFT: 2, HIDE: 30, NEAR: 8, FAR: 60000 },
+    WALL_H: 14, WALL_T: 8, HOUSE: { k: 1.6, w: 22, d: 16, h: 16 }, FARM: { h: 24, roof: 18 }, H: { inf: 40, cav: 55, art: 30 }, SMOKE: 1, MIN_F: 60, MIN_D: 40, LIFT: 2, HIDE: 30, NEAR: 8, FAR: 60000, FX: 14 },
   GROUND: { STEP: 1, EX: 1, TREE_H: 18, TREE_R: 5, TREE_GAP: 14, TREE_JIT: 9, TRUNK: [0.35, 0.45], ORCH: { gap: 9, th: 1.8, tr: [0.12, 0.16], cr: 2.2, ch: 1.8, lift: 3 }, BUSH: { gap: 2.4, r: 1.4, h: 1.1, lift: 0.9, jit: 0.5 },
-    WALL_H: 2, WALL_T: 0.5, HOUSE: { k: 1, w: 0, d: 0, h: 5 }, FARM: { h: 7, roof: 4 }, H: { inf: 1.8, cav: 2.6, art: 1.7 }, SMOKE: 0.45, MIN_F: 20, MIN_D: 6, LIFT: 0.05, HIDE: 3, NEAR: 0.8, FAR: 25000, EYE: 2.5 },
+    WALL_H: 2, WALL_T: 0.5, HOUSE: { k: 1, w: 0, d: 0, h: 5 }, FARM: { h: 7, roof: 4 }, H: { inf: 1.8, cav: 2.6, art: 1.7 }, SMOKE: 0.45, MIN_F: 20, MIN_D: 6, LIFT: 0.05, HIDE: 3, NEAR: 0.8, FAR: 25000, EYE: 2.5, FX: 1 },
 };
 const v3lerp = (a, b, t) => a + (b - a) * t;
 const v3clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -87,7 +108,25 @@ function v3Height(W, x, y) { // metres above datum at a point ON THE DRAWN GROUN
   return a + b <= 1 ? A + (B - A) * a + (C - A) * b : D + (C - D) * (1 - a) + (B - D) * (1 - b); // the mesh splits each square along the B-C diagonal
 }
 function v3Inside(pts, x, y) { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const a = pts[i], b = pts[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; }
-function v3Ground(W) { // the ground's picture: height bands shaded by slope as a printed relief map is, contour lines, then woods, water and roads
+// a fine mottled tile for the ground near the eye: three sizes of soft blotch and a little grain, repeating without a seam, and middling
+// grey on average so that it darkens and lightens the ground's own colours by turns (scenery; repeatable, no dice)
+function v3DetailTile() {
+  const n = V3K.DETAIL.SIZE, cv = document.createElement('canvas'); cv.width = cv.height = n; const c = cv.getContext('2d'), img = c.createImageData(n, n), d = img.data;
+  const lat = (p, sd) => { const g = n / p, v = (i, j) => v3rand(((i % g + g) % g) * 131 + ((j % g + g) % g) * 7919 + sd), sm = t => t * t * (3 - 2 * t); return (x, y) => { const fx = x / p, fy = y / p, i = Math.floor(fx), j = Math.floor(fy), a = sm(fx - i), b = sm(fy - j); return (v(i, j) * (1 - a) + v(i + 1, j) * a) * (1 - b) + (v(i, j + 1) * (1 - a) + v(i + 1, j + 1) * a) * b - 0.5; }; };
+  const A = lat(64, 11), B = lat(16, 23), C = lat(4, 37);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const k = (y * n + x) * 4, v = 0.5 * A(x, y) + 0.3 * B(x, y) + 0.25 * C(x, y) + 0.12 * (v3rand(k + 5) - 0.5), blade = v3rand(k + 9) > 0.93 ? -0.1 : 0;
+    d[k] = 255 * v3clamp(0.5 + 0.8 * v + blade, 0, 1); d[k + 1] = 255 * v3clamp(0.5 + 0.9 * v + blade * 0.6, 0, 1); d[k + 2] = 255 * v3clamp(0.5 + 0.55 * v + blade, 0, 1); d[k + 3] = 255; }
+  c.putImageData(img, 0, 0); return cv;
+}
+// which invented plot a point of the field falls in, as a tint for the ground there: the nearest of a scatter of block centres (one to a
+// CELL square, placed by v3rand), then the strip of that block the point lies in (scenery: these are not the fields of the day)
+function v3Plot(x, y) {
+  const K = V3K.PLOTS, gx = Math.floor(x / K.CELL), gy = Math.floor(y / K.CELL); let best = Infinity, id = 0;
+  for (let j = gy - 1; j <= gy + 1; j++) for (let i = gx - 1; i <= gx + 1; i++) { const h = i * 7349 + j * 91813, px = (i + v3rand(h)) * K.CELL, py = (j + v3rand(h + 1)) * K.CELL, d = (px - x) * (px - x) + (py - y) * (py - y); if (d < best) { best = d; id = h; } }
+  const th = v3rand(id + 2) * Math.PI, wd = v3lerp(K.STRIP[0], K.STRIP[1], v3rand(id + 3)), strip = Math.floor((x * Math.cos(th) + y * Math.sin(th)) / wd);
+  return K.TINTS[Math.floor(v3rand(id * 31 + strip * 17 + 4) * K.TINTS.length) % K.TINTS.length];
+}
+function v3Ground(W, plots) { // the ground's picture: height bands shaded by slope as a printed relief map is, contour lines, then woods, water and roads
   const sc = V3K.TEX / Math.max(W.size.w, W.size.h), cv = document.createElement('canvas'); cv.width = Math.round(W.size.w * sc); cv.height = Math.round(W.size.h * sc);
   const c = cv.getContext('2d'), g = W.grid, w = cv.width, h = cv.height, hs = new Float32Array(w * h); let lo = Infinity, hi = -Infinity; for (const v of g.heights) { if (v < lo) lo = v; if (v > hi) hi = v; }
   for (let py = 0; py < h; py++) for (let px = 0; px < w; px++) { const fx = v3clamp(px / sc / g.cell, 0, g.nx - 1.001), fy = v3clamp(py / sc / g.cell, 0, g.ny - 1.001), i = Math.floor(fx), j = Math.floor(fy), a = fx - i, b = fy - j, k = j * g.nx + i, H = g.heights;
@@ -97,7 +136,8 @@ function v3Ground(W) { // the ground's picture: height bands shaded by slope as 
     const nxv = -(hs[py * w + x1] - hs[py * w + x0]) / m * V3K.SHADE_Z, nyv = -(hs[y1 * w + px] - hs[y0 * w + px]) / m * V3K.SHADE_Z, len = Math.hypot(nxv, nyv, 1);
     let f = v3clamp((nxv * lx + nyv * ly + lz) / len / lz, 0.62, 1.3);
     if (Math.floor(v / V3K.CONTOUR) !== Math.floor(hs[py * w + x1 - (x1 > px ? 1 : 0)] / V3K.CONTOUR) || Math.floor(v / V3K.CONTOUR) !== Math.floor(hs[Math.min(h - 1, py + 1) * w + px] / V3K.CONTOUR)) f *= 0.84;
-    const band = Math.round((v - lo) / Math.max(1, hi - lo) * 7) / 7; for (let q = 0; q < 3; q++) d[k * 4 + q] = Math.min(255, v3lerp(V3K.LOW[q], V3K.HIGH[q], band) * f); d[k * 4 + 3] = 255; }
+    const band = Math.round((v - lo) / Math.max(1, hi - lo) * 7) / 7, tint = plots ? v3Plot(px / sc, py / sc) : null; // on the ground, the invented field plots tint it
+    for (let q = 0; q < 3; q++) d[k * 4 + q] = Math.min(255, v3lerp(V3K.LOW[q], V3K.HIGH[q], band) * f * (tint ? 1 + (tint[q] - 1) * V3K.PLOTS.AMT : 1)); d[k * 4 + 3] = 255; }
   c.putImageData(img, 0, 0);
   const line = (pts, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.lineJoin = c.lineCap = 'round'; c.beginPath(); pts.forEach((p, k) => k ? c.lineTo(p[0] * sc, p[1] * sc) : c.moveTo(p[0] * sc, p[1] * sc)); c.stroke(); };
   c.fillStyle = V3K.WOOD; for (const w of W.woods) { c.beginPath(); w.pts.forEach((p, k) => k ? c.lineTo(p[0] * sc, p[1] * sc) : c.moveTo(p[0] * sc, p[1] * sc)); c.closePath(); c.fill(); }
@@ -126,11 +166,20 @@ function v3Build() {
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i, x = i * st * g.cell, y = j * st * g.cell; pos[k * 3] = x; pos[k * 3 + 1] = g.heights[j * st * g.nx + i * st] * K.EX; pos[k * 3 + 2] = y; uv[k * 2] = x / W.size.w; uv[k * 2 + 1] = 1 - y / W.size.h; }
   for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) { const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1; idx.push(a, c, b, b, c, d); }
   const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.BufferAttribute(pos, 3)); geo.setAttribute('uv', new T.BufferAttribute(uv, 2)); geo.setIndex(idx);
-  const tex = new T.CanvasTexture(v3Ground(W)); tex.magFilter = T.NearestFilter; // hard-edged colour, in keeping with the facets
+  // from above: hard-edged colour, in keeping with the facets. On the ground the picture's ten-metre pixels would stand as squares
+  // underfoot, so there it is smoothed, tinted with field plots and given a fine texture near the eye (scenery, not survey)
+  const tex = new T.CanvasTexture(v3Ground(W, V3.cam.ground)); tex.magFilter = V3.cam.ground ? T.LinearFilter : T.NearestFilter;
+  const gmat = new T.MeshLambertMaterial({ map: tex }); V3.eyeAt = new T.Vector3(); V3.detail = false;
+  if (V3.cam.ground) { const D = V3K.DETAIL, dt = new T.CanvasTexture(v3DetailTile()); dt.wrapS = dt.wrapT = T.RepeatWrapping; const fl = v => v.toFixed(3);
+    gmat.onBeforeCompile = sh => { sh.uniforms.v3Tile = { value: dt }; sh.uniforms.v3EyeAt = { value: V3.eyeAt }; V3.detail = true;
+      sh.vertexShader = 'varying vec3 v3Wp;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  v3Wp = position;');
+      sh.fragmentShader = 'uniform sampler2D v3Tile; uniform vec3 v3EyeAt; varying vec3 v3Wp;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+  { float v3d = distance(v3Wp, v3EyeAt); vec3 v3a = texture2D(v3Tile, v3Wp.xz / ${fl(D.FINE)}).rgb * 2.0, v3b = texture2D(v3Tile, v3Wp.zx / ${fl(D.COARSE)}).rgb * 2.0;
+    diffuseColor.rgb *= mix(vec3(1.0), v3a, ${fl(D.AMT[0])} * (1.0 - smoothstep(${fl(D.FINE_FADE[0])}, ${fl(D.FINE_FADE[1])}, v3d))) * mix(vec3(1.0), v3b, ${fl(D.AMT[1])} * (1.0 - smoothstep(${fl(D.COARSE_FADE[0])}, ${fl(D.COARSE_FADE[1])}, v3d))); }`); }; }
   // each facet gets its own three corners and its own normal, so the facets are flat by construction (not by a shader trick that
   // went black on facets close to the eye in the ground view)
   const flat = geo.toNonIndexed(); flat.computeVertexNormals();
-  S.add(new T.Mesh(flat, new T.MeshLambertMaterial({ map: tex }))); V3.tris = idx.length / 3;
+  S.add(new T.Mesh(flat, gmat)); V3.tris = idx.length / 3;
   // beyond the map (decoration, not survey): the ground runs on level from the map's edge, and two lines of far hills close the view,
   // so the land has a horizon instead of an edge. The haze takes them as it would.
   { const rim = []; for (let i = 0; i < nx; i++) rim.push(i); for (let j = 1; j < ny; j++) rim.push(j * nx + nx - 1); for (let i = nx - 2; i >= 0; i--) rim.push((ny - 1) * nx + i); for (let j = ny - 2; j >= 1; j--) rim.push(j * nx);
@@ -175,15 +224,18 @@ function v3Build() {
   V3.tmp = new T.Vector3();
   // on the ground, tufts of grass stand round your feet and stay put as you walk: something near to judge distance by (decoration)
   V3.tufts = null; V3.tuftAt = null;
-  if (V3.cam.ground) { const n = V3K.TUFT_N * V3K.TUFT_N; V3.tufts = new T.InstancedMesh(facet(new T.ConeGeometry(0.09, 0.4, 4)), lam(), n); V3.tufts.frustumCulled = false; for (let i = 0; i < n; i++) tint(V3.tufts, i, V3K.TUFT, i); S.add(V3.tufts); }
+  if (V3.cam.ground) { const n = V3K.TUFT_N * V3K.TUFT_N; const tg = { p: [], c: [] }; for (let b = 0; b < 3; b++) { const a = b * 2.1 + 0.4, lean = 0.28 + 0.1 * b, bx = Math.cos(a) * 0.04, bz = Math.sin(a) * 0.04, tx = Math.cos(a) * lean * 0.4, tz = Math.sin(a) * lean * 0.4, w = 0.035, nx = -Math.sin(a) * w, nz = Math.cos(a) * w, top = 0.2 - 0.03 * b;
+      for (const [u, v] of [[1, -1], [-1, 1]]) tg.p.push(bx + nx * u, -0.2, bz + nz * u, bx + nx * v, -0.2, bz + nz * v, bx + tx, top, bz + tz); for (let q = 0; q < 6; q++) tg.c.push(1, 1, 1); } // a tuft is three blades leaning apart (each drawn from both sides), not a cone: cones read as fir trees through the glass
+    V3.tufts = new T.InstancedMesh(v3Geo(tg), lam(), n); V3.tufts.frustumCulled = false; for (let i = 0; i < n; i++) tint(V3.tufts, i, V3K.TUFT, i); S.add(V3.tufts); }
   V3.unitGeo = new T.BoxGeometry(1, 1, 1); V3.at = at; V3.put = put;
-  V3.men = null; if (V3.cam.ground) v3MenBuild(); // on the ground the bodies are men and stand-in blocks; from above they stay the enlarged blocks
+  v3FxBuild(); V3.men = null; V3.menStat = null; if (V3.cam.ground) v3MenBuild(); // on the ground the bodies are men and stand-in blocks; from above they stay the enlarged blocks
   if (fresh) { V3.cam.tx = W.size.w / 2; V3.cam.tz = W.size.h / 2; V3.cam.dist = Math.max(W.size.w, W.size.h) * 0.85; V3.cam.az = 0; V3.cam.pol = 0.95; }
 }
 function v3SideColour(side) { const v = getComputedStyle(document.documentElement).getPropertyValue('--m-' + String(side).toLowerCase()).trim(); return v || '#666666'; }
 function v3Take() { // a new tick: keep the last picture to glide from, take the new one
   const snap = SIM.view.snapshot('truth'), m = new Map(); for (const u of snap.units) m.set(u.id, u);
-  V3.prev = V3.cur || m; V3.cur = m; V3.snap = snap; V3.tick = SIM.tick;
+  V3.prev = V3.cur || m; V3.cur = m; V3.prevT = V3.snap && V3.prev !== m ? V3.snap.t : null; V3.curT = snap.t; V3.snap = snap; V3.tick = SIM.tick;
+  v3FxTake(snap);
   // the player's commander, from his own snapshot: only where he stands and the glass he carries are read here (the picture drawn
   // stays the umpire's). A battle with no command layer has no commander to stand beside, and no glass.
   { let c = null; try { c = SIM.view.snapshot('chief'); } catch (e) { c = null; } V3.glass = c && c.glass ? c.glass : null; if (!V3.glass && V3.cam.field === 'glass') v3Field('wide');
@@ -238,7 +290,9 @@ function v3Caption() {
   if (!V3.snap) return; const C = V3.cam, x = n => (Math.round(n * 10) / 10).toString();
   const how = !C.ground ? 'heights drawn ×' + V3K.ABOVE.EX : 'life size · ' + (C.field === 'glass' && V3.glass ? `through the glass, ${x(V3.glass.power)}×`
     : C.field === 'eye' ? `as sharp as the eye (a screen correction, ${x(v3Power())}×; not a glass)` : 'wide view');
-  $('v3cap').textContent = `${C.ground ? (C.atPost ? 'On the ground at headquarters' : 'On the ground') : 'The field in relief'} · the umpire’s picture · ${V3.snap.clock} · ${how}`;
+  const cap = $('v3cap'); cap.textContent = `${C.ground ? (C.atPost ? 'On the ground at headquarters' : 'On the ground') : 'The field in relief'} · the umpire’s picture · ${V3.snap.clock} · ${how}`;
+  // what is invented is said on the picture itself, in a second line: the map knows none of it
+  if (C.ground) { const n = document.createElement('span'); n.className = 'v3note'; n.textContent = V3K.NOTE; cap.appendChild(n); }
 }
 // the round eyepiece: everything outside the glass's true field is blacked out. Its radius on the screen is derived: the circle seen
 // in the eyepiece (apparent) against the wide field the screen stands for, r = (h / 2) tan(apparent / 2) / tan(WIDE / 2).
@@ -273,6 +327,7 @@ function v3ToPost(keepLook) { // put the eye at headquarters; keepLook leaves it
   let step = 0; while (step < V3K.POST.REACH && v3Blocked(W, at.x + dx * step, at.y + dy * step, dx, dy)) step += V3K.POST.STEP;
   if (step >= V3K.POST.REACH && v3Blocked(W, at.x + dx * step, at.y + dy * step, dx, dy)) step = 0; // no open view within reach: stay at the post itself
   C.tx = v3clamp(at.x + dx * step, 0, W.size.w); C.tz = v3clamp(at.y + dy * step, 0, W.size.h); C.atPost = true; V3.postStep = step; V3.postAim = aim;
+  V3.staffAt = { x: C.tx, z: C.tz, dx, dz: dy, side: at.side }; V3.menSig = null; // the staff group (scenery) stands beside this spot, set by the way the commander first looks
   if (!keepLook) { C.az = Math.atan2(-dx, -dy); C.pitch = 0; } // the camera looks along (-sin az, -cos az)
   v3Caption(); return true;
 }
@@ -302,6 +357,7 @@ function v3Frame() { // called every frame by the page's loop; cheap unless the 
   V3.dome.position.copy(cam.position); if (V3.sunDir) V3.disc.position.copy(cam.position).addScaledVector(V3.sunDir, V3.K.FAR * 0.75); if (V3.tufts) v3Tufts();
   if (cam.fov !== fov) { cam.fov = fov; cam.updateProjectionMatrix(); v3Caption(); } v3Mask();
   if (C.ground && V3.men) v3MenFrame(t);
+  V3.eyeAt.copy(cam.position); v3FxFrame(t);
   R.render(V3.scene, cam); V3.frames++;
 }
 function v3Open() {
@@ -479,8 +535,13 @@ function v3Bodies(t) {
         m[o] = ch * ws; m[o + 1] = 0; m[o + 2] = sh * ws; m[o + 3] = 0; m[o + 4] = 0; m[o + 5] = hh; m[o + 6] = 0; m[o + 7] = 0; m[o + 8] = -sh * d; m[o + 9] = 0; m[o + 10] = ch * d; m[o + 11] = 0; m[o + 12] = wx; m[o + 13] = V3.at(wx, wz) + K.LIFT; m[o + 14] = wz; m[o + 15] = 1;
         const cl = K2.cols[0]; cl[i * 3] = col[0]; cl[i * 3 + 1] = col[1]; cl[i * 3 + 2] = col[2]; K2.unit[i] = b.id; } }
   }
+  // the staff beside the standpoint at headquarters: a few horsemen and two officers on foot. Scenery: the contract places the commander
+  // and nobody round him, so these stand for a staff that was there without being any record of who or where
+  let staff = 0; if (V3.staffAt) { const A = V3.staffAt, col = v3SideRGB(A.side), h0 = Math.atan2(A.dx, -A.dz);
+    for (const [r, f, turn, mounted] of V3K.STAFF) { const x = A.x - A.dz * r + A.dx * f, z = A.z + A.dx * r + A.dz * f, q = Math.round((r + 20) * 7 + f * 3);
+      if (mounted ? v3Inst('horse', x, V3.at(x, z), z, h0 + turn, 1, [HORSES[q % HORSES.length], col], '(staff)') : v3Inst('crew', x, V3.at(x, z), z, h0 + turn, 1, [col], '(staff)')) staff++; } }
   let tris = 0, inst = 0; for (const k in men) { const Kd = men[k]; Kd.attr.needsUpdate = true; for (const mesh of Kd.meshes) { mesh.count = Kd.n; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true; } tris += Kd.n * Kd.tris; inst += Kd.n; }
-  V3.menStat = { foot: men.foot.n, horse: men.horse.n, crew: men.crew.n, gun: men.gun.n, flag: men.flag.n, block: men.block.n, bodies, left, tris, instances: inst, range: Math.round(cone.range), nearest: nearest === Infinity ? null : nearest, max: Object.fromEntries(Object.entries(men).map(([k, v]) => [k, v.cap])) };
+  V3.menStat = { staff, foot: men.foot.n, horse: men.horse.n, crew: men.crew.n, gun: men.gun.n, flag: men.flag.n, block: men.block.n, bodies, left, tris, instances: inst, range: Math.round(cone.range), nearest: nearest === Infinity ? null : nearest, max: Object.fromEntries(Object.entries(men).map(([k, v]) => [k, v.cap])) };
   V3.menAt = cone;
 }
 // called every frame on the ground: lay the bodies out again only when something moved (the bodies, the eye, or the field of view)
@@ -488,6 +549,49 @@ function v3MenFrame(t) {
   const C = V3.cam, last = V3.menAt, sig = `${V3.tick}|${t}|${V3.w}x${V3.h}|${C.field}`; let need = sig !== V3.menSig || !last;
   if (!need) { const cp = Math.cos(C.pitch), ax = -Math.sin(C.az) * cp, ay = Math.sin(C.pitch), az = -Math.cos(C.az) * cp; need = Math.hypot(C.tx - last.x, C.tz - last.z) > V3K.FIG.MOVE || Math.acos(v3clamp(ax * last.ax + ay * last.ay + az * last.az, -1, 1)) > last.slack * 0.6; }
   if (need) { V3.menSig = sig; v3Bodies(t); }
+}
+/* ---------- the field alive: gun flashes, volleys and their smoke, from the contract's event stream (no sound) ---------- */
+// Every firing the umpire's stream reports ('truth': this is the umpire's picture) is drawn where and when it happened: flashes along
+// the firing body's front and a puff of smoke from each, timed inside the tick as the stream times them and gliding with the bodies.
+// Read with watch() and drain() only; looking changes nothing in the battle (tools/test_view.js holds the contract to that).
+function v3FxBuild() {
+  const T = globalThis.THREE, X = V3K.FX, S = V3.scene, was = V3.fx;
+  const flash = new T.InstancedMesh(new T.OctahedronGeometry(1, 0), new T.MeshBasicMaterial({ color: X.FLASH, transparent: true, opacity: 0.95, blending: T.AdditiveBlending, depthWrite: false, fog: false }), X.FLASH_MAX);
+  flash.count = 0; flash.frustumCulled = false; flash.userData.fx = 'flash'; S.add(flash);
+  const tiers = X.TIERS.map(op => { const m = new T.InstancedMesh(new T.IcosahedronGeometry(1, 0), new T.MeshLambertMaterial({ color: V3K.SMOKE, transparent: true, opacity: op, depthWrite: false }), X.PUFF_MAX); m.count = 0; m.frustumCulled = false; m.userData.fx = 'puff'; S.add(m); return m; });
+  // a new scene (the scale changed) keeps the stream's place and what is still in the air; a new battle starts afresh
+  V3.fx = was && was.sim === SIM ? Object.assign(was, { flash, tiers }) : { sim: SIM, seq: 0, queue: [], flashes: [], puffs: [], flash, tiers, drained: 0, shot: { cannon: 0, volley: 0 }, recent: [], watching: false };
+  if (!V3.fx.watching) { SIM.view.watch('truth'); V3.fx.watching = true; V3.fx.seq = SIM.view.drain('truth', 0).reduce((a, e) => Math.max(a, e.seq), 0); } // begin from now: nothing that happened before the view was opened is replayed
+}
+// a new tick: take the stream's new events; those of firing are queued to show at their own minute as the picture glides to this tick
+function v3FxTake(snap) {
+  const X = V3K.FX, fx = V3.fx; if (!fx) return; const ev = SIM.view.drain('truth', fx.seq), from = Math.max(V3.prevT == null ? snap.t : V3.prevT, snap.t - X.BACK);
+  for (const e of ev) { fx.seq = Math.max(fx.seq, e.seq); fx.drained++; if (!X.KINDS[e.kind] || e.unit == null || e.t < from - 1e-6 || fx.queue.length >= X.QUEUE) continue; // older than the glide now starting: a battle hurried on while the view was shut
+    const K = X.KINDS[e.kind], u = V3.cur.get(e.unit); if (!u) continue; const n = v3clamp(Math.round(K.per ? u.front / K.per : e.size), K.n[0], K.n[1]);
+    for (let i = 0; i < n; i++) fx.queue.push({ t: Math.min(snap.t, e.t + (i ? v3rand(e.seq * 7 + i) * K.roll : 0)), unit: e.unit, kind: e.kind, k: e.seq * 13 + i }); }
+  fx.queue.sort((a, b) => a.t - b.t); fx.wind = snap.wind;
+}
+// one shot: where on the body's front it is fired from, by the same layout the men stand in; a flash there and a puff before it
+function v3Shot(q, t, now) {
+  const X = V3K.FX, K = X.KINDS[q.kind], fx = V3.fx, c = V3.cur.get(q.unit); if (!c) return; const p = V3.prev.get(q.unit) || c, D2R = Math.PI / 180;
+  const x = v3lerp(p.x, c.x, t), y = v3lerp(p.y, c.y, t), turn = ((c.facing - p.facing + 540) % 360) - 180, f = (p.facing + turn * t) * D2R, L = v3Layout(c, Math.max(1, v3lerp(p.front, c.front, t)), Math.max(1, v3lerp(p.depth, c.depth, t)));
+  if (L.mob) return; const r = L.rows[q.k % L.rows.length], a = (v3rand(q.k) - 0.5) * r.w, cy = Math.cos(r.yaw * D2R), sy = Math.sin(r.yaw * D2R), lz = -r.d / 2 - K.out, bx = r.cx + a * cy - lz * sy, bz = r.cz + a * sy + lz * cy, cf = Math.cos(f), sf = Math.sin(f);
+  const wx = x + bx * cf - bz * sf, wz = y + bx * sf + bz * cf, s = V3.K.FX, gy = V3.at(wx, wz) + K.up * s, h = f + r.yaw * D2R;
+  if (fx.flashes.length < X.FLASH_MAX) fx.flashes.push({ x: wx, y: gy, z: wz, r: K.flash * s, born: now });
+  if (fx.puffs.length < X.PUFF_MAX) fx.puffs.push({ x: wx + Math.sin(h) * K.puff[0] * s, y: gy, z: wz - Math.cos(h) * K.puff[0] * s, r0: K.puff[0] * s, r1: K.puff[1] * s, born: now, spin: v3rand(q.k + 3) * 6 });
+  fx.shot[q.kind]++; fx.recent.push({ unit: q.unit, kind: q.kind, x: wx, z: wz, t: q.t, shown: fx.shown, body: [x, y, f / D2R, L.rows[0] ? Math.max(1, v3lerp(p.front, c.front, t)) : 0, Math.max(1, v3lerp(p.depth, c.depth, t))], out: K.out }); if (fx.recent.length > 60) fx.recent.shift();
+}
+function v3FxFrame(t) {
+  const X = V3K.FX, fx = V3.fx; if (!fx || !V3.cur) return; const now = fx.held != null ? fx.held : performance.now(), shown = fx.shown = v3lerp(V3.prevT == null ? V3.curT : V3.prevT, V3.curT, t), M = V3.fxM || (V3.fxM = new globalThis.THREE.Matrix4());
+  while (fx.queue.length && fx.queue[0].t <= shown + 1e-9) v3Shot(fx.queue.shift(), t, now);
+  let n = 0; fx.flashes = fx.flashes.filter(o => now - o.born < X.FLASH_MS);
+  for (const o of fx.flashes) { const a = (now - o.born) / X.FLASH_MS, r = o.r * (0.7 + 0.6 * a); M.makeScale(r, r, r).setPosition(o.x, o.y, o.z); fx.flash.setMatrixAt(n++, M); }
+  fx.flash.count = n; fx.flash.instanceMatrix.needsUpdate = true;
+  // smoke: each puff swells, rises and drifts down the wind as it thins; the thinning is done by passing it from one mesh to the next, fainter one
+  const w = fx.wind || { dir: 0, speed: 0 }, wb = (w.dir + 180) * Math.PI / 180, wx = Math.sin(wb) * w.speed, wz = -Math.cos(wb) * w.speed, cnt = fx.tiers.map(() => 0); fx.puffs = fx.puffs.filter(o => now - o.born < X.PUFF_MS);
+  for (const o of fx.puffs) { const age = (now - o.born) / 1000, a = age * 1000 / X.PUFF_MS, k = Math.min(fx.tiers.length - 1, Math.floor(a * fx.tiers.length)), r = v3lerp(o.r0, o.r1, Math.sqrt(a));
+    M.makeRotationY(o.spin).scale(V3.tmp.set(r, r * 0.75, r)).setPosition(o.x + wx * age, o.y + X.RISE * age * V3.K.FX + r * 0.3, o.z + wz * age); fx.tiers[k].setMatrixAt(cnt[k]++, M); }
+  fx.tiers.forEach((m, k) => { m.count = cnt[k]; m.instanceMatrix.needsUpdate = true; });
 }
 // test hooks (view3dtest.py)
 globalThis.WGame && Object.assign(globalThis.WGame, { v3: () => ({ on: V3.on, err: V3.err, units: V3.units.size, shown: V3.cur ? V3.cur.size : 0, tris: V3.tris || 0, frames: V3.frames, tick: V3.tick, smoke: V3.smoke ? V3.smoke.count : 0, button: !$('v3btn').hidden, three: !!globalThis.THREE,
@@ -498,16 +602,20 @@ globalThis.WGame && Object.assign(globalThis.WGame, { v3: () => ({ on: V3.on, er
   v3Stand: (x, y, az) => { V3.cam.tx = x; V3.cam.tz = y; V3.cam.az = az; if (V3.cam.atPost) { V3.cam.atPost = false; v3Caption(); } }, v3Sky: () => Object.assign({ horizon: V3.scene.background.getHexString(), sunColour: V3.sun.color.getHexString(), tufts: V3.tufts ? V3.tufts.count : 0, step: V3.K.STEP }, V3.light), v3Eye: () => ({ ex: V3.K.EX, treeH: V3.K.TREE_H, blockH: V3.K.H.inf, ground: V3.cam.ground, y: V3.camera.position.y, floor: V3.at(V3.cam.tx, V3.cam.tz), trees: V3.trees, shrubs: V3.shrubs, fov: V3.camera.fov }),
   // the field's steps: v3Field(step) sets one ('wide', 'eye', 'glass') or steps on; v3Glass() says what is shown and why
   v3Field: to => { v3Field(to); return V3.cam.field; }, v3Still: on => { V3.still = !!on; },
-  v3At: () => ({ x: V3.cam.tx, z: V3.cam.tz, az: V3.cam.az, pitch: V3.cam.pitch, ground: V3.cam.ground, atPost: V3.cam.atPost, step: V3.postStep || 0, aim: V3.postAim || null, caption: $('v3cap').textContent, second: $('v3h').hidden ? null : $('v3h').textContent }),
+  v3At: () => ({ x: V3.cam.tx, z: V3.cam.tz, az: V3.cam.az, pitch: V3.cam.pitch, ground: V3.cam.ground, atPost: V3.cam.atPost, step: V3.postStep || 0, aim: V3.postAim || null, caption: $('v3cap').firstChild ? $('v3cap').firstChild.textContent : '', second: $('v3h').hidden ? null : $('v3h').textContent }),
+  // the scenery and the firing: what is drawn that the map does not hold, and what the event stream has put on the field
+  v3Scene: () => ({ ground: V3.cam.ground, detail: !!V3.detail, plots: V3.cam.ground, smooth: V3.cam.ground, staff: V3.men && V3.menStat ? V3.menStat.staff : 0, staffAt: V3.staffAt || null, note: (document.querySelector('#v3cap .v3note') || {}).textContent || null, tufts: V3.tufts ? V3.tufts.geometry.attributes.position.count / 3 : 0 }),
+  v3FxHold: on => { if (V3.fx) V3.fx.held = on ? performance.now() : null; }, // stop the flashes and smoke ageing, so a test or a picture can catch them (new ones still appear)
+  v3Fx: () => V3.fx ? { seq: V3.fx.seq, drained: V3.fx.drained, queued: V3.fx.queue.length, flashes: V3.fx.flash.count, puffs: V3.fx.tiers.reduce((a, m) => a + m.count, 0), shot: Object.assign({}, V3.fx.shot), recent: V3.fx.recent.slice(-40), shown: V3.fx.shown, caps: { flash: V3K.FX.FLASH_MAX, puff: V3K.FX.PUFF_MAX }, scale: V3.K.FX } : null,
   // what the contract says, for the tests to work the standpoint out for themselves: the commander's place, the sides, and every body's side, place and strength
   v3Contract: () => { const W = SIM.view.world(), T = SIM.view.snapshot('truth'); let c = null; try { c = SIM.view.snapshot('chief'); } catch (e) { c = null; }
     return { at: c && c.at, side: c && c.side, glass: c && c.glass, eye: SIM.view.P.EYE, sides: W.sides, arms: W.arms, formations: W.formations, objectives: W.objectives, buildings: W.buildings, units: T.units.map(u => ({ id: u.id, side: u.side, arm: u.arm, form: u.form, x: u.x, y: u.y, str: u.str, front: u.front, depth: u.depth, facing: u.facing, status: u.status })) }; },
   // the bodies on the ground: how many instances of each kind are drawn, the caps, the triangles, and which bodies are drawn as men
-  v3Men: () => V3.men && V3.menStat ? Object.assign({ trisEach: Object.fromEntries(Object.entries(V3.men).map(([k, v]) => [k, v.tris])), asMen: [...new Set(['foot', 'horse', 'gun'].flatMap(k => V3.men[k].unit.slice(0, V3.men[k].n)))], hide: V3K.FIG.HIDE, px: V3K.FIG.PX }, V3.menStat) : null,
+  v3Men: () => V3.men && V3.menStat ? Object.assign({ trisEach: Object.fromEntries(Object.entries(V3.men).map(([k, v]) => [k, v.tris])), asMen: [...new Set(['foot', 'horse', 'gun'].flatMap(k => V3.men[k].unit.slice(0, V3.men[k].n)))].filter(id => V3.units.has(id)), hide: V3K.FIG.HIDE, px: V3K.FIG.PX }, V3.menStat) : null,
   // every figure drawn for one body: its kind, where it stands and the compass heading it faces (degrees), read back from what is drawn
   v3Figures: id => { const out = []; if (V3.men) for (const k of ['foot', 'horse', 'gun', 'crew', 'flag', 'block']) { const K = V3.men[k]; for (let i = 0; i < K.n; i++) if (K.unit[i] === id) { const o = i * 16; out.push([k, K.m[o + 12], K.m[o + 14], (Math.atan2(K.m[o + 2], K.m[o]) * 180 / Math.PI + 360) % 360, K.m[o + 13]]); } } return out; },
   v3Look: (x, y, up) => { const C = V3.cam, dx = x - C.tx, dz = y - C.tz, d = Math.hypot(dx, dz) || 1; C.az = Math.atan2(-dx, -dz); C.pitch = Math.atan2(V3.at(x, y) + (up || 0) - (V3.at(C.tx, C.tz) + V3.eye), d); return { az: C.az, pitch: C.pitch, dist: d }; }, // turn the eye to a point of the field
   v3Cap: caps => { if (!V3.men) return null; for (const k in V3.men) V3.men[k].cap = Math.min(V3.men[k].max, caps && caps[k] != null ? caps[k] : V3.men[k].max); V3.menSig = null; return true; }, // lower a kind's cap for a test of the budget (never above the constant); no argument restores them
   v3Post: () => v3ToPost(), v3Project: (x, y, up) => { const v = new globalThis.THREE.Vector3(x, V3.at(x, y) + (up || 0), y).project(V3.camera); return { x: v.x, y: v.y, z: v.z }; }, // where a point of the field falls on the screen (-1..1)
-  v3Glass: () => ({ field: V3.cam.field, fov: V3.camera ? V3.camera.fov : null, want: v3Fov(), power: v3Power(), glass: V3.glass, h: V3.h, w: V3.w, mask: !$('v3m').hidden, maskR: V3.maskR || 0, sway: V3.sway || [0, 0], button: !$('v3f').hidden, label: $('v3f').textContent, caption: $('v3cap').textContent,
+  v3Glass: () => ({ field: V3.cam.field, fov: V3.camera ? V3.camera.fov : null, want: v3Fov(), power: v3Power(), glass: V3.glass, h: V3.h, w: V3.w, mask: !$('v3m').hidden, maskR: V3.maskR || 0, sway: V3.sway || [0, 0], button: !$('v3f').hidden, label: $('v3f').textContent, caption: $('v3cap').firstChild ? $('v3cap').firstChild.textContent : '',
     turn: V3K.FIELD.TURN / v3Power() }) });
