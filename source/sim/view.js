@@ -4,7 +4,8 @@
      const V = WView.install(E);
      V.world()            the ground, once: heights, roads, woods, buildings, places (never changes during a battle)
      V.snapshot('chief')  what the player's commander believes right now: his own brigades as last reported, the enemy as last
-                          seen, who he thinks holds each place, what he hears, the orders he has given as far as he knows
+                          seen, who he thinks holds each place, what he hears, the orders he has given as far as he knows;
+                          where he stands (at) and the telescope he carries (glass: its power and its field, from the packs)
      V.snapshot('truth')  the umpire's picture: every brigade where it really is (the umpire's map, replays, the end of the battle)
                           every snapshot carries the light: the sun's height and bearing, how far the day lets a man see
                           (the weather's haze included), whether the air has turned damp, the wind and the wet of the ground
@@ -85,6 +86,14 @@ function install(E) {
   }
 
   /* ---------- snapshots ---------- */
+  // a commander's telescope, from the packs (his own power, or the era's when his file gives none): how many times it magnifies,
+  // the angle across the circle seen in the eyepiece, and the true field that follows (derived: tan(field / 2) = tan(apparent / 2)
+  // / power). Null where the era has no telescope. It is for drawing only: the engine's sighting rules have their own constants.
+  function glassOf(L) {
+    const g = E.era.glass || {}, power = typeof L.glass === 'number' ? L.glass : g.power;
+    if (!(power > 1) || !(g.apparent > 0)) return null;
+    return { power, apparent: g.apparent, field: Math.round(2 * Math.atan(Math.tan(g.apparent * D2R / 2) / power) / D2R * 1000) / 1000 };
+  }
   const common = who => ({ v: VERSION, who, battle: E.battleId, t: E.t, clock: E.fmtT(E.t), over: !!E.over,
     light: { sun: r1(E.light.sunAt(E.t)), bearing: r1(sunPos(E.light.date, E.light.lat, E.light.lon, E.t).az), seeing: Math.round(E.bgVis(E.t)), damp: E.light.humidFrom != null && E.t > E.light.humidFrom }, ground: { wet: r1(E.wet) }, wind: { dir: Math.round(E.wind.dir), speed: r1(E.wind.speed) } });
   function truth() {
@@ -143,6 +152,7 @@ function install(E) {
     const id = c.X.chief, B = c.B[id], L = E.leaders[id], S = common('chief');
     S.side = c.side; S.commander = id;
     S.at = { x: r1(L.x), y: r1(L.y), post: c.hq.post || null, moving: !!c.hq.moving };
+    S.glass = glassOf(L);
     S.own = [...B.own.values()].map(r => { const u = E.byId[r.uid]; return { id: r.uid, name: u.name, corps: u.corps || null, arm: u.arm, x: r1(r.x), y: r1(r.y), form: r.form || null,
       str: Math.round(r.str), state: r.cohWord || null, task: r.task || null, place: r.sp || null, gone: !!r.gone, seenAt: r.t, reportedAt: r.tState, src: r.src }; });
     S.enemy = [...B.c.values()].map(r => ({ key: keyOf(r.tid), identified: !!r.idLevel, side: r.side || null, nation: r.nat || null, corps: r.corps || null, kind: r.kind,

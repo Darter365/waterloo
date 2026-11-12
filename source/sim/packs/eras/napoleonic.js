@@ -4,7 +4,8 @@
 (function (root) {
 'use strict';
 const P = root.WPacks || (typeof require === 'function' ? require('../registry.js') : null);
-P.register('era', 'napoleonic', { version: '1.1', // 1.1 (phase 5): the open-village constants (EDGE_*), used only where a battle marks a section street
+P.register('era', 'napoleonic', { version: '1.2', // 1.1 (phase 5): the open-village constants (EDGE_*), used only where a battle marks a section street
+  // 1.2: the commander's glass (glass), read only by the view contract for the 3D ground view; no rule of the battle uses it
   name: 'The Napoleonic wars',
   /* ---------------- calibration constants (est.) ---------------- */
   K: {
@@ -67,6 +68,12 @@ P.register('era', 'napoleonic', { version: '1.1', // 1.1 (phase 5): the open-vil
      dark and the end, est.) */
   light: { sunset: -0.833, dark: -6, end: -9, vis: [[0.833, 5000], [6, 1000], [9, 600]], fire: [[0.833, 1], [6, 0.5]] },
   gunCalibre: 6, // pounds: a battery's guns when neither the battle nor its nation says
+  // the commander's field telescope, for the view only (view.js hands it to a client; the engine's own sighting rules do not read it).
+  // power: how many times it magnifies, for a leader whose file gives none (est.: an officer's ordinary draw telescope; no source opened).
+  // apparent: the angle across the bright circle seen in the eyepiece, degrees (est.: the erecting eyepieces of the time showed a
+  // narrow circle; no measured value was found). The glass's true field follows from the two: tan(true / 2) = tan(apparent / 2) / power,
+  // so 30 times and 45 degrees give about 1.6 degrees, some 28 m across at 1 km.
+  glass: { power: 20, apparent: 45 },
   // orders by rider (phase 2, moved from the engine unchanged): minutes to write when the sender's leader file does not say, minutes for
   // the receiver to read and act (direct: an order for one unit, or from close by), a rider's speed across country (km/h) and how much wet
   // ground slows him (all est.)

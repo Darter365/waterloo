@@ -11,6 +11,7 @@ const foot = { // frontage and depth of a body on foot (m), as the Napoleonic fo
   road: { F: 6, D: { of: 'men', mul: [0.5], min: 30 } }, _: { F: { of: 'files', mul: [0.9, 0.5], min: 20 }, D: 12 } };
 P.register('era', 'medieval-test', { version: '0.1', // uncalibrated: a test of the format
   name: 'Test: an army of about 1400', like: 'napoleonic',
+  glass: { power: 0, apparent: 0 }, // no telescope: the view offers none (the first are of about 1608; recalled, not opened)
   // a fighting man disables MELEE_KILL of the enemy a tick, before armour; only a clear superiority (SHOCK_WIN) breaks in at the first shock,
   // a clear inferiority (SHOCK_REPULSE) is thrown back, and between them the two lock hand to hand
   K: { MELEE_LOCK: 1, MELEE_KILL: 0.03, MELEE_COH: 4, MAN_FRONT: 0.9, SHOCK_WIN: 1.8, SHOCK_REPULSE: 0.6 },
