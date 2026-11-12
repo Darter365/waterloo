@@ -20,7 +20,8 @@ Never record a guess as a decision.
 - **A dice stream per purpose (12 Nov).** Approved, on the research (common random numbers). It changes results, so it is a
   class 3 task and the references are re-recorded once. Its acceptance test is under "Claude's choices" until Chris confirms it.
 - **Measures of the core loop come before a performance baseline (12 Nov).** Belief error, report staleness, order latency,
-  orders overtaken and decision gaps, computed from the contract alone (`docs/METHOD.md`, section 5). Not built.
+  orders overtaken and decision gaps, computed from the contract alone (`docs/METHOD.md`, section 5). Built 12 Nov as
+  `tools/loop.js`; its definitions and thresholds are Claude's (below).
 - **Agent playtests through every view (12 Nov):** Napoleon's, the umpire's and Wellington's. Wellington's waits until the
   allied side is playable. Not built.
 - **Long-term aim.** A 3D game set at the generals' historical headquarters, with sound, riders arriving and a spotting glass,
@@ -72,6 +73,17 @@ Never record a guess as a decision.
 
 These were made to keep moving and are easy to change. Raise them when the subject comes up.
 
+- **How the five loop measures are defined (12 Nov)**, `tools/loop.js` and `docs/METHOD.md`, section 5. Every threshold is
+  (est.): belief is read against truth every 10 minutes; "the situation an order addressed" is who holds its objective and the
+  enemy's horse and foot within 800 m of it; that situation has "changed" if the holder changed, or the enemy's strength there
+  at least doubled or halved by at least 1,000 men; "a choice worth making" is a dispatch the staff starred reaching the
+  commander (the game's own mark, but news only, not whether he had troops free); belief error is given for the middle body
+  and the body at the 90th centile; "overtaken" (truth when given against truth on arrival) is kept apart from "written on a
+  false picture" (belief against truth when given). Seeds 2000 to 2029, the strategy bench's.
+- **What the contract gained for the measures (12 Nov):** on the commander's side each order's objective, count of conditions
+  and the staff's estimate, and whether a dispatch is starred; on the umpire's side every order's real times and status, and
+  beside each unit its key in the commander's picture and whether it is a crewed arm. The estimate is a second copy of the
+  order form's until the page moves onto the contract, and unlike the form it does not use the writing time already rolled.
 - **The chain of command as one table (12 Nov).** Chris asked for Claude's recommendation to be built (corps and divisions as objects with a commander); the
   shape is Claude's. Every army, wing, corps and division is an entry in `battle.chain` (`P.chain`, `source/README.md`), and a battle's
   `chain` block states only what the rule "a leader commands the corps or division that carries his id" cannot know. Results are
@@ -94,6 +106,16 @@ These were made to keep moving and are easy to change. Raise them when the subje
 
 ## Open questions (not decided)
 
+- **Ligny's historical orders are not the commander's orders.** The plan goes straight to the engine (`via: 'order'`), so no
+  rider carries them and the loop's order measures are empty for it (`tools/loop.js`, 12 Nov). Putting it through the order
+  builder, as Waterloo's is, would change how Ligny fights.
+- **The staff's estimate is almost never wrong, and is about 20 minutes wide** (12 Nov, `tools/loop.js`, 30 battles a plan):
+  at Waterloo 341 of 359 of Napoleon's historical orders arrived inside the range the staff gave, and none of 209 under the
+  two strategies missed it. That is close to true by construction: the range is the full spread of the writing dice plus a
+  road and a cross-country ride, so only the ride can fall outside. Is a wide range that always holds what "delay is
+  learnable" should mean, or should the staff give a narrower estimate that is sometimes wrong?
+- **The order form shows the writing time already rolled** (`o.writtenAt`, set when the order is given), so the player's
+  estimate is narrower than the staff could know. Small; noted while building the loop measures.
 - **Three rules for who leads a corps.** `doctrine.js`, `ai.js` and `command.js` each work it out their own way, and
   `node tools/oob.js chain <battle>` lists where they part from the table. Waterloo: the generic commanders put Blücher, not
   Bülow, at the head of IV Corps; the historical runner gives the Guard no general. Ligny: the same for the Guard, and the command

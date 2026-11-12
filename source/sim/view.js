@@ -16,8 +16,9 @@
    For measuring the core loop (tools/loop.js, docs/METHOD.md section 5) the snapshots also carry, as plain values:
      chief  each order's objective as he wrote it, how many conditions it has, and the staff's estimate of when it will arrive and
             be acted on (the order form's own ranges); each dispatch, and its event, says whether the staff starred it as news
-     truth  every order with the minutes it was really sent, received and acted on, and its status; and beside each unit the
-            opaque key the commander's picture uses for it, if he has one, so that belief can be set against truth
+     truth  every order with the minutes it was really sent, received and acted on, and its status; and beside each unit whether
+            it is a crewed arm (its strength counts guns, not men) and the opaque key the commander's picture uses for it, if
+            he has one, so that belief can be set against truth
 
    Rules the contract keeps (tools/test_view.js checks each):
    - Plain data. Everything returned survives JSON.stringify and shares no object with the engine.
@@ -90,7 +91,7 @@ function install(E) {
     const S = common('truth');
     S.units = E.units.filter(here).map(u => ({ id: u.id, side: u.side, name: u.name, corps: u.corps || null, arm: u.arm, x: r1(u.x), y: r1(u.y), facing: Math.round(u.facing),
       form: u.form, front: Math.round(u.F), depth: Math.round(u.D), str: Math.round(u.str), coh: Math.round(u.coh), status: u.status, task: u.task.kind, place: u.spId || null,
-      firing: !!u.firedTick, charging: !!u.charge, key: keys.get(u.id) || null }));
+      firing: !!u.firedTick, charging: !!u.charge, crew: crewed(u), key: keys.get(u.id) || null }));
     S.places = E.sps.map(sp => ({ id: sp.id, holder: sp.holder || null }));
     S.morale = Object.fromEntries(E.sideIds.map(s => [s, Math.round(E.morale[s])]));
     S.riders = C() ? C().riders.filter(r => r.status === 'riding' && r.x != null).map(r => ({ x: r1(r.x), y: r1(r.y), side: r.side, kind: r.kind })) : [];

@@ -62,18 +62,48 @@ a check.
   purpose, unit and tick. The second is what the literature on agent models recommends, because within one purpose a changed
   order still shifts who gets which draw. The task measures both before choosing. Until it lands, compare distributions.
 
-## 5. Measures of the core loop (approved 12 Nov, not built)
+## 5. Measures of the core loop (approved 12 Nov; built 12 Nov as `tools/loop.js`)
 
-Computed from the contract and the event stream alone, never from engine objects, so they draw no dice. Each tests one of the
-roadmap's "rules the loop must keep".
+Computed from the contract and the event stream alone, never from engine objects, so they draw no dice: `node tools/loop.js
+<battle> --check` shows that a measured battle ends on the same state hashes as the same battle not measured, and `check.sh`
+runs it for Waterloo and Ligny. Each measure tests one of the roadmap's "rules the loop must keep".
 
-| Measure | What it is | Loop rule it tests |
+    node tools/loop.js <battle> [--n 30] [--seed 2000] [--plans idle,historical] [--out file]
+
+It fights the battle under no orders, the historical orders and each of the pack's `strategies`, prints each measure's median
+and 10th to 90th centile over battles, and saves `results/loop_<battle>.json` (no clock time in it: the same command gives
+the same file). Seeds start at 2000, the strategy bench's; they are not the calibration seeds.
+
+| Measure | How it is computed | Loop rule it tests |
 | --- | --- | --- |
-| Belief error | Distance between believed and true positions, over time | Fog is fair |
-| Report staleness | Age of the newest report on each enemy body | Fog is fair |
-| Order latency | Written to acted on, against the staff's estimate | Delay is learnable |
-| Orders overtaken | Arrived after the situation they addressed had changed | Delay is learnable |
-| Decision gaps | Longest stretch with no choice worth making | Orders interact; good play gets credit |
+| Belief error | Every 10 minutes, the distance from each believed position to the true one: his own brigades by id, the enemy by the key the truth carries beside each unit. Reported for the middle body and for the body at the 90th centile (most brigades stand still, so the middle one hides those that moved), averaged over the day. Beside it, the share of the enemy's horse and foot he has no mark for at all. | Fog is fair |
+| Report staleness | At the same readings, the age of the newest sighting of each enemy body on his map, and of the newest report of each of his brigades; the median body, averaged over the day. | Fog is fair |
+| Order latency | Given to received for every order that arrived; given to acted on for orders without conditions. Against the staff's estimate as first given: the share that arrived, and that were acted on, inside its earliest-to-latest range, and the minutes from the middle of that range. | Delay is learnable |
+| Orders overtaken | For an order with an objective, the situation there is who holds the place and how many enemy horse and foot stand within 800 m. Overtaken: the true situation when it arrived differs from the true situation when it was given. Kept apart from "written on a false picture": belief and truth already differed when it was given. The first is the price of delay, the second of fog. | Delay is learnable |
+| Decision gaps | The stretches between dispatches the staff starred, from the battle's first minute to its last: the longest, the median, and stars an hour. | Orders interact; good play gets credit |
+
+**Thresholds, all (est.)** and all in `DEF` at the top of the tool: readings every 10 minutes; 800 m round an objective; a
+changed situation is a change of holder, or the enemy's strength there at least doubling or halving by at least 1,000 men;
+"a choice worth making" is read as a starred dispatch reaching the commander.
+
+**What the contract gained for this** (plain values, checked in `tools/test_view.js`): on the commander's side, each order's
+objective, its count of conditions and the staff's estimate (the order form's ranges, from his beliefs, never from dice
+already drawn), and whether each dispatch was starred; on the umpire's side, every order with the minutes it was really sent,
+received and acted on, and beside each unit its key in the commander's picture and whether it is a crewed arm.
+
+**Limits to keep in mind when reading a result.**
+
+- A star is news, and news is only half of a choice: the tool does not ask whether he had anything free to order with.
+- The staff's estimate in the contract is a second copy of the order form's (`_game_orders.js`, `expectSpec`), without its
+  guesses for bombardment conditions. They become one when the page moves onto the contract (roadmap step 1).
+- The order form shows the true writing time as soon as an order is given (`o.writtenAt`), a die already drawn. The contract's
+  estimate does not, so it is a little wider than what the player sees today.
+- An order whose historical plan goes straight to the engine (Ligny's: `via: 'order'`) is not the commander's order, so it has
+  no latency and cannot be overtaken. Only plans given through the order builder are measured.
+- Orders to headquarters itself and to a commander off the map have no estimate and are left out.
+- Overtaken is judged at the objective only. A recipient whose own corps has changed (broken, already engaged) is not seen.
+- One run of 30 battles a plan on each battle (seeds 2000 to 2029) is the whole evidence so far; the numbers are in the pull
+  request that added the tool, not here.
 
 ## 6. Playtests
 
