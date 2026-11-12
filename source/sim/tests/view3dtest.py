@@ -3,7 +3,7 @@ import os
 # brigade the contract's truth snapshot holds, glides between ticks, and opens after the battle on Napoleon's map
 import asyncio, sys
 from playwright.async_api import async_playwright
-D = os.path.dirname(os.path.abspath(__file__)) + '/'
+D = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/'  # source/sim: the built page is read from there, and scratch pages are written there
 html = open(D + 'game.html').read()
 open(D + 'pv.html', 'w').write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style></head><body>' + html + '</body></html>')
 SHOTS = sys.argv[1] if len(sys.argv) > 1 else None

@@ -1,8 +1,11 @@
 # Napoleon's Command (Waterloo and Ligny)
 
 A browser game of command under fog of war: the player is Napoleon, gives written orders that riders carry, and learns of the
-battle from reports. One battle-agnostic simulation fights every battle; battles and eras are data. It runs offline on a phone
-from GitHub Pages. The long-term aim is a 3D headquarters view on the same simulation.
+battle from reports. One battle-agnostic simulation fights every battle; battles and eras are data. It runs offline from GitHub
+Pages, on a desktop browser first and still on a phone. The long-term aim is a 3D headquarters view on the same simulation.
+
+**What Chris has decided, what was Claude's own choice and what is open is in `docs/DECISIONS.md`, loaded below. If its text is
+not in your context, read that file before anything else.**
 
 ## Layout
 
@@ -10,7 +13,10 @@ from GitHub Pages. The long-term aim is a 3D headquarters view on the same simul
   `ligny.html`, `sw.js`, `manifest.webmanifest` or the root `README.md` by hand: `sh source/deploy.sh` rebuilds and copies them.
 - `source/sim/` the simulation and the game page: `engine.js` (combat, movement, morale), `ai.js` and `doctrine.js` (commanders),
   `command.js` (beliefs, riders, reports), `orders.js`, `view.js` (the contract a client draws from), `stakes.js` (campaign verdict),
-  `_game*.js` and `_shared_draw.js` (the page), `packs/` (eras, nations, battles, maps), `tools/`, `ref/` (reference battles).
+  `_game*.js` and `_shared_draw.js` (the page), `_game_3d.js` (the 3D relief view), `packs/` (eras, nations, battles, maps),
+  `tools/`, `tests/` (browser tests), `ref/` (reference battles).
+- `docs/` is the project's memory: `DECISIONS.md` (the decision log), `ROADMAP.md` (the plan, condensed), `START_HERE.md` (the
+  brief for a new planning conversation).
 - `source/README.md` describes every folder and how to add a battle. Read it before structural work.
 - No bundler and no npm packages. `build_game.py` concatenates the scripts into one HTML page. Every `_game*.js` file shares one
   function scope, so top-level names must be unique across them.
@@ -25,7 +31,7 @@ from GitHub Pages. The long-term aim is a 3D headquarters view on the same simul
 | The contract's tests | `node tools/test_view.js waterloo 1003` | 20 s |
 | Strategy bench | `node tools/strategies.js --n 6` | 1 min |
 | Browser suite (builds first) | `sh regress.sh` | 10 min |
-| UI audit: contrast, overflow, console | `python3 tools/pw.py uiaudit.py` | 3 min |
+| UI audit: contrast, overflow, console | `python3 tools/pw.py tests/uiaudit.py` | 3 min |
 | Offline build test | `python3 tools/pw.py ../offline/offtest.py` (after `python3 ../offline/build_offline.py`) | 1 min |
 | Build the game page only | `python3 build_game.py` | 1 s |
 | Build everything into the repository root | `sh ../deploy.sh` | 10 s |
@@ -48,7 +54,9 @@ runs only in a session on this one repository; in a project thread or a session 
    after the battle. `tools/test_view.js` enforces this for the contract.
 6. **Same seed and same orders give the same battle.** No `Math.random`, no clock time and no iteration over unordered state in
    the simulation.
-7. **Offline and phone first.** The offline build makes no external request. Check anything visible at 390 px wide, light and dark.
+7. **Offline, and desktop first.** The offline build makes no external request. Design and judge on a desktop browser (1440 px
+   wide, light and dark). The page must still load and play at 390 px, and the suites keep testing that, but the phone no longer
+   drives design.
 8. **New clients draw from `view.js` only** (`world`, `snapshot`, `drain`, `why`, `losses`), never from engine objects.
 
 ## How to work here
@@ -59,21 +67,28 @@ runs only in a session on this one repository; in a project thread or a session 
   name your assumptions. Known gaps are listed in the tools (`bench.js`, `strategies.js` KNOWN), never hidden.
 - Comments say why, in plain prose. British spelling. UI text is plain, period-neutral English.
 - Tests reach the page's internals through `globalThis.WGame`; add hooks there, not globals.
+- **Record decisions.** When a conversation or pull request settles something, add a dated line to `docs/DECISIONS.md` in the
+  same change. A choice of yours that Chris has not confirmed goes under "Claude's choices awaiting Chris", never as a decision.
+  Update `docs/ROADMAP.md` when a step is finished.
 - Keep this file short. Put procedures in `source/README.md`.
 
-## State on 9 November 2026 (release 4) and what is next
+## State on 12 November 2026 and what is next
 
-Release 4 added the campaign verdict, orders written from the map, "why?" on events, the view contract and the strategy bench.
+Release 4 (9 Nov) added the campaign verdict, orders written from the map, "why?" on events, the view contract and the strategy
+bench. The 3D relief view of the umpire's picture was merged on 12 Nov. Chris has not chosen the order of what follows.
 
 1. **Move the 2D map onto the contract.** `_shared_draw.js`, `_game*.js`, `../map/live.js` and `lab/lab.js` still read `SIM.*`
    directly. They should draw from `view.snapshot()` and `view.drain()` alone, in both Napoleon's and the umpire's modes, with no
-   change to any result. This is the prerequisite for a 3D client.
+   change to any result. This is the prerequisite for a headquarters view drawn from Napoleon's beliefs.
 2. **The idle-army gap** (`strategies.js`, `waterloo:idle-punished`): the allies never attack a French army that sits still, so
    the field ends a draw. It needs a general rule for a defender taking the initiative. It changes results: rule 2 applies.
 3. **Sound** from the event stream: guns and volleys by bearing, loudness and delay. Web Audio, synthesised, no assets.
 4. **A calibrated battle outside June 1815** to prove the engine is era-agnostic; the lint allow-list should shrink with it.
-5. **3D**, in this order: a three.js second view in the browser drawn from the contract with the camera at headquarters, then
-   judge whether a native engine is worth it. If so, embed this JavaScript simulation; do not port it.
+5. **3D from headquarters:** the camera at Napoleon's position, drawn from what he knows; then judge whether a native engine is
+   worth it. If so, embed this JavaScript simulation; do not port it.
+6. **Have GitHub build and publish the site,** so the built files are no longer committed at the root. Its own pull request;
+   it needs a Pages setting changed by Chris.
 
-The plan of record is the "Engine roadmap" doc in Chris's Claude account, not in this repository. Ask him when the order of work
-matters.
+`docs/ROADMAP.md` condenses the "Engine roadmap" doc in Chris's Claude account. Ask him when the order of work matters.
+
+@docs/DECISIONS.md

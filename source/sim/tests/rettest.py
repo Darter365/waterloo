@@ -2,7 +2,7 @@ import os
 # the general retreat in the browser: give it at 14:00 with the Guard as rearguard, fight on to the end, check the verdict and the re-run
 import asyncio, time
 from playwright.async_api import async_playwright
-D = os.path.dirname(os.path.abspath(__file__)) + '/'
+D = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/'  # source/sim: the built page is read from there, and scratch pages are written there
 html = open(D + 'game.html').read()
 open(D + 'pr.html', 'w').write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style></head><body>' + html + '</body></html>')
 async def main():

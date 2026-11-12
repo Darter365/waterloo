@@ -1,6 +1,6 @@
 """Run a browser test with whichever Chromium this machine has.
 
-    python3 tools/pw.py immtest.py 390 844 dark        (from source/sim; regress.sh runs every test this way)
+    python3 tools/pw.py tests/immtest.py 390 844 dark   (from source/sim; regress.sh runs every test this way)
 
 The tests call p.chromium.launch() and so expect Playwright's own Chromium (python3 -m playwright install chromium). A Claude Code
 cloud session has no such download but ships Chrome at $CHROME_PATH. When Playwright's browser is missing, this falls back to that
