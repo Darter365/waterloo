@@ -32,6 +32,10 @@ It serves a command game that is engaging, immersive and true to its period, goo
   (`battle.chain`), checked by the validator and printed by `tools/oob.js chain`. No change to results; the commanders' code
   does not read it yet (`DECISIONS.md`, open questions).
 
+- **The agent harness (12 Nov):** `tools/agentplay.js` plays a battle headless through Napoleon's view or the umpire's, a stop
+  at a time, and saves it as a replay; `tools/test_agentplay.js` fails if truth reaches Napoleon's turns. The first agent
+  playtest has not been run yet (`docs/playtests/`). Wellington's view waits on the allied side being playable.
+
 ## What is next (order not yet chosen by Chris)
 
 1. Move the 2D map onto the contract (no change to results). Prerequisite for a headquarters view from Napoleon's beliefs.
