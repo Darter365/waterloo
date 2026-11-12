@@ -431,7 +431,7 @@ const FORCES = [
   { group: 'grouchy', marches: false, units: GROUCHY_FORCE, fatigue0: 20 },
 ];
 const P = root.WPacks || (typeof require === 'function' ? require('../registry.js') : null);
-P.register('battle', 'waterloo', { version: '1.1', // (4e) versions start at phase 4: 1.0 is release 3 with phases 1-3 (in band); 1.1 (phase 5): the start-of-battle setup and the LHS metric moved here from ai.js, results unchanged
+P.register('battle', 'waterloo', { version: '1.2', // (4e) versions start at phase 4: 1.0 is release 3 with phases 1-3 (in band); 1.1 (phase 5): the start-of-battle setup and the LHS metric moved here from ai.js, results unchanged; 1.2: the chain block (the chain of command as data; no number changed)
   name: 'Waterloo', date: '1815-06-18', era: 'napoleonic',
   nations: ['FR', 'GB', 'KGL', 'HAN', 'NL', 'NAS', 'BRU', 'MIX', 'PR'],
   // the armies on the field: morale at the start (est., rules doc) and the coalition each fights in (it shares places and does not fire on its own)
@@ -859,6 +859,12 @@ P.register('battle', 'waterloo', { version: '1.1', // (4e) versions start at pha
     { id: 'pirch', side: 'PR', corps: 'pirch' },
     { id: 'zieten', side: 'PR', corps: 'zieten' },
   ],
+  /* the chain of command (packs/registry.js: P.chain): every corps and division of the order of battle is an entry, commanded by the
+     leader who carries its id. Stated here is only what that rule cannot know, and it restates the command block's corpsCmd (guard
+     and guardcav both answer through Drouot), so it adds no history of its own. The Guard cavalry is put under the Guard and given no
+     general, since the battle places none. Ney is not in it: the corps he commands change with the sector the player gives him
+     (command.front). */
+  chain: { guard: { commander: 'drouot' }, guardcav: { under: 'guard' } },
   map: { LAT0, LON0, MLAT, MLON, NX, NY, CELL, WM, HM, ll2m, m2ll, H, STREAMS, LM, ROADS, SUNKEN, HEDGES, WOODS, BUILDINGS, ENCLOSURES, SANDPIT, VILLAGES, HOUSES, LABELS, EDGE_LABELS,
   NAT, RAW, OFFMAP, DEBATED, LION, rng, hashStr, QUALITY, CALIBRE, CORPS, DIVISION, TRAITS, STRONGPOINTS, OBJECTIVES, ROUTES, CHOKES, PRUSSIANS, HAL_FORCE, GROUCHY_FORCE, FORCES },
 });

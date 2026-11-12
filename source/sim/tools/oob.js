@@ -4,6 +4,8 @@
      node tools/oob.js export <battle> [out.csv]          a battle's order of battle as CSV
      node tools/oob.js import <in.csv> <battle> [out.js]  a CSV as an order-of-battle pack (packs/oob/<battle>.js by default)
      node tools/oob.js check <in.csv> <battle>            is the pack the CSV's? (the self-tests run this on every committed CSV)
+     node tools/oob.js chain <battle>                     the chain of command: every corps and division, its commander and strength, and
+                                                          who leads each corps as each part of the code works it out today
    Columns (a header row names them; order free; blank = not given):
      id, side, name, parent, nation, arm, strength (men, or guns), lat, lon, facing (degrees), formation, uncertainty (m), note,
      corps, division, quality, calibre, traits ("guard=1; kind=heavy; prestige=15"), frontage, radius, battalions,
@@ -93,11 +95,50 @@ function packJS(id, O, src) {
     `(function (root) {\n'use strict';\nconst P = root.WPacks || (typeof require === 'function' ? require('../registry.js') : null);\n` +
     `P.register('oob', ${JSON.stringify(id)}, ${JSON.stringify(O)});\n})(typeof globalThis !== 'undefined' ? globalThis : this);\n`;
 }
-module.exports = { parseCSV, toCSV, exportRows, importRows, packJS };
+/* ----- the chain of command (packs/registry.js: P.chain), as a tree, and beside it the three answers the code gives today to "who
+   leads this corps": the generic commanders' (engine.js: headOf, else the chief), the historical runner's (ai.js: a leader who carries
+   the corps's id, else nobody) and the command layer's (command.js: corpsCmd, else the side's default; only for a battle with a
+   command block). They were written at different times and are not the same rule; this prints where they differ from the table. ----- */
+function chainReport(battle) {
+  const P = require('../packs/all.js'), En = require('../engine.js');
+  const R = P.battle(battle), F = R.chain, W = R.W, X = R.battle.command || null;
+  // the leaders as the game has them: a battle with a command block is set up as the game sets it up (its commanders off the map are leaders too)
+  const E = X ? require('../replay.js').setup({ battle, seed: 1, history: 'uncertain', staff: 'soult', silence: 0 }) : En.create({ battle, seed: 1 });
+  const crew = arm => !!((R.era.arms[arm] || {}).crew), str = {}, arm = {};
+  for (const r of W.RAW) { str[r[0]] = r[6]; arm[r[0]] = r[5]; } for (const G of W.FORCES || []) for (const r of G.units) { str[r[0]] = r[6]; arm[r[0]] = r[5]; }
+  const who = id => { if (!id) return '-'; const p = P.leader(id), o = X && X.offmap && X.offmap[id] && X.offmap[id].leader; return (p && p.name) || (o && o.name) || id; };
+  const all = f => f.units.concat(...f.parts.filter(p => F[p].kind !== 'division').map(p => all(F[p]))); // every body under it, once
+  const lines = [`${battle}: the chain of command at the start`];
+  const show = (id, depth) => { const f = F[id], us = all(f), men = us.filter(u => !crew(arm[u])).reduce((a, u) => a + str[u], 0), guns = us.filter(u => crew(arm[u])).reduce((a, u) => a + str[u], 0);
+    lines.push(`${'  '.repeat(depth)}${id.padEnd(18 - 2 * depth)} ${f.kind.padEnd(8)} ${(f.name || '').padEnd(34)} ${who(f.commander).padEnd(18)} ${String(us.length).padStart(3)} bodies ${String(men).padStart(6)} men ${String(guns).padStart(3)} guns`);
+    for (const p of f.parts) show(p, depth + 1); };
+  for (const s of R.sideIds) show(s, 0);
+  const rows = [], listed = X ? [].concat(...Object.values(X.commanders || {})) : null, mySide = X ? X.side || R.sideIds[0] : null, chief0 = X ? X.chief || (R.sides.find(s => s.id === mySide) || {}).chief : null;
+  for (const f of Object.values(F)) {
+    if (f.kind !== 'corps') continue;
+    const head = E.headOf(f.side, f.id), chief = (R.sides.find(s => s.id === f.side) || {}).chief || null;
+    rows.push({ corps: f.id, side: f.side, table: f.commander, doctrine: head ? head.id : null, doctrineElse: chief, ai: E.leaders[f.id] ? f.id : null,
+      command: X ? (X.corpsCmd || {})[f.id] || (X.defaultCmd || {})[f.side] || (X.defaultCmd || {})._ || (f.side === mySide ? chief0 : null) : undefined, chain: X ? P.chainUp(F, f.id, listed) : undefined });
+  }
+  // a corps with no general of its own is led by its army's: that is what the table says of it, and what the generic commanders do
+  lines.push('', 'Who leads each corps, as each part of the code works it out today (* differs from the table):');
+  lines.push(`${'corps'.padEnd(12)} ${'the table'.padEnd(20)} ${'doctrine.js'.padEnd(28)} ${'ai.js'.padEnd(20)} ${X ? 'command.js (orders through; the chain gives)' : ''}`);
+  let differences = 0; const star = same => { if (same) return ''; differences++; return ' *'; };
+  for (const r of rows) {
+    const d = (r.doctrine ? who(r.doctrine) : `- (so ${who(r.doctrineElse)})`) + star((r.doctrine || r.doctrineElse) === (r.table || r.doctrineElse));
+    r.differs = { doctrine: (r.doctrine || r.doctrineElse) !== (r.table || r.doctrineElse), ai: r.ai !== r.table, command: X ? r.command !== r.chain : false };
+    lines.push(`${r.corps.padEnd(12)} ${who(r.table).padEnd(20)} ${d.padEnd(28)} ${(who(r.ai) + star(r.ai === r.table)).padEnd(20)} ${X ? who(r.command) + star(r.command === r.chain) + (r.command === r.chain ? '' : ` (${who(r.chain)})`) : ''}`);
+  }
+  const cmds = new Set(Object.values(F).map(f => f.commander)), idle = (R.battle.leaders || []).map(l => l.id).filter(id => !cmds.has(id));
+  lines.push('', `${differences} differences.` + (idle.length ? ` Leaders the battle places who command no corps or division: ${idle.map(who).join(', ')}.` : ''));
+  return { lines, rows, differences, chain: F };
+}
+module.exports = { parseCSV, toCSV, exportRows, importRows, packJS, chainReport };
 
 if (require.main === module) {
   const [cmd, a, b, c] = process.argv.slice(2), P = require('../packs/all.js');
-  if (cmd === 'export') { const t = toCSV(exportRows(P.battle(a).W)); if (b) { fs.writeFileSync(b, t); console.log(`wrote ${b}`); } else process.stdout.write(t); }
+  if (cmd === 'chain') { if (!a) { console.log('usage: node tools/oob.js chain <battle>'); process.exit(1); } console.log(chainReport(a).lines.join('\n')); }
+  else if (cmd === 'export') { const t = toCSV(exportRows(P.battle(a).W)); if (b) { fs.writeFileSync(b, t); console.log(`wrote ${b}`); } else process.stdout.write(t); }
   else if (cmd === 'import' || cmd === 'check') {
     const { O, errs } = importRows(parseCSV(fs.readFileSync(a, 'utf8')));
     if (errs.length) { console.log(errs.join('\n')); process.exit(1); }
@@ -105,5 +146,5 @@ if (require.main === module) {
     if (cmd === 'check') { const same = fs.existsSync(out) && fs.readFileSync(out, 'utf8') === js; console.log(same ? `${out} is ${a}'s` : `${out} is not ${a}'s: run node tools/oob.js import ${rel} ${b}`); process.exit(same ? 0 : 1); }
     fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, js);
     console.log(`wrote ${out}: ${O.RAW.length} bodies on the field, ${O.FORCES.reduce((s, F) => s + F.units.length, 0)} to come in ${O.FORCES.length} forces`);
-  } else console.log('usage: node tools/oob.js export <battle> [out.csv] | import <in.csv> <battle> [out.js] | check <in.csv> <battle>');
+  } else console.log('usage: node tools/oob.js export <battle> [out.csv] | import <in.csv> <battle> [out.js] | check <in.csv> <battle> | chain <battle>');
 }

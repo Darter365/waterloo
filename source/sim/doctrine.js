@@ -95,8 +95,7 @@ function make(opts = {}) {
 const dist = (u, p) => p ? hyp(u.x - p[0], u.y - p[1]) : 0;
 const centroid = us => us.length ? [us.reduce((a, u) => a + u.x, 0) / us.length, us.reduce((a, u) => a + u.y, 0) / us.length] : null;
 function chiefOf(E, side) { const id = (E.sides.find(s => s.id === side) || {}).chief; return id && E.leaders[id] ? E.leaders[id] : Object.values(E.leaders).find(l => l.side === side && l.rank === 3) || null; }
-function leaderOf(E, side, corps) { // the corps' own general: placed with the corps, or riding with one of its units; else the chief
-  return Object.values(E.leaders).find(l => l.side === side && l.alive !== false && (l.corps === corps || l.id === corps || (l.unit && E.byId[l.unit] && E.byId[l.unit].corps === corps))) || chiefOf(E, side); }
+function leaderOf(E, side, corps) { return E.headOf(side, corps) || chiefOf(E, side); } // the general at the corps' head (engine.js: headOf); else the chief
 const seen = (E, side, maxAge, pred) => { const ch = chiefOf(E, side); return AI().known(E, ch ? ch.id : null, maxAge, c => (c.side ? E.coalition[c.side] !== E.coalition[side] : true) && (!pred || pred(c)), E.coalition[side]); };
 function partnerEngaged(E, side) { return E.sideIds.some(s => s !== side && E.coalition[s] === E.coalition[side] && E.engaged && Object.keys(E.engaged).some(k => E.units.some(u => u.side === s && u.corps === k))) || E.sideIds.some(s => s !== side && E.coalition[s] === E.coalition[side] && E.flags[s.toLowerCase() + 'Engaged']); }
 const formedOf = (E, side) => E.units.filter(u => u.side === side && E.formed(u) && u.onMap);

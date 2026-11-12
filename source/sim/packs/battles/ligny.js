@@ -71,7 +71,7 @@ const ROUTES = {
   frRetreat: [[50.4900, 4.5540], [50.4800, 4.5470], [50.4725, 4.5435], [50.4600, 4.5380]],
   prRetreat: [[50.5240, 4.5700], [50.5350, 4.5720], [50.5465, 4.5720], [50.5600, 4.5720]],
 };
-P.register('battle', 'ligny', { version: '0.1', oob: 'ligny', terrain: 'ligny',
+P.register('battle', 'ligny', { version: '0.2', oob: 'ligny', terrain: 'ligny', // 0.2: the chain block (the chain of command as data; no number changed)
   name: 'Ligny', date: '1815-06-16', era: 'napoleonic', nations: ['FR', 'PR'],
   sides: [
     { id: 'FR', name: 'French', colour: '#2f4f8f', morale0: 80, coalition: 'FR', fatigue0: 20, rallyBack: 600, chief: 'napoleon', rear: 'S', retreat: 'frRetreat', exit: [50.4725, 4.5435], rearguard: [50.4900, 4.5540], posture: 'attack',
@@ -159,6 +159,11 @@ P.register('battle', 'ligny', { version: '0.1', oob: 'ligny', terrain: 'ligny',
   // the historical battle (ai.js): the Prussians are commanded by the generic doctrine with the habits above, and Blücher's counter-strokes
   // from the record below; the French by Napoleon's orders
   commanders: { generic: ['PR'] },
+  /* the chain of command (packs/registry.js: P.chain): what the rule "a leader commands the corps or division that carries his id" cannot know.
+     It restates the command block's corpsCmd below and adds no history of its own: Pajol's and Exelmans' corps answer through
+     Grouchy, who commands the cavalry of the right wing here; the Guard through Drouot, its heavy cavalry with it. */
+  chain: { grouchy: { kind: 'wing', side: 'FR', name: "Grouchy's cavalry", commander: 'grouchy' }, pajol: { under: 'grouchy' }, exelmans: { under: 'grouchy' },
+    guard: { commander: 'drouot' }, guardcav: { under: 'guard' } },
   /* (phase 5, stage 2) the command layer for Ligny played as Napoleon (command.js, orders.js): his corps commanders, where he can stand,
      what he can order. Est. where the accounts say nothing. Grouchy is on the field here, commanding the cavalry of the right wing (Pajol's
      and Exelmans' corps); Ney is at Quatre Bras with the left wing, so there is no field commander between Napoleon and his corps. */

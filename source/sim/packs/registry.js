@@ -54,7 +54,60 @@ P.battle = function (id) {
     O ? { RAW: O.RAW, CORPS: O.CORPS, DIVISION: O.DIVISION, QUALITY: O.QUALITY, CALIBRE: O.CALIBRE, TRAITS: O.TRAITS, FORCES: O.FORCES } : {});
   W.LEADERS = (B.leaders || []).map(pl => { const p = P.leader(pl.id) || {}; return Object.assign({ id: pl.id, side: pl.side, name: p.name }, p.traits || {}, { rank: p.rank }, pl.at ? { at: pl.at } : {}, pl.unit ? { unit: pl.unit } : {}, pl.corps ? { corps: pl.corps } : {}, p.habits || {}); });
   const R = { id, battle: B, era, nations, W, sides: B.sides, sideIds: B.sides.map(s => s.id), coalition: Object.fromEntries(B.sides.map(s => [s.id, s.coalition || s.id])) };
+  R.chain = P.chain(B, W);
   P.resolved[id] = R; return R;
+};
+/* The chain of command as one table (12 Nov 2026). Until now a corps and a division were labels on a unit, and who commanded one was
+   worked out afresh wherever it was needed. Here every army, wing, corps and division of a battle is an entry:
+     { id, kind: 'army' | 'wing' | 'corps' | 'division', side, parent, name, commander, units, parts }
+   parent: what it answers to (a division's corps, a corps's army, or the wing a pack puts it under); commander: a leader's id, or null
+   when the battle places nobody at its head; units: the bodies that start in it, in the order of battle's order (a corps's list
+   includes its divisions' brigades; an army's own list is only the bodies that belong to no corps); parts: the entries directly
+   under it. (They are not called formations here because the era packs use that word for line, column and square.)
+   Made from what the packs already say: a unit's corps and division (the order of battle), each side's chief and corps0 (the battle),
+   and the leaders the battle places. A leader commands the corps or division that carries his id (Reille commands "reille", Jérôme
+   the division "jerome"). What that rule cannot know a battle states in its own chain block:
+     chain: { guard: { commander: 'drouot' }, guardcav: { under: 'guard' },
+              grouchy: { kind: 'wing', side: 'FR', name: "Grouchy's cavalry", commander: 'grouchy' }, pajol: { under: 'grouchy' } }
+   An entry that block names and no unit belongs to (a wing) needs its side. Membership here is the start of the battle; a brigade
+   sent to another corps by order changes its own corps, and the engine's unitsOf follows that.
+   The table is plain data and changes nothing by itself: the validator holds the packs' other command tables to it, and
+   node tools/oob.js chain <battle> prints it beside what the commanders' code works out today. */
+P.chain = function (B, W) {
+  const F = {}, given = B.chain || {}, sides = B.sides || [], sideOf = Object.fromEntries(sides.map(s => [s.id, s]));
+  const X = B.command || {}, names = Object.assign({}, B.corpsNames, X.corpsName);
+  const put = (id, kind, side, parent) => F[id] || (F[id] = { id, kind, side, parent, name: null, commander: null, units: [], parts: [] });
+  for (const s of sides) { const a = put(s.id, 'army', s.id, null); a.name = s.name || null; a.commander = s.chief || null; }
+  const enrol = (uid, side, corps, div) => {
+    if (!sideOf[side]) return; // the validator reports a unit on a side the battle does not have
+    const c = corps || sideOf[side].corps0 || null;
+    if (c) put(c, 'corps', side, side).units.push(uid); else F[side].units.push(uid); // a body with no corps answers to the army itself
+    if (div) put(div, 'division', side, c || side).units.push(uid);
+  };
+  for (const r of W.RAW || []) if (r[5] !== 'hq') enrol(r[0], r[1], (W.CORPS || {})[r[0]], (W.DIVISION || {})[r[0]]);
+  for (const G of W.FORCES || []) for (const r of G.units || []) enrol(r[0], r[1], r[7], (W.DIVISION || {})[r[0]]);
+  // the leaders a battle knows: those it places, and a commander off the map whom its command block describes (Waterloo's Grouchy)
+  const leaderSide = {}; for (const l of B.leaders || []) leaderSide[l.id] = l.side;
+  for (const [lid, o] of Object.entries(X.offmap || {})) if (o && o.leader && !leaderSide[lid]) leaderSide[lid] = X.side || (sides[0] || {}).id;
+  // what the battle states: entries of its own (a wing), and the commander, parent, name or kind of any other
+  for (const [fid, g] of Object.entries(given)) {
+    const f = F[fid] || put(fid, g.kind || 'corps', g.side || leaderSide[g.commander] || null, null);
+    if (g.kind) f.kind = g.kind; if (g.name) f.name = g.name; if (g.under) f.parent = g.under; else if (f.parent == null && f.kind !== 'army') f.parent = f.side;
+    if ('commander' in g) f.commander = g.commander || null;
+  }
+  for (const f of Object.values(F)) {
+    if (f.kind === 'army') continue;
+    if (!f.name && names[f.id]) f.name = names[f.id];
+    if (!(given[f.id] && 'commander' in given[f.id]) && leaderSide[f.id] === f.side) f.commander = f.id; // his own corps or division carries his id
+  }
+  for (const f of Object.values(F)) if (f.parent && F[f.parent]) F[f.parent].parts.push(f.id);
+  return F;
+};
+// who a corps's orders reach it through: its own commander if he is one of those listed, else the nearest above it who is
+// (a corps whose general is not written to answers through his wing's; one with no general at all through the army's)
+P.chainUp = function (F, id, listed) {
+  for (let f = F[id], n = 0; f && n < 20; f = F[f.parent], n++) if (f.commander && (!listed || listed.includes(f.commander))) return f.commander;
+  return null;
 };
 /* (phase 4e) versions. Every pack carries version: 'major.minor', raised when its numbers change (minor) or its meaning does (major);
    a replay made with other versions may not fight the same battle. P.fingerprint hashes everything a battle resolves to (its own data,

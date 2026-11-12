@@ -72,6 +72,10 @@ Never record a guess as a decision.
 
 These were made to keep moving and are easy to change. Raise them when the subject comes up.
 
+- **The chain of command as one table (12 Nov).** Chris asked for Claude's recommendation to be built (corps and divisions as objects with a commander); the
+  shape is Claude's. Every army, wing, corps and division is an entry in `battle.chain` (`P.chain`, `source/README.md`), and a battle's
+  `chain` block states only what the rule "a leader commands the corps or division that carries his id" cannot know. Results are
+  unchanged (the 120 replay exactly): no rule reads the table yet.
 - Campaign score tiers and points (`stakes.js`, each pack's `stakes`): 90, 72, 54, 32, 10, plus or minus 8 for the exchange.
 - At Waterloo the historical orders score 7 and doing nothing scores 24. Defensible (1815 was a catastrophe), but worth a look.
 - A tap within 28 screen pixels of a named place takes the place when ordering from the map.
@@ -90,6 +94,12 @@ These were made to keep moving and are easy to change. Raise them when the subje
 
 ## Open questions (not decided)
 
+- **Three rules for who leads a corps.** `doctrine.js`, `ai.js` and `command.js` each work it out their own way, and
+  `node tools/oob.js chain <battle>` lists where they part from the table. Waterloo: the generic commanders put Blücher, not
+  Bülow, at the head of IV Corps; the historical runner gives the Guard no general. Ligny: the same for the Guard, and the command
+  block sends d'Erlon's corps through a leader the battle does not place. One rule for all three may change how battles fight.
+- **A leader riding with a brigade does two jobs:** it says where he is, and it gives that one brigade a bonus in the assault
+  and in rallying. Separating them changes results.
 - **The idle-army gap.** The allies never attack a French army that sits still, so the field ends a draw. Fixing it changes
   how battles fight.
 - **Determinism across browsers.** Verified in Node and Chromium only. The simulation uses `Math.sin`, `cos`, `pow`, `exp` and

@@ -409,6 +409,24 @@ function create(opts = {}) {
   const leaderPos = l => l.unit && E.byId[l.unit] ? [E.byId[l.unit].x, E.byId[l.unit].y] : l.x != null ? [l.x, l.y] : null;
   E.leaderPos = leaderPos;
 
+  /* ----- the chain of command (packs/registry.js: P.chain) -----
+     E.chain: every army, wing, corps and division of the battle, with its commander and what it answers to. Shared with the pack and
+     never written to. Nothing in the engine decides anything from it yet: see headOf below, and docs/DECISIONS.md. */
+  E.chain = BATTLE.chain || {};
+  // the bodies in a corps, division, wing or army now (a brigade sent to another corps by order belongs to that one from then on);
+  // a wing's and an army's are their parts' as well
+  E.unitsOf = function (id) {
+    const f = E.chain[id]; if (!f) return [];
+    const own = E.units.filter(u => u.side === f.side && (f.kind === 'division' ? u.div === id : f.kind === 'army' ? !u.corps : u.corps === id));
+    return own.concat(...f.parts.filter(p => E.chain[p].kind !== 'division').map(p => E.unitsOf(p)));
+  };
+  /* who is at the head of a corps today, as the generic commanders have always worked it out (moved here from doctrine.js unchanged):
+     the first leader the battle places who came with the corps, or carries its id, or rides with one of its bodies; null if none.
+     It is not always the corps's commander in the table (Waterloo: Blücher, who arrives with Bülow's corps, is at its head), and the
+     historical runner asks something else again (ai.js: only a leader who carries the corps's id). node tools/oob.js chain <battle>
+     lists them side by side. Making them one rule changes how battles fight, so it waits for Chris. */
+  E.headOf = (side, corps) => Object.values(E.leaders).find(l => l.side === side && l.alive !== false && (l.corps === corps || l.id === corps || (l.unit && E.byId[l.unit] && E.byId[l.unit].corps === corps))) || null;
+
   /* ----- start-of-game hidden draws ----- */
   // (phase 2) each army's ammunition wagons (battle pack): for an ammunition the army is short of, a hidden roll at the start says whether its
   // wagon is near, far back (reachable from a set minute) or lost. Any other ammunition is always to hand.
