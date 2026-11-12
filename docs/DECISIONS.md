@@ -72,6 +72,10 @@ Never record a guess as a decision.
 
 These were made to keep moving and are easy to change. Raise them when the subject comes up.
 
+- **The reviewer subagent and three skills (12 Nov).** Chris asked for them; the wording is Claude's. The reviewer has `Read`,
+  `Grep` and `Glob` only, so the session writes the diff to a file for it; it adds two standards of its own (a change is the
+  highest class of anything in it; "blocking" means a rule broken, a gate weakened or a class set too low). `add-battle` puts a
+  pack with `targets` or `stakes` in class 4; `results-change` asks Chris to confirm an acceptance test that is still Claude's.
 - **The chain of command as one table (12 Nov).** Chris asked for Claude's recommendation to be built (corps and divisions as objects with a commander); the
   shape is Claude's. Every army, wing, corps and division is an entry in `battle.chain` (`P.chain`, `source/README.md`), and a battle's
   `chain` block states only what the rule "a leader commands the corps or division that carries his id" cannot know. Results are
