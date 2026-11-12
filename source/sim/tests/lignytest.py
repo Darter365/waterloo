@@ -2,7 +2,7 @@
 # after-action report, whose re-run check proves the game and its re-runs set the battle up the same way. Usage: lignytest.py [page] [hist|none]
 import asyncio, os, sys, time
 from playwright.async_api import async_playwright
-SIM = os.path.dirname(os.path.abspath(__file__)) + '/'
+SIM = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/'
 OUT = SIM
 page = sys.argv[1] if len(sys.argv) > 1 else 'game.html'; mode = sys.argv[2] if len(sys.argv) > 2 else 'hist'
 html = open(SIM + page).read()

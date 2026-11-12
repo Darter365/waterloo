@@ -2,7 +2,7 @@ import os
 # 5e check: replay the second playtest's orders in the built game and record what the player sees
 import asyncio, json, re, sys, time
 from playwright.async_api import async_playwright
-D = os.path.dirname(os.path.abspath(__file__)) + '/'
+D = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/'  # source/sim: the built page is read from there, and scratch pages are written there
 html = open(D + 'game.html').read()
 open(D + 'p6.html', 'w').write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style></head><body>' + html + '</body></html>')
 W, H = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else (1440, 900)

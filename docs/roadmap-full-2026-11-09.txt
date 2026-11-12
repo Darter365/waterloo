@@ -1,0 +1,393 @@
+
+
+# Engine roadmap: one sim for every battle
+ · 
+The engine becomes one simulation that knows no battle and no era. Battles and eras are data, checked by a validator and tried out on a test bench. The work runs in six phases. Waterloo replays bit-for-bit through the restructuring, then stays inside its 1815 targets as its special cases become general rules. New battles wait until phase 4 is done. All of it serves the goal in section 2: a command game that is engaging, immersive and true to its period, good enough to teach with.
+
+## 1. Decisions
+Decided 26 October, and they shape everything below:
+- 
+No battle code, and no era code, in the sim. Weapon, gun and morale numbers change by era; the rules that use them do not.
+- 
+Waterloo check. Bit-identical while code is restructured. Inside the 1815 calibration targets once special cases become general rules.
+- 
+AI from data. Commanders act from doctrine settings and objectives. Historical plans are timed and conditional orders in data. No AI code is written for any battle, so Wellington and Blücher are re-expressed this way. Each commander's temperament lives in his own leader file, which follows him from battle to battle.
+- 
+Era range: ancient to the 1870s. Formed troops on foot or horse with missile and hand-to-hand weapons, armour and formations. Sieges and naval actions stay out of the core for now.
+- 
+Authoring. Battle files, a validator, and a preview and test page first. An in-browser editor comes later.
+Earlier decisions still stand, in Engine split: Waterloo to Gettysburg: either side playable, all four Gettysburg starts, nights summarised, a page per battle, and the order of battles.
+
+## 2. Goals and the core loop
+The goal is a command game that is engaging, immersive, true to its period and good enough to teach with. The engine work exists to serve that.
+The core loop: you send orders on limited information, from what you can see and what you expect your orders to do. Fog, slow and garbled communication and unpredictable responses are the challenge. The reward is an order that is well timed, well executed and works with your other orders.
+Rules the loop must keep. The test bench and playtests check these at every gate:
+- 
+Orders interact. Horse forcing foot into square, guns punishing the square, infantry following a bombardment: combined effects emerge from the sim and are strong enough to matter.
+- 
+Delay is learnable. Rider times follow distance, ground and danger, and the staff estimate them. Conditions and sequences let you plan around delay, so timing is a skill.
+- 
+Fog is fair. Each source reports with a consistent character: who reports, how often, how wrong. Better information can be bought at a cost: moving your headquarters, sending an aide, going to look.
+- 
+Subordinates are unpredictable but in character. Each one acts from his leader file, so you can learn your generals.
+- 
+Good play gets credit. The after-action report scores your orders against the historical commander's on the same dice, and separates luck from decisions.
+Real-time play.
+- 
+Time runs continuously at 1×, 2×, 4×, 8× or faster, with pause. At 1× a minute of battle takes a minute, so Waterloo from 11:00 to dark is about ten and a half hours.
+- 
+Movement is smooth. The sim keeps its fixed 2-minute step and the map draws positions in between, the standard fixed-step-plus-interpolation method of strategy games, so nothing jumps and no result changes.
+- 
+Events land at their own minute (a volley, a rider coming in), timed from the event stream.
+- 
+Orders written while time runs take effect at the next step and are logged with that minute. Replays, the after-action report and the identity checks still hold.
+- 
+Pausing on events is a set of settings: a rider arrives, a place changes hands, your headquarters comes under fire. Today's stops become one of those settings.
+Immersion. The sound of battle by direction and distance, played from the event stream on the 2D map first. Light and dusk on the map from the computed sun. Riders seen coming in. These join the letters, staff, glass and pencil already in the game.
+Realism. Every number is sourced or marked (est.), and tuned against several battles at once. The game says where it departs from history or where history is uncertain.
+Teaching. The teaching comes from playing. Each battle and start opens with a historical briefing: the situation as the commander knew it. Causes on tap, a narrated historical replay, a glossary and in-game sources are deferred (decided 26 October).
+The core-loop track. It runs beside the engine phases and is checked by the same regression suite.
+| 
+Step | 
+What | 
+When | 
+Check | 
+| 
+B1 | 
+Real-time play: speeds, smooth movement, pause settings | 
+Alongside phase 1; it changes no result | 
+A battle played in real time replays identically from its order log | 
+| 
+B2 | 
+Perception layer and event stream: one interface for what you see, hear and receive, and timed events for the screen and sound | 
+Phases 1–2 | 
+Neither touches the dice; fingerprints unchanged | 
+| 
+B3 | 
+Sound and light on the map | 
+After B2 | 
+UI audit; speed on the phone | 
+| 
+B4 | 
+Historical briefings for each battle and start | 
+With each battle | 
+Every historical claim in a briefing has a source | 
+| 
+B5 | 
+Playtests every release: you, me and the umpire's review | 
+Every phase | 
+The loop rules above | 
+| 
+B6 | 
+!! alerts: quick events seen from headquarters (a new or renewed attack, a cavalry charge, a line breaking) marked !! in the dispatches and on the map, with a stop setting | 
+Built in release 3, with a "Stop for !! and ★" setting | 
+No dice; the battle's results unchanged | 
+| 
+B7 | 
+Map style: a colour map with relief, woods, villages, smoke and fire, beside today's paper map, until 3D exists | 
+Prototype in release 3 (choose it in the headquarters panel); Chris picks the direction | 
+UI audit; speed on the phone | 
+
+## 3. Rules the engine keeps
+Eight rules, each enforced by a test where one can be written:
+- 
+No battle in the sim. The sim never names a place, unit, leader, side or battle, and never branches on one. A lint test fails the build if any battle file's id appears in a core file. Today 392 lines across the engine, AI, command and order files do.
+- 
+No era in the sim. No if era, and no mechanic named after a period piece. A square, a schiltron and a Roman orb are one thing to the engine: an all-round formation with its own numbers. The lint also bans words like musket, square and canister from core files; today 66 lines carry them.
+- 
+Capabilities, not arm types. A unit carries weapons, a mount or none, protection and training. The sim asks what a unit can do, "can it shoot 200 m, can it charge, can it face all round", never "is it cavalry". Today 191 lines branch on infantry, cavalry, artillery or garrison.
+- 
+Numbers carry their units. Rates are per man, per minute and per metre, so the same battle gives the same result at company or brigade scale, with 25 m or 50 m map cells, and at any tick length.
+- 
+Battle files hold facts, era files hold estimates. A battle file holds the ground, the armies, the timings, the weather, the objectives, the historical plan and its calibration targets with sources. Everything tuned (hit chances, morale weights, recovery rates) lives in era files, marked (est.) with its source or reasoning.
+- 
+Era numbers are tuned against several battles at once. One Napoleonic set must fit Waterloo, Ligny and Quatre Bras together, so no number can quietly become a per-battle fudge.
+- 
+Determinism stays. Seeded dice drawn in a fixed order, so replays, the after-action report and the identity checks keep working.
+- 
+Light, weather and time come from the date and the place. Sunrise and sunset are computed from the date and the latitude, replacing Waterloo's 20:20 and 21:10, which are written into the engine today.
+
+## 4. At a glance
+Everything above the engine is data and everything in it is code. A new battle, era, nation or general is added by writing packs and passing the validator, never by editing the engine.
+
+## 5. What each data pack holds
+Five kinds of data file, in JSON, each checked against a schema when it loads. A battle points at one era, the nations it uses and the leaders it names; nothing points the other way.
+| 
+Pack | 
+Holds | 
+Waterloo example | 
+Never holds | 
+| 
+Era | 
+Weapons: hit chance by range, shots a minute, penetration, smoke, ammunition. Protection and mounts. Formations: frontage, ranks, who can shoot, facing arcs, speed, time to form. Morale weights, recovery rates, communication speeds, how ground and weather act on weapons | 
+Napoleonic: smoothbore musket table, 6- and 12-pounder guns, line, column and square, morale 0.6 per 1% lost | 
+Any place, unit, leader or date | 
+| 
+Nation | 
+Unit types built from the era's parts, drill (ranks in line), quality classes, chain-of-command style, letter forms and language, default leader settings by rank | 
+France 1815: three-rank line, Le Major-Général; Britain: two-rank line | 
+Any battle's facts | 
+| 
+Leader | 
+One file per commander, apart from any battle. Temperament: aggression, caution, initiative, how literally he reads orders, use of reserves, tempo, how far forward he rides. Habits: how often he reports, how clear his orders are. Skills: rallying, coordinating foot, horse and guns. Each setting has a source and a confidence | 
+Ney, Grouchy, Wellington, Blücher, Bülow, Lobau, d'Erlon, down to brigade and battalion commanders where the record supports it | 
+Anything about one particular day | 
+| 
+Battle | 
+Map (heights, terrain areas, walls and hedges as lines, places with sections). Date and location, weather and ground. Sides and coalitions. Order of battle with its leaders, command tree, start positions, arrivals and routes. Objectives with values, victory conditions from a fixed vocabulary, the historical plan as orders. Start variants, calibration targets with sources | 
+Waterloo: the 199 × 156 height grid, 157 units, the farms, Bülow's route, the 11:00 and 05:00 starts, Napoleon's orders, "La Haye Sainte falls about 18:30" | 
+Weapon numbers, morale weights, leader temperament, any code | 
+| 
+Presentation | 
+Map style, cartouche, staff names and remark templates, text forms | 
+The paper-map style, Soult and Drouot's remarks | 
+Anything the sim reads | 
+The umpire's review flags become generic, so they need no per-battle code. Today they include "Bülow attacking before 14:00". After the change, a flag is raised wherever a result falls outside its calibration target's historical range.
+
+## 6. The sim made general
+Every system keeps its job; what changes is where its numbers and special cases come from. Two systems need genuinely new mechanics rather than a move into data: hand-to-hand fighting that can last (row 3) and linear obstacles with fieldworks (row 7). Both are what pre-gunpowder battles need most.
+| 
+System | 
+Today | 
+General form | 
+Reaches pre-gunpowder by | 
+| 
+1. Units | 
+Arm type (infantry, cavalry, guns, garrison) decides behaviour | 
+Men, mount or none, weapons, protection, training. Guns are weapons a crew serves | 
+Archers are foot with bows; knights are horse with lances and heavy protection; an elephant is a mount with its own numbers | 
+| 
+2. Missile fire | 
+One musket hit table to 300 m; roundshot and canister by calibre; howitzer shells | 
+Each weapon: hit chance by range, rate, penetration against protection, direct or arcing, smoke, ammunition | 
+Bows arc over friends from rear ranks, make no smoke, and are stopped by armour | 
+| 
+3. Hand-to-hand | 
+A decisive shock test every other tick; one side usually gives way first | 
+Shock on contact (speed, mass, weapon); if neither breaks, a locked melee wears down losses and cohesion each tick until one side breaks or draws off | 
+Sustained melee was the main killer before gunpowder: phalanx depth, pike reach, the legion relieving its front line | 
+| 
+4. Formations | 
+Line, column, square, mass and road, with 25 lines of square-only code | 
+One table: frontage, ranks, who can shoot, facing arcs, speed, density as a target, time to form | 
+Shield wall, wedge, phalanx and testudo are rows in the table | 
+| 
+5. Horse against formed foot | 
+Special cavalry code: break-ins against squares, catching units out of square | 
+Falls out of impetus against steadiness: all-round facing, depth, reach, cohesion | 
+Pikes and stakes stop horse by reach and obstacles, not by a cavalry rule | 
+| 
+6. Morale | 
+Generic cohesion; army morale from losses, plus Waterloo events (the crest, the Prussians engaged, Zieten, the Guard thrown back) | 
+Losses; routs seen; objectives lost or won, by their value; leaders lost, by rank; fresh enemy on a flank or rear; an elite unit repulsed, by its prestige | 
+Leaders fighting in the front rank: their risk is a leader setting | 
+| 
+7. Places and obstacles | 
+Walled farms and villages with sections, gates, garrisons, fire | 
+The same, plus fieldworks dug over time and lines on the map (walls, hedges, fences, stakes, ditches) that slow and shelter | 
+Palisades and stakes are obstacles like any other | 
+| 
+8. Ground, light, weather | 
+Terrain classes fixed in code; Waterloo's sunset as constants; wet ground | 
+Terrain classes from data; light from date and latitude; weather from the battle | 
+Mud and slope against armoured men on foot | 
+| 
+9. Supply | 
+Cartridges per man; La Haye Sainte's rifle wagon as a special case | 
+Ammunition per weapon, refilled by wagons with travel time and a chance of loss, for any unit | 
+Arrow supply | 
+| 
+10. Command and fog | 
+Riders and beliefs; the French chain written in; the player is always Napoleon | 
+Messengers by mount and road; signals (flags, drums, horns, stations) with range and what they can carry; a commander's voice range; the player's side a setting | 
+Horns and banners; a general within shouting distance | 
+| 
+11. AI | 
+About 400 lines of Wellington, Blücher, Lobau and Ney | 
+Each commander acts from his leader file's settings and the battle's objectives, at every level from army to battalion, plus plan rules in data (a condition and the order it triggers) | 
+The same | 
+| 
+12. Ending and grade | 
+Written for 1815 (the road held, the crest taken) | 
+A vocabulary: an army breaks or withdraws, objectives held at the end by value, losses | 
+The same | 
+
+## 7. Roadmap
+Each phase ends at its gate, and the next starts only when the gate is passed. The core-loop track (section 2) runs alongside, starting with real-time play during phase 1, and the perception layer and event stream are built in phases 1–2 so a 3D client stays possible (section 11). Each phase also ends with the fuzz, the browser regression suite and the UI audit.
+| 
+Phase | 
+Steps | 
+Waterloo check | 
+| 
+0. Freeze the reference | 
+Record fingerprints of 400 reference battles: Napoleon's orders, the chaos player, the 05:00 start, dry ground. Store the release 2 spread and calibration results beside them | 
+Done 26 October: 400 battles recorded on release 3, a state hash every 30 game minutes; a 30-battle re-run matched exactly | 
+| 
+1. Restructure | 
+1a. The engine is created per battle, with no module-level map or terrain grids. 1b. Waterloo's data, era constants, nation drill, leader data and texts move into the five packs, exactly as they are. 1c. Sides and coalitions come from data. 1d. The schema and validator. 1e. The lint, with an allow-list of today's battle and era references that must reach zero by the end of phase 3 | 
+Bit-identical. Done: the 400 reference battles replayed exactly | 
+| 
+2. General sim | 
+2a. Capabilities replace arm types. 2b. Weapons and formations as data, first encoding today's tables exactly. 2c. Light from date and latitude. 2d. Morale events by objective value, leader rank, flank threat and unit prestige, replacing the crest, the Prussians and the Guard. 2e. Supply wagons for any unit, replacing the rifle wagon. 2f. Lasting melee. 2g. Linear obstacles and fieldworks. 2h. The test bench's first cases | 
+Bit-identical through 2b where the data reproduces today's tables; in the 1815 band from 2c. Done: in band over 500 battles (allied victories 87.6%, French 0%; median losses French 25.5k, Anglo-allied 14.0k, Prussian 7.7k); 120 battles recorded as the phase 2 reference | 
+| 
+3. Generic AI and leader files | 
+3a. The leader file format and default settings by nation and rank. 3b. Commanders at army, corps and brigade level acting from settings and objectives. 3c. Plan rules: a condition and the order it triggers. 3d. Wellington, Blücher, Lobau and Ney re-expressed as leader files and plan rules. 3e. Either side playable, with fog of war for both | 
+In the 1815 band, plus leader checks. 3a to 3e done (27 October): Napoleon's orders are plan rules; the allied army is commanded by the generic doctrine with Wellington's and Uxbridge's habits as data (his code is gone); Lobau's, Jérôme's and Ney's strokes are generic habits with their numbers in the pack. Blücher's march and Grouchy's choice are an arriving army's timetable (delays, waits, follows, flanks, press, pursue, reports, toGuns): generic habits with Waterloo's numbers in the pack, which the test battle's Green corps also uses. All 120 phase 2 reference battles replay exactly | 
+| 
+4. Tools | 
+4a. Battle test page. 4b. Multi-battle tuner. 4c. Map pipeline from elevation data and traced features. 4d. Army import from CSV. 4e. Pack and replay versions. 4f. A small test battle built from files alone | 
+In band; the test battle runs with no engine edit. Done 27 October: the battle lab, tools/tune.js, tools/map.js, tools/oob.js, versions and replay files; the test battle's ground, army and plan are files | 
+| 
+5. Proof battles | 
+Ligny, Cowpens, a pre-gunpowder battle, Gettysburg, in that order (section 10) | 
+Waterloo stays in band as era numbers are re-fitted across battles. Ligny in the lab, 28 October: fought from Napoleon's recorded orders against the generic Prussian commander, 7 of 9 proposed checks in band (French losses and Ligny's last fall are out); all 120 Waterloo reference battles replay exactly. Ligny in the full game, 28 October: playable as Napoleon (since 30 October in one app with Waterloo, chosen on the start screen); the command layer and the game page read the battle pack, and the battle names left in engine code fell from 323 to 16; Waterloo's reference battles and game texts unchanged. What it took: Adding a battle: lessons from Ligny | 
+Where phases 3 and 4 stand (27 October). What was built, and what it showed:
+- 
+Generic commanders (doctrine.js): a main effort prepared by every gun, corps sent in as far as a place has room, reserves thrown in when the army stands on the enemy's line, attacks called off at dusk; defenders feed garrisons, plug the line, retake what they lost and keep a first line behind a crest. Settings come from the leader files (aggression, readiness to commit the reserve, rally, coordination, clarity).
+- 
+Plan rules (plans.js): Napoleon's historical orders are now rules in the Waterloo pack, read from what Napoleon believes. They replay the reference battles exactly.
+- 
+The test battle (toy-ridge): its ground comes from spot heights and a GeoJSON file through the map pipeline, its army from a CSV, and no engine line names it. Red rarely wins (about 5% marginal Red victories): even against a Blue army at a third of its strength, Red's columns are broken by Blue's lines and guns. That is the engine's Waterloo calibration speaking, and it is the first question for the tuner once a second historical battle exists.
+- 
+Arriving armies (doctrine.js: delays, waits, follows, flanks, press, pursue, reports, toGuns): Blücher's march, Bülow's halt at Saint-Lambert, Zieten's possible diversion and Grouchy's choice at Walhain are generic habits, with Waterloo's numbers in the pack. The generic commanders run a battle's timetable alongside, as they do its plan rules (fight.js --no-timetables and the lab turn it off). The test battle's Green corps now has one: it halts in the woods at the east edge until Red stands on the ridge, Blue's morale falls under 50, or 15:30. The test battle stays in its band: 95% marginal Blue, 3% Blue, 2% marginal Red (60 battles).
+- 
+Waterloo with the generic commanders on every side now ends in a marginal French victory in 29 of 30 battles, with or without the timetables; history is an allied victory. The cause is the French objectives added on 27 October (the crossroads 3, La Haye Sainte 2, the ridge east of it 2, Hougoumont 1, nothing behind the French line). With them the generic attacker opens about 11:20 and has every corps, then the reserve, in at the centre by 13:00; Napoleon attacked piecemeal from 13:30. Median killed and wounded: allies 18,000–20,000, French 10,500–14,000. Before, the generic attacker went first for Plancenoit and La Belle Alliance, behind its own line and unopposed, and the results were split: 37% draw, 37% marginal allied, 27% marginal French. This is a finding about the generic attacker, not Waterloo's calibration: with Napoleon's orders the battle is unchanged and in band, and all 120 reference battles replay exactly.
+- 
+The battle lab (lab.html) plays any pack, either side, with fog; the tuner (tools/tune.js) judges an era change against every battle's targets at once.
+
+## 8. Testing and tuning faster
+The aim is that a change to an era number, a leader file or a battle file shows its effect within minutes, across every battle it touches.
+- 
+Test bench. Small staged engagements written as data, each with an expected range from sources. Examples: a battalion in line firing at a column at 100 m for ten minutes; a cavalry brigade charging a square; archers shooting at armoured men walking 250 m toward them. Each runs 200 times in seconds and works as a unit test for the era's numbers. When a number changes, the bench shows which behaviours moved before any full battle is run.
+- 
+Battle test page. Load any battle pack, see its map, armies, arrival timeline and objectives, and run a batch with the historical plan in background workers. The page shows the spread against the battle's calibration targets and flags outliers. This is the tool for quick ports and quick tuning, and the base the in-browser editor will grow from.
+- 
+Multi-battle tuner. It sweeps era numbers across every battle and bench case of that era at once, reports how well each target fits, and shows which numbers each target depends on. A value that helps one battle and hurts another is visible at once.
+- 
+Leader checks. Where a historical decision point recurs (Grouchy hearing the guns, Ney seeing the Allied line pull back), the share of runs in which the leader does what he did. These targets are interpretive and marked so.
+- 
+Fuzz and invariants for every battle. The chaos player builds its random orders from each battle's own command tree, so every new battle gets the thousands-of-battles bug hunt for free.
+- 
+Lints and checks on every build. No battle ids or era words in the sim, schema validation of every pack, determinism fingerprints per battle.
+- 
+Versions. Every pack carries a version, and every saved review and replay records the engine and pack versions it was fought under.
+
+## 9. Risks and what is uncertain
+- 
+Generic AI may fight Waterloo differently. Hand-written Wellington and Blücher code knows things a general doctrine has to learn from data. The in-band check catches drift, and plan rules in data fill gaps without code.
+- 
+The earlier the era, the thinner the evidence. Army sizes and losses for ancient and medieval battles are often disputed among historians, sometimes by large factors. Those eras will be calibrated against ranges, with looser targets marked as such.
+- 
+Leader files are interpretations. Each setting carries a source and a confidence, and a profile has to hold across every battle the general appears in, which guards against caricature.
+- 
+Speed on the phone. General code paths cost time. Waterloo runs at about 13 ms per 2-minute tick today. Each phase measures it, and the budget is to stay under 20 ms.
+- 
+The bit-identical window is fragile. Phase 1 moves a lot of code. Any divergence is bisected to its commit and fixed there, never waved through.
+- 
+Building new battles is slow data work. Maps and orders of battle take the time. The map pipeline and the CSV import shorten it. Height data may need you to download one file for me, since this workspace cannot reach most sites.
+- 
+Out of scope by decision. Sieges and naval actions. Yorktown waits for a siege module.
+
+## 10. What changes for the battles already planned
+The order of battles stands, but each battle becomes a proof of the framework rather than a reason to change the engine. If a battle needs an engine change, that change is made as a general feature in phases 2–4, then the battle continues.
+| 
+Battle | 
+What it proves | 
+Engine change expected | 
+| 
+Ligny, 16 Jun 1815 | 
+The framework carries a second battle of the same era: new map, armies and leader files only. The Napoleonic numbers must then fit Waterloo and Ligny together | 
+None | 
+| 
+Cowpens, 17 Jan 1781 | 
+A second era pack (Revolutionary), company-scale units with finer map cells, and command by voice | 
+None beyond phases 2–4 | 
+| 
+A pre-gunpowder battle, chosen after phase 2 | 
+Lasting melee, armour against missiles, obstacles. Candidates: Agincourt (1415: archers, armour, mud, stakes), Hastings (1066: shield wall against horse and archers), Cannae (216 BC: formations and envelopment). Their army sizes are disputed, so the targets will be ranges | 
+None beyond phases 2–4 | 
+| 
+Gettysburg, 1–3 Jul 1863 | 
+Rifle-musket era pack, three days with summarised nights, either side, twice Waterloo's units | 
+The day-and-night clock, the one Gettysburg-only core feature | 
+| 
+Long Island, Bunker Hill | 
+Boats as a way to cross water | 
+A water-crossing feature (movement, not naval combat) | 
+| 
+Yorktown | 
+Needs a siege module, outside the core by decision | 
+Deferred | 
+
+## 11. Toward a 3D client
+A later 3D version, in Unreal or another engine, is realistic if two things hold from now on. First, the sim stays a headless, deterministic program with no page code in it. Second, everything the player gets passes through the perception layer and the event stream (B2). The 2D map and a 3D headquarters are then two views of the same contract.
+The contract:
+- 
+In: orders, headquarters moves, and where you stand and look, for the glass and for walking out.
+- 
+Out: what you can see from where you stand (the viewshed the glass already computes), what you hear (direction, loudness, kind), messages as they arrive, and the timed event stream for drawing and sound.
+- 
+Data: the packs are JSON, which Unreal can import into its data tables.
+Ways to run the sim inside Unreal. Decide later; the contract keeps all three open.
+| 
+Option | 
+How | 
+For | 
+Against | 
+| 
+Embed the JavaScript sim | 
+A scripting plugin such as PuerTS, which runs JavaScript or TypeScript in Unreal on V8 | 
+One sim, no port; every fix reaches both games | 
+Depends on a third-party plugin's upkeep | 
+| 
+Port the sim to C++ | 
+Rewrite the sim in Unreal's native language | 
+No plugin; native speed | 
+Two sims to keep equal. The port is proven by replaying the phase 0 reference battles to identical fingerprints | 
+| 
+Run it beside the game | 
+The sim as a separate process over a local connection | 
+Fastest prototype | 
+Awkward to ship | 
+Engine candidates. These are for a game with high asset counts and heavy VFX and particles; the choice is due after phase 4.
+| 
+Engine | 
+Strengths for this game | 
+Working with Claude | 
+Licence | 
+| 
+Unreal Engine 5 | 
+The strongest fit: huge geometry counts (Nanite), GPU particle effects (Niagara), a framework for large crowds (Mass), the most realistic interiors and lighting | 
+Assets and levels are binary, so work goes through C++ and Python editor scripts | 
+Free; 5% royalty on a game's lifetime gross above $1M (licence) | 
+| 
+Unity 6 | 
+GPU particles (VFX Graph), an entity system for very large unit counts. Game-Labs' Ultimate General games are reportedly made in Unity (community forum) | 
+Scenes and prefabs can be saved as text, so Claude can work on more of the project directly | 
+Personal free under $200k revenue and funding; Pro $2,200 per seat per year; per-install fee cancelled September 2024 (Unity) | 
+| 
+Godot 4 | 
+Open source and light; behind the other two for large asset counts and heavy VFX | 
+Scenes are text; the easiest to work on together | 
+Free and open source (MIT) | 
+| 
+Browser 3D (three.js or Babylon.js) | 
+Runs our sim unchanged, on the phone too; the lowest ceiling for VFX | 
+All code; Claude can do most of it | 
+Free and open source | 
+Whichever engine, armies of thousands are usually drawn with GPU instancing and pre-baked animation, not one character per soldier. That is a question for the client, not the sim.
+What Claude can do:
+- 
+Write the game code in C++ or TypeScript, Unreal Python editor scripts that build levels and assets from the data packs, and the packs themselves.
+- 
+Port the sim and prove the port against the reference battles. This workspace has C++ compilers, so the port can be built and tested headless here.
+- 
+Research each historical headquarters (descriptions, plans, period images) and write the letters, briefings and narration.
+What Claude cannot do:
+- 
+Run the Unreal Editor, or build and play the game. This workspace has no GPU or display. You build on your PC and send logs and screenshots. With the desktop app linked, I may be able to look at the editor through computer use, but slowly.
+- 
+Write Blueprints directly. They are binary assets, so the work goes into C++ and editor scripts instead.
+- 
+Make production 3D art, animation or recorded sound to a high standard. Those come from asset libraries or artists; I can specify them, find them and wire them in.
