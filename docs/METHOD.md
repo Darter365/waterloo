@@ -85,6 +85,10 @@ roadmap's "rules the loop must keep".
   umpire's (truth, for judging the engine), and Wellington's once the allied side is playable. An agent tests whether the fog
   leaves enough to plan with and whether a plan can be dominant; it does not measure whether the game is fun. Chris and a
   newcomer do that.
+- **The harness** (built 12 Nov): `source/sim/tools/agentplay.js`; how to run a session, and what each session's folder holds,
+  is in `docs/playtests/README.md`. `tools/test_agentplay.js` (in `check.sh`) fails if truth reaches a turn of Napoleon's view.
+  Three agents with fresh contexts: the player; a reader given the umpire's record and the turns but not the player's
+  reasoning; and whoever writes it up. Each report says where the player leant on knowing the history.
 - Fog that leaves nothing to reason from is a defect, not realism.
 
 ## 7. Performance and execution

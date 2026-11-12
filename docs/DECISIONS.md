@@ -21,8 +21,10 @@ Never record a guess as a decision.
   class 3 task and the references are re-recorded once. Its acceptance test is under "Claude's choices" until Chris confirms it.
 - **Measures of the core loop come before a performance baseline (12 Nov).** Belief error, report staleness, order latency,
   orders overtaken and decision gaps, computed from the contract alone (`docs/METHOD.md`, section 5). Not built.
-- **Agent playtests through every view (12 Nov):** Napoleon's, the umpire's and Wellington's. Wellington's waits until the
-  allied side is playable. Not built.
+- **Agent playtests through every view (12 Nov):** Napoleon's, the umpire's and Wellington's. The harness is built
+  (`tools/agentplay.js`, Napoleon's view and the umpire's; `docs/playtests/`). Wellington's waits until the allied side is
+  playable: what that needs is listed in `docs/playtests/wellington-headless.md`. **The first playtest has not been run:** the
+  player agent was stopped by the model's safeguards before its first move (12 Nov), and it is Chris's call how to try again.
 - **Long-term aim.** A 3D game set at the generals' historical headquarters, with sound, riders arriving and a spotting glass,
   later on an engine suited to large asset counts. The map interface and core mechanics come first.
 
@@ -91,6 +93,19 @@ These were made to keep moving and are easy to change. Raise them when the subje
 - **`docs/RULES.md` is a snapshot and the Claude doc stays the master** (12 Nov). The other way round is possible.
 - **What `doc`, `approx`, `low` and `none` mean** (`docs/METHOD.md`, section 2), read off today's packs.
 - Slopes are steepened tenfold for the shading painted on the ground; the view from above draws heights three times life size.
+- **The agent harness's stops (12 Nov):** fifteen minutes after the first dispatch since the last stop, or sixty minutes with
+  none, or the minute the player names, or the end. The game page's own stops need the ★ and !! marks, which the contract
+  does not carry, so the harness cannot copy them. Both figures are estimates.
+- **What a turn of Napoleon's view holds (12 Nov):** the contract's snapshot and events rendered as text (dispatches, things
+  seen and heard, his orders, his army by corps, the enemy list with ages, a sketch map), with the JSON beside it. Positions
+  are given against the nearest named place. Brigades are listed only where a report has come since the last stop.
+- **What "cannot leak" is taken to mean (12 Nov):** the turns are byte for byte the same when every unit, place and army
+  morale is falsified whenever the harness is looking (`tools/test_agentplay.js`). It does not stop an agent with a shell from
+  reading the code or the packs: the player's brief forbids that, and nothing enforces it.
+- **The umpire's record reads two things outside the contract (12 Nov),** read only and after the battle: which true unit each
+  of the commander's contacts is, and each order's real history. Section 5's measures will need both from the contract.
+- **A playtest's folder** (12 Nov): `question.md` written first, `replay.json`, `session.json`, the player's journal and report
+  and the reader's notes unedited, and a summary (`docs/playtests/README.md`).
 
 ## Open questions (not decided)
 
@@ -113,4 +128,12 @@ These were made to keep moving and are easy to change. Raise them when the subje
 - **Vegetation exists only where the map data has it.** Ligny has none recorded.
 - **Never measured:** frame rate of the 3D view on a real GPU or phone (tests use software rendering). The roadmap's budget of
   under 20 ms a tick has no check in `check.sh`.
+- **Four things the contract does not tell a client** (found building the agent harness, 12 Nov; changing `view.js` is a class 2
+  task of its own): an order reads "sent" from the minute it is given, while it is still being written (11:02 for an order
+  written until 11:11, seed 1815), so a client cannot say when an order can still be torn up; dispatches carry no ★ or !!
+  mark, so a client cannot stop the clock as the game page does; a snapshot holds only the last twenty dispatches; and the
+  truth has no orders in it, so "written, received, acted on" must be read from the command layer.
+- **How to run the first agent playtest.** The player's brief asked for a journal written before every move, and the model's
+  safeguards stopped the agent on it. Options: a brief that asks only for an after-action report; a different model for the
+  player; or Chris plays the first one through the harness himself.
 - **Which comes next:** moving the 2D map onto the contract, or the idle-army rule. Chris has not chosen.
