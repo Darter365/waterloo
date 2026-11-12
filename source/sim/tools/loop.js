@@ -37,7 +37,8 @@ const DEF = {
 
 const hyp = Math.hypot;
 const sorted = a => a.filter(v => v != null && isFinite(v)).sort((x, y) => x - y);
-// the q-th centile by nearest rank (as tools/fight.js); null for an empty list
+// the q-th centile by nearest rank (as tools/fight.js); null for an empty list. Of 30 battles the 10th centile is the 4th lowest,
+// the 90th the 3rd highest and the median the 16th
 const pct = (a, q) => { const v = sorted(a); return v.length ? v[Math.min(v.length - 1, Math.floor(q * v.length))] : null; };
 const med = a => pct(a, 0.5);
 const mean = a => { const v = sorted(a); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; };
@@ -101,7 +102,7 @@ function measure(V, D = DEF) {
 
   function result() {
     const os = [...orders.values()], field = os.filter(o => o.expect), got = field.filter(o => o.receivedAt != null), acted = got.filter(o => o.actedAt != null);
-    const plain = acted.filter(o => o.conditions === 0), timed = acted.filter(o => o.expect.act), aimed = got.filter(o => o.objective && o.onArrival), written = os.filter(o => o.objective && o.wasTrue);
+    const plain = acted.filter(o => o.conditions === 0), timed = acted.filter(o => o.expect.act), aimed = got.filter(o => o.objective && o.onArrival), written = field.filter(o => o.objective && o.wasTrue);
     const edges = [t0, ...stars.slice().sort((a, b) => a - b), tEnd], gaps = edges.slice(1).map((t, i) => t - edges[i]);
     const mid = a => (a[0] + a[1]) / 2;
     return {
@@ -111,7 +112,7 @@ function measure(V, D = DEF) {
       orders: field.length, received: got.length, lost: r1(share(field, o => o.status === 'lost')),
       delivery: r1(med(got.map(o => o.receivedAt - o.issuedAt))), latency: r1(med(plain.map(o => o.actedAt - o.issuedAt))),
       arriveIn: r1(share(got, o => o.receivedAt >= o.expect.arrive[0] && o.receivedAt <= o.expect.arrive[1])), arriveLate: r1(share(got, o => o.receivedAt > o.expect.arrive[1])),
-      actIn: r1(share(timed, o => o.actedAt >= o.expect.act[0] && o.actedAt <= o.expect.act[1])), actLate: r1(share(timed, o => o.actedAt > o.expect.act[1])),
+      actIn: r1(share(timed, o => o.actedAt >= o.expect.act[0] && o.actedAt <= o.expect.act[1])),
       actError: r1(med(timed.map(o => o.actedAt - mid(o.expect.act)))),
       aimed: aimed.length, overtaken: r1(share(aimed, o => changed(o.wasTrue, o.onArrival, D))), falsePicture: r1(share(written, o => changed(o.believed, o.wasTrue, D))),
       stars: stars.length, longestGap: r1(Math.max(...gaps)), medianGap: r1(med(gaps)), starsPerHour: r1(tEnd > t0 ? stars.length / ((tEnd - t0) / 60) : null),
@@ -145,10 +146,15 @@ function stateHash(E) {
   const dice = Object.values(E.rnd.counts || {}).reduce((a, b) => a + b, 0);
   return crypto.createHash('sha1').update(JSON.stringify([E.t, E.morale, units, places, dice])).digest('hex').slice(0, 16);
 }
+// the reference hash leaves the command layer out, so the check adds it at the end: every order with its times, and the dispatches
+function commandHash(E) {
+  const C = E.command, orders = C.orders.map(o => [o.id, o.to, o.status, o.issuedAt, o.sentAt, o.receivedAt, o.actedAt]), inbox = C.inbox.map(m => [m.id, m.t, m.kind, !!m.decision]);
+  return crypto.createHash('sha1').update(JSON.stringify([orders, inbox])).digest('hex').slice(0, 16);
+}
 // a battle measured against the same battle never looked at: the state hash every half hour and at the end
 function check(L, battle, seed, plan) {
-  const A = setup(L, battle, seed, plan), a = []; while (!A.over) { A.step(); if (A.t % 30 === 0) a.push(stateHash(A)); } a.push(stateHash(A));
-  const b = []; fight(L, battle, seed, plan, E => b.push(stateHash(E)));
+  const A = setup(L, battle, seed, plan), a = []; while (!A.over) { A.step(); if (A.t % 30 === 0) a.push(stateHash(A)); } a.push(stateHash(A), commandHash(A));
+  const b = []; let last = null; fight(L, battle, seed, plan, E => { b.push(stateHash(E)); last = E; }); b.push(commandHash(last));
   return { hashes: a.length, same: a.length === b.length && a.every((h, i) => h === b[i]) };
 }
 
@@ -165,11 +171,11 @@ const MEASURES = [ // key, label, unit, what a reader should know
   ['latency', 'Order latency: given to acted on', 'min', 'median over orders without conditions'],
   ['arriveIn', 'Arrived inside the staff\'s range', '%', 'of orders that arrived'],
   ['arriveLate', 'Arrived later than the staff said', '%', 'of orders that arrived'],
-  ['actIn', 'Acted on inside the staff\'s range', '%', 'of orders the staff could time'],
+  ['actIn', 'Acted on inside the staff\'s range', '%', 'of orders that were acted on and that the staff could time'],
   ['actError', 'Acted on against the middle of the estimate', 'min', 'median; above zero is late'],
   ['lost', 'Orders lost on the road', '%', 'every rider lost'],
-  ['overtaken', 'Orders overtaken', '%', 'of orders with an objective that arrived: the situation there changed on the road'],
-  ['falsePicture', 'Orders written on a false picture', '%', 'of orders with an objective: belief and truth already differed when written'],
+  ['overtaken', 'Orders overtaken', '%', 'of orders to the field with an objective that arrived: the situation there changed on the road'],
+  ['falsePicture', 'Orders written on a false picture', '%', 'of orders to the field with an objective: belief and truth already differed when written'],
   ['longestGap', 'Decision gap: longest', 'min', 'longest stretch with no starred dispatch'],
   ['medianGap', 'Decision gap: median', 'min', 'median stretch between starred dispatches'],
   ['starsPerHour', 'Starred dispatches an hour', '', ''],
@@ -178,9 +184,9 @@ function summarise(rows) {
   const out = {};
   for (const [k] of MEASURES) { const v = rows.map(r => r[k]); out[k] = { p10: pct(v, 0.1), p50: pct(v, 0.5), p90: pct(v, 0.9), n: sorted(v).length }; }
   // the day by the hour: the median over battles of each reading taken in that hour
-  const hours = {};
-  for (const r of rows) for (const s of r.series) { const h = Math.floor(s[0] / 60); (hours[h] = hours[h] || []).push(s); }
-  out.byHour = Object.keys(hours).map(Number).sort((a, b) => a - b).map(h => ({ hour: h, battles: new Set(hours[h].map(s => s.b)).size, ownErr: r1(med(hours[h].map(s => s[1]))), enemyErr: r1(med(hours[h].map(s => s[2]))),
+  const hours = {}, fought = {};
+  rows.forEach((r, i) => { for (const s of r.series) { const h = Math.floor(s[0] / 60); (hours[h] = hours[h] || []).push(s); (fought[h] = fought[h] || new Set()).add(i); } });
+  out.byHour = Object.keys(hours).map(Number).sort((a, b) => a - b).map(h => ({ hour: h, battles: fought[h].size, ownErr: r1(med(hours[h].map(s => s[1]))), enemyErr: r1(med(hours[h].map(s => s[2]))),
     unknown: r1(med(hours[h].map(s => s[3]))), staleEnemy: r1(med(hours[h].map(s => s[4]))), staleOwn: r1(med(hours[h].map(s => s[5]))), ownErr90: r1(med(hours[h].map(s => s[6]))), enemyErr90: r1(med(hours[h].map(s => s[7]))) }));
   return out;
 }
@@ -210,7 +216,7 @@ if (require.main === module) {
     choice: 'a starred dispatch reaching the commander (est.)', measures: MEASURES.map(([key, label, unit, note]) => ({ key, label, unit, note })), plans: {} };
   console.log(`${B.name}: the core loop over ${N} battles a plan, seeds ${SEED0} to ${SEED0 + N - 1}. Median (10th to 90th centile) over battles.`);
   for (const p of plans) {
-    const rows = []; for (let s = 0; s < N; s++) { const r = fight(L, battle, SEED0 + s, p); r.seed = SEED0 + s; r.series.forEach(x => { x.b = s; }); rows.push(r); }
+    const rows = []; for (let s = 0; s < N; s++) { const r = fight(L, battle, SEED0 + s, p); r.seed = SEED0 + s; rows.push(r); }
     const sum = summarise(rows);
     out.plans[p] = { name: nameOf(p), summary: sum, battles: rows.map(r => { const { series, ...rest } = r; return rest; }) };
     console.log(`\n  ${nameOf(p)}`);

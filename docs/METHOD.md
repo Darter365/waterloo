@@ -77,7 +77,7 @@ the same file). Seeds start at 2000, the strategy bench's; they are not the cali
 | Measure | How it is computed | Loop rule it tests |
 | --- | --- | --- |
 | Belief error | Every 10 minutes, the distance from each believed position to the true one: his own brigades by id, the enemy by the key the truth carries beside each unit. Reported for the middle body and for the body at the 90th centile (most brigades stand still, so the middle one hides those that moved), averaged over the day. Beside it, the share of the enemy's horse and foot he has no mark for at all. | Fog is fair |
-| Report staleness | At the same readings, the age of the newest sighting of each enemy body on his map, and of the newest report of each of his brigades; the median body, averaged over the day. | Fog is fair |
+| Report staleness | At the same readings, the age of the newest sighting of each enemy body on his map, and of the newest news of where each of his brigades stands; the median body, averaged over the day. | Fog is fair |
 | Order latency | Given to received for every order that arrived; given to acted on for orders without conditions. Against the staff's estimate as first given: the share that arrived, and that were acted on, inside its earliest-to-latest range, and the minutes from the middle of that range. | Delay is learnable |
 | Orders overtaken | For an order with an objective, the situation there is who holds the place and how many enemy horse and foot stand within 800 m. Overtaken: the true situation when it arrived differs from the true situation when it was given. Kept apart from "written on a false picture": belief and truth already differed when it was given. The first is the price of delay, the second of fog. | Delay is learnable |
 | Decision gaps | The stretches between dispatches the staff starred, from the battle's first minute to its last: the longest, the median, and stars an hour. | Orders interact; good play gets credit |
@@ -102,6 +102,17 @@ received and acted on, and beside each unit its key in the commander's picture a
   no latency and cannot be overtaken. Only plans given through the order builder are measured.
 - Orders to headquarters itself and to a commander off the map have no estimate and are left out.
 - Overtaken is judged at the objective only. A recipient whose own corps has changed (broken, already engaged) is not seen.
+- The estimate counts from the minute an order is given. One given while headquarters is moving is held and written on
+  arrival, so it shows as later than the staff said.
+- "Written on a false picture" counts every mark on his map near the objective, however old, and nothing for the enemy he
+  has no mark for. Where much of the enemy is unmarked it mostly restates that (Waterloo's strategy: 117 of 120 orders). The
+  order code's own test of a commander's doubt uses only sightings under 40 minutes old.
+- Several stars in one tick make gaps of zero, so the median gap shows clustering; the longest gap is the one to read.
+- The order shares are over orders that arrived, or were acted on. An order lost, or never acted on by nightfall, drops out
+  of them and is counted only under "lost".
+- Centiles are by nearest rank: of 30 battles the 10th is the 4th lowest, the 90th the 3rd highest, the median the 16th.
+- `--check` compares the reference battles' state hash (units, places, morale, dice drawn) every half hour, and at the end
+  every order's times and every dispatch. It does not compare belief records.
 - One run of 30 battles a plan on each battle (seeds 2000 to 2029) is the whole evidence so far; the numbers are in the pull
   request that added the tool, not here.
 

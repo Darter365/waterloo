@@ -26,7 +26,7 @@ ok(JSON.stringify(JSON.parse(JSON.stringify(world))) === JSON.stringify(world), 
 ok(world.grid.heights.length === world.grid.nx * world.grid.ny, 'the height grid is whole');
 let lastC = 0, lastT = 0, nC = 0, nT = 0, leak = 0, keyLeak = 0, posOnUnseen = 0, extraOnUnseen = 0, order = 0, subTick = 0, staleShown = 0, enemySeen = 0, ownFromBelief = 0, ownChecked = 0, kinds = {}, heardOnly = 0, moved = 0, tampered = 0;
 // the values the loop's measures read (tools/loop.js): orders, the staff's estimate, starred dispatches, the keys beside the truth
-let ordKnows = 0, ordShape = 0, ordSeen = 0, expSeen = 0, starShape = 0, stars = 0, keyWrong = 0, keyOwn = 0, keysMatched = 0, truthOrd = 0, truthOrdBad = 0;
+let diceSeen = 0, diceTampered = 0, ordKnows = 0, ordShape = 0, ordSeen = 0, expSeen = 0, starShape = 0, stars = 0, keyWrong = 0, keyOwn = 0, keysMatched = 0, truthOrd = 0, truthOrdBad = 0;
 function checkOrders(S) {
   for (const o of S.orders) { ordSeen++;
     if (SECRET.some(k => k in o)) ordKnows++;                              // when it truly arrived and was acted on is the umpire's to know
@@ -58,6 +58,13 @@ while (!B.over) {
     for (const u of unseen) { u.x += 1234; u.y -= 777; u.str *= 2; u.status = 'broken'; }
     if (JSON.stringify(V.snapshot('chief')) !== js) moved++;
     unseen.forEach((u, i) => { [u.x, u.y, u.str, u.status] = keep[i]; }); tampered += unseen.length;
+    // the staff's estimate must not know the dice already drawn for an order, nor where his own brigades really are: shift every
+    // order's writing, sending and acting minute and every one of his units, and the picture must not change (then put them back)
+    const os = B.command.orders.filter(o => o.sentAt != null), mine = B.units.filter(u => B.coalition[u.side] === B.coalition[side]);
+    const keepO = os.map(o => [o.writtenAt, o.sentAt, o.actAt]), keepU = mine.map(u => [u.x, u.y]);
+    for (const o of os) { o.writtenAt += 17; o.sentAt += 17; if (o.actAt != null) o.actAt += 17; } for (const u of mine) { u.x += 900; u.y -= 600; }
+    if (JSON.stringify(V.snapshot('chief')) !== js) diceSeen++;
+    os.forEach((o, i) => { [o.writtenAt, o.sentAt, o.actAt] = keepO[i]; }); mine.forEach((u, i) => { [u.x, u.y] = keepU[i]; }); diceTampered += os.length;
   }
   checkOrders(S);
   for (const d of S.dispatches) if (typeof d.starred !== 'boolean') starShape++;
@@ -104,6 +111,7 @@ if (!ordSeen) { const pack = require(path.join(SIM, 'packs', 'all.js')).battle(b
     while (!E2.over && E2.t < until) { E2.step(); checkOrders(V2.snapshot('chief')); }
     const T2 = V2.snapshot('truth'); actedSeen = T2.orders.filter(o => o.actedAt != null).length;
     for (const o of T2.orders) if (!num(o.issuedAt) || (o.receivedAt != null && o.receivedAt < o.issuedAt) || (o.actedAt != null && o.receivedAt != null && o.actedAt < o.receivedAt)) truthOrdBad++; } }
+ok(diceSeen === 0 && (diceTampered > 0 || !B.command.orders.length), `shifting the minutes already rolled for every order, and every one of his own units, never changes the chief's snapshot (${diceTampered} orders tampered with)`);
 ok(ordSeen > 0 && ordKnows === 0, `the commander's orders never carry when they truly arrived or were acted on (${ordKnows} of ${ordSeen})`);
 ok(ordShape === 0 && expSeen > 0, `every order shown has an objective or none, a count of conditions and a well-formed estimate (${expSeen} estimates, ${ordShape} malformed)`);
 ok(starShape === 0 && stars === B.command.inbox.filter(m => m.decision).length, `every dispatch says whether the staff starred it, and the stream stars the same ones (${stars})`);

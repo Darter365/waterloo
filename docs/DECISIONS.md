@@ -110,8 +110,8 @@ These were made to keep moving and are easy to change. Raise them when the subje
   rider carries them and the loop's order measures are empty for it (`tools/loop.js`, 12 Nov). Putting it through the order
   builder, as Waterloo's is, would change how Ligny fights.
 - **The staff's estimate is almost never wrong, and is about 20 minutes wide** (12 Nov, `tools/loop.js`, 30 battles a plan):
-  at Waterloo 341 of 359 of Napoleon's historical orders arrived inside the range the staff gave, and none of 209 under the
-  two strategies missed it. That is close to true by construction: the range is the full spread of the writing dice plus a
+  at Waterloo 341 of 359 of Napoleon's historical orders arrived inside the range the staff gave; under the packs' strategies
+  all 119 at Waterloo and all 90 at Ligny did. That is close to true by construction: the range is the full spread of the writing dice plus a
   road and a cross-country ride, so only the ride can fall outside. Is a wide range that always holds what "delay is
   learnable" should mean, or should the staff give a narrower estimate that is sometimes wrong?
 - **The order form shows the writing time already rolled** (`o.writtenAt`, set when the order is given), so the player's

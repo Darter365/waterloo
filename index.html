@@ -6747,7 +6747,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = root.WRepl
    For measuring the core loop (tools/loop.js, docs/METHOD.md section 5) the snapshots also carry, as plain values:
      chief  each order's objective as he wrote it, how many conditions it has, and the staff's estimate of when it will arrive and
             be acted on (the order form's own ranges); each dispatch, and its event, says whether the staff starred it as news
-     truth  every order with the minutes it was really sent, received and acted on, and its status; and beside each unit whether
+     truth  every order with the minute its rider was due to leave and the minutes it was really received and acted on, and its status; and beside each unit whether
             it is a crewed arm (its strength counts guns, not men) and the opaque key the commander's picture uses for it, if
             he has one, so that belief can be set against truth
 
@@ -6852,8 +6852,15 @@ function install(E) {
     const X = c.X, fc = X.front ? X.front.cmd : null, gb = c.GRAND_BATTERY || [];
     const recs = [...B.own.values()].filter(r => { const u = E.byId[r.uid]; if (!u || r.gone) return false; const k = c.cmdOf(u);
       return o.to === fc ? (X.frontCorps || []).includes(k) : kind === 'battery' ? gb.includes(u.id) || !!u.gbattery : k === o.to; });
-    const d = recs.length ? hyp(recs.reduce((a, r) => a + r.x, 0) / recs.length - L.x, recs.reduce((a, r) => a + r.y, 0) / recs.length - L.y) : 2500; // the order form's fallback
-    const w = CK.WRITE[c.opts.staff] || CK.WRITE.soult, f = (s.urgent ? 0.5 : 1) * (c.hq.wounded ? 1.5 : 1) * (o.seq ? 1 + 0.3 * (o.seq.n - 1) : 1);
+    // The numbers here are the order form's and the order code's, copied so that the estimate matches what the player is shown, and
+    // must follow them if they change: 2500 m when he has no report of the recipient's troops (est., _game_orders.js rideTimes); an
+    // urgent order written in half the time, a wounded commander's in half as long again, and 30% more for each further step of a
+    // letter (est., orders.js write and SEQ_WRITE); a quarter added to the straight line for a ride across country (est., rideTimes);
+    // wet ground slowing a rider by up to 40% (rules doc, command.js RIDER_CROSS). The estimate counts from the minute the order was
+    // given: an order held while headquarters is moving is written later than this says.
+    const d = recs.length ? hyp(recs.reduce((a, r) => a + r.x, 0) / recs.length - L.x, recs.reduce((a, r) => a + r.y, 0) / recs.length - L.y) : 2500;
+    const w = CK.WRITE[c.opts.staff]; if (!w) return null;
+    const f = (s.urgent ? 0.5 : 1) * (c.hq.wounded ? 1.5 : 1) * (o.seq ? 1 + 0.3 * (o.seq.n - 1) : 1);
     const pass = kind === 'marshal' || kind === 'battery' || s.direct ? CK.INTERP_DIRECT : CK.INTERP;
     const arrive = [o.issuedAt + w[0] * f + d / CK.RIDER_ROAD, o.issuedAt + w[1] * f + d * 1.25 / (CK.RIDER_CROSS * (1 - 0.4 * E.wet))];
     let act = [arrive[0] + pass[0], arrive[1] + pass[1]], open = false;
@@ -10021,7 +10028,7 @@ const WApp = (() => {
 </script>
 
 <script>
-// the offline release: keep every file of the game in this device's cache (release 547b53ff44)
+// the offline release: keep every file of the game in this device's cache (release 02428ff964)
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
