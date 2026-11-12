@@ -16,3 +16,5 @@ node refset.js check ref/p2_hist.json 4
 node refset.js check ref/p2_chaos.json 3
 node refset.js check ref/p2_dawn.json 2
 node refset.js check ref/p2_dry.json 2
+# simulation speed beside the stored baseline (results/ticktime_baseline.json). It warns on a slowdown and never fails the check: a cloud machine is not a phone
+node tools/ticktime.js --short
