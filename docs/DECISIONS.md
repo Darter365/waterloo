@@ -92,6 +92,13 @@ These were made to keep moving and are easy to change. Raise them when the subje
 - **What `doc`, `approx`, `low` and `none` mean** (`docs/METHOD.md`, section 2), read off today's packs.
 - Slopes are steepened tenfold for the shading painted on the ground; the view from above draws heights three times life size.
 
+- **The reviewer subagent and three skills (12 Nov).** Chris asked for them; the wording is Claude's. The reviewer
+  (`.claude/agents/reviewer.md`) has `Read`, `Grep` and `Glob` only, so it cannot fetch a diff itself: the session writes the
+  diff to a file and gives it the path. It reads `CLAUDE.md` afresh and restates no rule; it reports under seven fixed headings and
+  ends on an advisory verdict. No model is pinned. The skills (`add-battle`, `results-change`, `release`) are checklists that
+  point at the docs, and Claude may load them unasked. `add-battle` reads "making a new battle playable" and "a band, target or
+  campaign score" as putting a pack with `targets` or `stakes` in class 4.
+
 ## Open questions (not decided)
 
 - **Three rules for who leads a corps.** `doctrine.js`, `ai.js` and `command.js` each work it out their own way, and

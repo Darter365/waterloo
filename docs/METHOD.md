@@ -120,6 +120,10 @@ Decided 12 Nov: use them fully. Check what the session actually has before assum
 | Telling Chris | A push notification | After a merge, a revert or a failed gate |
 | Review and design | Account skills where present: code review, testing strategy, deploy checklist, design critique, accessibility review, statistical analysis | A session may not have them; say which were used |
 
+The repository carries a fresh-context `reviewer` subagent (`.claude/agents/reviewer.md`) and three skills (`.claude/skills/`:
+`add-battle`, `results-change`, `release`), each a checklist that points back at these docs; they load in a Claude Code
+session on the repository and not in a project thread, where the docs themselves are the procedure.
+
 Monarch and Robinhood are attached to scheduled tasks by default and have nothing to do with this project. Never call them
 from it.
 
