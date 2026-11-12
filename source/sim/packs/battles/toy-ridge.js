@@ -40,7 +40,7 @@ P.register('leader', 'toy-ridge', { version: '1.0', era: 'napoleonic', people: {
   garance: { name: 'General Garance', nation: 'FR', army: 'RD', rank: 2, traits: { agg: 0.55, ini: 0.5, obe: 0.8, skill: 0.7, exp: 0.6 } },
   sinople: { name: 'General Sinople', nation: 'PR', army: 'GR', rank: 3, traits: { agg: 0.7, ini: 0.6, obe: 0.9, skill: 0.65, exp: 0.6 } },
 }, source: 'invented for the test battle', confidence: 'none: fiction' });
-P.register('battle', 'toy-ridge', { version: '1.0', oob: 'toy-ridge', terrain: 'toy-ridge',
+P.register('battle', 'toy-ridge', { version: '1.1', oob: 'toy-ridge', terrain: 'toy-ridge', // 1.1: the chain block
   name: 'The ridge at Saint-Ail (test)', date: '1815-07-02', era: 'napoleonic', nations: ['GB', 'NL', 'FR', 'PR'],
   // posture: how its generic commanders fight (attack, defend); reserve: the corps they hold back; objectives: what an objective is worth to
   // this army when it differs from the map's value (Red's aim is the ridge, the farm and the village only on the way; Green marches on Red's
@@ -86,6 +86,8 @@ P.register('battle', 'toy-ridge', { version: '1.0', oob: 'toy-ridge', terrain: '
   ],
   leaders: [{ id: 'azur', side: 'BL', at: ll(2000, 900) }, { id: 'cobalt', side: 'BL', unit: 'b2' }, { id: 'carmin', side: 'RD', at: ll(2000, 2800) },
     { id: 'vermillon', side: 'RD', unit: 'r1' }, { id: 'garance', side: 'RD', unit: 'r3' }, { id: 'sinople', side: 'GR', corps: 'green' }],
+  // the chain of command (packs/registry.js: P.chain): each of the test battle's generals commands the corps he rides with (invented)
+  chain: { blue1: { commander: 'cobalt' }, red1: { commander: 'vermillon' }, red2: { commander: 'garance' } },
   map: { STRONGPOINTS, OBJECTIVES, ROUTES },
 });
 })(typeof globalThis !== 'undefined' ? globalThis : this);

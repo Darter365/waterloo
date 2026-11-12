@@ -28,6 +28,9 @@ It serves a command game that is engaging, immersive and true to its period, goo
 - **3D relief view (10 to 12 Nov, merged 12 Nov):** the umpire's picture in three.js, drawn from the contract alone; a view
   from above and a life-size view from the ground; light from the hour and the weather. This is the roadmap's "browser 3D"
   option taken as the first step, not a choice of final engine.
+- **The chain of command as data (12 Nov):** every army, wing, corps and division an entry with its commander
+  (`battle.chain`), checked by the validator and printed by `tools/oob.js chain`. No change to results; the commanders' code
+  does not read it yet (`DECISIONS.md`, open questions).
 
 ## What is next (order not yet chosen by Chris)
 

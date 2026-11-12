@@ -358,6 +358,62 @@ function validate(id) {
   }
   for (const s of sideIds) if (!(B.leaders || []).some(pl => pl.side === s && (P.leader(pl.id) || {}).rank === 3)) Wn(`side ${s} has no army commander (rank 3)`);
 
+  /* ----- the chain of command (registry.js: P.chain): the table is sound, and the command block agrees with it ----- */
+  const FM = R.chain || {}, GIVEN = B.chain || {}, XC0 = B.command || null;
+  const known = new Map(); // every leader the battle knows, with his side: placed, or off the map in the command block
+  for (const pl of B.leaders || []) known.set(pl.id, pl.side);
+  for (const [lid, o] of Object.entries((XC0 || {}).offmap || {})) if (o && o.leader && !known.has(lid)) known.set(lid, XC0.side || sides[0].id);
+  for (const [fid, g] of Object.entries(GIVEN)) {
+    for (const k of Object.keys(g)) if (!['kind', 'side', 'name', 'commander', 'under'].includes(k)) E(`chain ${fid}: unknown key "${k}" (known: kind, side, name, commander, under)`);
+    if (sideIds.has(fid)) E(`chain ${fid}: an army is its side, and its commander is the side's chief; it cannot be restated here`);
+    if (g.kind && !['wing', 'corps', 'division'].includes(g.kind)) E(`chain ${fid}: kind "${g.kind}" must be wing, corps or division`);
+    if (g.under && !FM[g.under]) E(`chain ${fid}: it is put under "${g.under}", which is not in the chain`);
+  }
+  // one name, one entry: the table is keyed by id, so a label shared by two sides, two corps or a corps and a division would merge them
+  { const corpsSide = {}, divCorps = {};
+    const seen = (uid, side, corps, div) => { const c = corps || (sides.find(s => s.id === side) || {}).corps0 || null;
+      if (c) (corpsSide[c] = corpsSide[c] || new Set()).add(side); if (div) (divCorps[div] = divCorps[div] || new Set()).add(c || side); };
+    for (const r of W.RAW || []) if (r[5] !== 'hq') seen(r[0], r[1], (W.CORPS || {})[r[0]], (W.DIVISION || {})[r[0]]);
+    for (const G of W.FORCES || []) for (const r of G.units || []) seen(r[0], r[1], r[7], (W.DIVISION || {})[r[0]]);
+    for (const [c, ss] of Object.entries(corpsSide)) { if (ss.size > 1) E(`corps "${c}" has units on ${[...ss].join(' and ')}: a corps belongs to one army`); if (sideIds.has(c)) E(`corps "${c}" has a side's id: rename one`); if (divCorps[c]) E(`"${c}" is both a corps and a division: rename one`); }
+    for (const [d, cs] of Object.entries(divCorps)) { if (cs.size > 1) E(`division "${d}" has units in ${[...cs].join(' and ')}: a division belongs to one corps`); if (sideIds.has(d)) E(`division "${d}" has a side's id: rename one`); }
+  }
+  const commands = {};
+  for (const f of Object.values(FM)) {
+    if (!sideIds.has(f.side)) { E(`chain: ${f.id} has no side (an entry no unit belongs to needs side: '<id>' in the battle's chain block)`); continue; }
+    if (f.kind !== 'army') {
+      const up = FM[f.parent];
+      if (!up) E(`chain: ${f.id} answers to "${f.parent}", which is not in the chain`);
+      else if (up.side !== f.side) E(`chain: ${f.id} (${f.side}) is put under ${up.id}, which is ${up.side}'s`);
+      else if (up.kind === 'division') E(`chain: ${f.id} is put under ${up.id}, a division: nothing answers to a division but its brigades`);
+      let g = f, n = 0; while (g && g.kind !== 'army' && n++ < 20) g = FM[g.parent];
+      if (up && (!g || g.kind !== 'army')) E(`chain: ${f.id} never reaches its army (what it is put under goes round in a ring)`);
+      if (!f.units.length && !f.parts.length) Wn(`chain: ${f.id} has no units and nothing under it`);
+    }
+    if (f.commander) {
+      if (!known.has(f.commander)) E(`chain: ${f.id}'s commander "${f.commander}" is not a leader the battle places`);
+      else if (known.get(f.commander) !== f.side) E(`chain: ${f.id} (${f.side}) is commanded by ${f.commander}, who is on side ${known.get(f.commander)}`);
+      if (f.kind !== 'army') (commands[f.commander] = commands[f.commander] || []).push(f.id);
+    }
+  }
+  for (const [lid, fs] of Object.entries(commands)) if (fs.length > 1 && !fs.every(x => fs.some(y => y !== x && (FM[x].parent === y || FM[y].parent === x)))) Wn(`chain: ${lid} commands ${fs.join(' and ')}, which are not one inside the other`);
+  /* the command block's own table of who a corps's orders and reports go through (corpsCmd, else the side's default) should be what the
+     chain gives: the corps's commander if the block lists him, else the nearest above him who is listed. A warning, not an error: the
+     command layer reads its own table (command.js), so a difference is two statements of one fact that have drifted apart. */
+  if (XC0) {
+    const listed = [].concat(...Object.values(XC0.commanders || {})), mySide = XC0.side || sides[0].id, chief0 = XC0.chief || (sides.find(s => s.id === mySide) || {}).chief;
+    for (const [c, lid] of Object.entries(XC0.corpsCmd || {})) {
+      if (!FM[c] || FM[c].kind === 'army') Wn(`command: corpsCmd names corps "${c}", which no unit belongs to`);
+      if (!known.has(lid)) Wn(`command: corpsCmd sends corps "${c}" through "${lid}", who is not a leader the battle places`);
+    }
+    for (const f of Object.values(FM)) {
+      if (f.kind !== 'corps' || !sideIds.has(f.side)) continue;
+      const now = (XC0.corpsCmd || {})[f.id] || (XC0.defaultCmd || {})[f.side] || (XC0.defaultCmd || {})._ || (f.side === mySide ? chief0 : null);
+      const chain = P.chainUp(FM, f.id, listed);
+      if (now && known.has(now) && now !== chain) Wn(`command: corps ${f.id} answers through ${now} (corpsCmd or the side's default), but the chain of command leads to ${chain || 'nobody listed'}`);
+    }
+  }
+
   /* ----- the era ----- */
   if (!era.K) E(`era ${era.id}: no K constants`);
   else for (const [k, v] of Object.entries(era.K)) if (!num(v)) E(`era ${era.id}: K.${k} is not a number`);

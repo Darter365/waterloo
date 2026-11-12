@@ -152,6 +152,30 @@ broken('t-toguns', B => onSide(B, 'FR', s => { s.toGuns[0].force = 'nobody'; ret
     ok(fs.existsSync(r.out) && fs.readFileSync(r.out, 'utf8') === r.js, `map: packs/maps/${r.id}.js is made from ${f} (run node tools/map.js build packs/maps/${f})`); }
   const T = P.terrain('toy-ridge'), [x, y] = T.ll2m(...T.m2ll(1234, 5678));
   ok(Math.abs(x - 1234) < 1e-6 && Math.abs(y - 5678) < 1e-6 && T.H.length === T.NX * T.NY, 'map: a terrain pack unpacks (heights, conversions)'); }
+/* the chain of command (registry.js: P.chain). Every body is in one corps (or its army's own list) and every formation reaches its
+   army; the engine's membership at the start is the table's; a broken chain is caught. The last check pins where today's code leads
+   a corps by another rule than the table (node tools/oob.js chain <battle>): a change that moves one of those is a change to how
+   battles fight, and should be made on purpose. */
+{ const O = require('./oob.js'), En = require('../engine.js');
+  const KNOWN = { waterloo: ['bulow:doctrine', 'guard:ai'], ligny: ['derlon:command', 'guard:ai'], 'toy-ridge': ['blue1:ai', 'red1:ai', 'red2:ai'] };
+  for (const id of Object.keys(KNOWN)) {
+    const R = P.battle(id), F = R.chain, E = En.create({ battle: id, seed: 1 });
+    const bodies = R.W.RAW.filter(r => r[5] !== 'hq').map(r => r[0]).concat(...R.W.FORCES.map(G => G.units.map(r => r[0])));
+    const homes = Object.fromEntries(bodies.map(b => [b, Object.values(F).filter(f => f.kind !== 'division' && f.units.includes(b)).length]));
+    ok(bodies.every(b => homes[b] === 1), `chain: every body of ${id} is in one corps or its army's own list: ${bodies.filter(b => homes[b] !== 1).join(', ')}`);
+    ok(Object.values(F).every(f => { let g = f, k = 0; while (g && g.kind !== 'army' && k++ < 20) g = F[g.parent]; return g && g.kind === 'army' && g.side === f.side; }), `chain: every corps, division and wing of ${id} reaches its own army`);
+    const under = f => f.units.concat(...f.parts.filter(p => F[p].kind !== 'division').map(p => under(F[p])));
+    ok(Object.values(F).every(f => JSON.stringify(E.unitsOf(f.id).map(u => u.id).sort()) === JSON.stringify(under(f).sort())), `chain: the engine's bodies in each corps and division of ${id} are the table's at the start`);
+    ok(R.sideIds.every(s => E.unitsOf(s).length === E.units.filter(u => u.side === s).length), `chain: an army's bodies are all of its side's (${id})`);
+    const rep = O.chainReport(id), diff = [].concat(...rep.rows.map(r => Object.keys(r.differs).filter(k => r.differs[k]).map(k => `${r.corps}:${k}`))).sort();
+    ok(JSON.stringify(diff) === JSON.stringify(KNOWN[id]), `chain: ${id}'s code leads a corps by another rule than the table only where known (${KNOWN[id].join(', ')}); now: ${diff.join(', ')}`);
+  }
+  ok(P.chainUp(P.battle('ligny').chain, 'pajol', ['napoleon', 'grouchy']) === 'grouchy' && P.chainUp(P.battle('waterloo').chain, 'hal') === 'wellington', 'chain: orders reach a corps through the nearest commander above it who is written to');
+  broken('t-chain-cmd', B => { B.chain = { guard: { commander: 'nobody' } }; }, /commander "nobody" is not a leader/);
+  broken('t-chain-foe', B => { B.chain = { guard: { commander: 'wellington' } }; }, /who is on side AL/);
+  broken('t-chain-ring', B => { B.chain = { guard: { under: 'guardcav' }, guardcav: { under: 'guard' } }; }, /ring/);
+  broken('t-chain-side', B => { B.chain = { wing: { kind: 'wing' } }; }, /has no side/);
+  broken('t-chain-key', B => { B.chain = { guard: { leader: 'drouot' } }; }, /unknown key "leader"/); }
 console.log(`tools: ${n} checks passed`);
 // every bench case builds a battle pack that validates
 { const { benchBattle } = require('./bench.js'), fs = require('fs'), path = require('path');
