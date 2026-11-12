@@ -799,7 +799,60 @@ P.battle = function (id) {
     O ? { RAW: O.RAW, CORPS: O.CORPS, DIVISION: O.DIVISION, QUALITY: O.QUALITY, CALIBRE: O.CALIBRE, TRAITS: O.TRAITS, FORCES: O.FORCES } : {});
   W.LEADERS = (B.leaders || []).map(pl => { const p = P.leader(pl.id) || {}; return Object.assign({ id: pl.id, side: pl.side, name: p.name }, p.traits || {}, { rank: p.rank }, pl.at ? { at: pl.at } : {}, pl.unit ? { unit: pl.unit } : {}, pl.corps ? { corps: pl.corps } : {}, p.habits || {}); });
   const R = { id, battle: B, era, nations, W, sides: B.sides, sideIds: B.sides.map(s => s.id), coalition: Object.fromEntries(B.sides.map(s => [s.id, s.coalition || s.id])) };
+  R.chain = P.chain(B, W);
   P.resolved[id] = R; return R;
+};
+/* The chain of command as one table (12 Nov 2026). Until now a corps and a division were labels on a unit, and who commanded one was
+   worked out afresh wherever it was needed. Here every army, wing, corps and division of a battle is an entry:
+     { id, kind: 'army' | 'wing' | 'corps' | 'division', side, parent, name, commander, units, parts }
+   parent: what it answers to (a division's corps, a corps's army, or the wing a pack puts it under); commander: a leader's id, or null
+   when the battle places nobody at its head; units: the bodies that start in it, in the order of battle's order (a corps's list
+   includes its divisions' brigades; an army's own list is only the bodies that belong to no corps); parts: the entries directly
+   under it. (They are not called formations here because the era packs use that word for line, column and square.)
+   Made from what the packs already say: a unit's corps and division (the order of battle), each side's chief and corps0 (the battle),
+   and the leaders the battle places. A leader commands the corps or division that carries his id (Reille commands "reille", Jérôme
+   the division "jerome"). What that rule cannot know a battle states in its own chain block:
+     chain: { guard: { commander: 'drouot' }, guardcav: { under: 'guard' },
+              grouchy: { kind: 'wing', side: 'FR', name: "Grouchy's cavalry", commander: 'grouchy' }, pajol: { under: 'grouchy' } }
+   An entry that block names and no unit belongs to (a wing) needs its side. Membership here is the start of the battle; a brigade
+   sent to another corps by order changes its own corps, and the engine's unitsOf follows that.
+   The table is plain data and changes nothing by itself: the validator holds the packs' other command tables to it, and
+   node tools/oob.js chain <battle> prints it beside what the commanders' code works out today. */
+P.chain = function (B, W) {
+  const F = {}, given = B.chain || {}, sides = B.sides || [], sideOf = Object.fromEntries(sides.map(s => [s.id, s]));
+  const X = B.command || {}, names = Object.assign({}, B.corpsNames, X.corpsName);
+  const put = (id, kind, side, parent) => F[id] || (F[id] = { id, kind, side, parent, name: null, commander: null, units: [], parts: [] });
+  for (const s of sides) { const a = put(s.id, 'army', s.id, null); a.name = s.name || null; a.commander = s.chief || null; }
+  const enrol = (uid, side, corps, div) => {
+    if (!sideOf[side]) return; // the validator reports a unit on a side the battle does not have
+    const c = corps || sideOf[side].corps0 || null;
+    if (c) put(c, 'corps', side, side).units.push(uid); else F[side].units.push(uid); // a body with no corps answers to the army itself
+    if (div) put(div, 'division', side, c || side).units.push(uid);
+  };
+  for (const r of W.RAW || []) if (r[5] !== 'hq') enrol(r[0], r[1], (W.CORPS || {})[r[0]], (W.DIVISION || {})[r[0]]);
+  for (const G of W.FORCES || []) for (const r of G.units || []) enrol(r[0], r[1], r[7], (W.DIVISION || {})[r[0]]);
+  // the leaders a battle knows: those it places, and a commander off the map whom its command block describes (Waterloo's Grouchy)
+  const leaderSide = {}; for (const l of B.leaders || []) leaderSide[l.id] = l.side;
+  for (const [lid, o] of Object.entries(X.offmap || {})) if (o && o.leader && !leaderSide[lid]) leaderSide[lid] = X.side || (sides[0] || {}).id;
+  // what the battle states: entries of its own (a wing), and the commander, parent, name or kind of any other
+  for (const [fid, g] of Object.entries(given)) {
+    const f = F[fid] || put(fid, g.kind || 'corps', g.side || leaderSide[g.commander] || null, null);
+    if (g.kind) f.kind = g.kind; if (g.name) f.name = g.name; if (g.under) f.parent = g.under; else if (f.parent == null && f.kind !== 'army') f.parent = f.side;
+    if ('commander' in g) f.commander = g.commander || null;
+  }
+  for (const f of Object.values(F)) {
+    if (f.kind === 'army') continue;
+    if (!f.name && names[f.id]) f.name = names[f.id];
+    if (!(given[f.id] && 'commander' in given[f.id]) && leaderSide[f.id] === f.side) f.commander = f.id; // his own corps or division carries his id
+  }
+  for (const f of Object.values(F)) if (f.parent && F[f.parent]) F[f.parent].parts.push(f.id);
+  return F;
+};
+// who a corps's orders reach it through: its own commander if he is one of those listed, else the nearest above it who is
+// (a corps whose general is not written to answers through his wing's; one with no general at all through the army's)
+P.chainUp = function (F, id, listed) {
+  for (let f = F[id], n = 0; f && n < 20; f = F[f.parent], n++) if (f.commander && (!listed || listed.includes(f.commander))) return f.commander;
+  return null;
 };
 /* (phase 4e) versions. Every pack carries version: 'major.minor', raised when its numbers change (minor) or its meaning does (major);
    a replay made with other versions may not fight the same battle. P.fingerprint hashes everything a battle resolves to (its own data,
@@ -1593,7 +1646,7 @@ const FORCES = [
   { group: 'grouchy', marches: false, units: GROUCHY_FORCE, fatigue0: 20 },
 ];
 const P = root.WPacks || (typeof require === 'function' ? require('../registry.js') : null);
-P.register('battle', 'waterloo', { version: '1.1', // (4e) versions start at phase 4: 1.0 is release 3 with phases 1-3 (in band); 1.1 (phase 5): the start-of-battle setup and the LHS metric moved here from ai.js, results unchanged
+P.register('battle', 'waterloo', { version: '1.2', // (4e) versions start at phase 4: 1.0 is release 3 with phases 1-3 (in band); 1.1 (phase 5): the start-of-battle setup and the LHS metric moved here from ai.js, results unchanged; 1.2: the chain block (the chain of command as data; no number changed)
   name: 'Waterloo', date: '1815-06-18', era: 'napoleonic',
   nations: ['FR', 'GB', 'KGL', 'HAN', 'NL', 'NAS', 'BRU', 'MIX', 'PR'],
   // the armies on the field: morale at the start (est., rules doc) and the coalition each fights in (it shares places and does not fire on its own)
@@ -2021,6 +2074,12 @@ P.register('battle', 'waterloo', { version: '1.1', // (4e) versions start at pha
     { id: 'pirch', side: 'PR', corps: 'pirch' },
     { id: 'zieten', side: 'PR', corps: 'zieten' },
   ],
+  /* the chain of command (packs/registry.js: P.chain): every corps and division of the order of battle is an entry, commanded by the
+     leader who carries its id. Stated here is only what that rule cannot know, and it restates the command block's corpsCmd (guard
+     and guardcav both answer through Drouot), so it adds no history of its own. The Guard cavalry is put under the Guard and given no
+     general, since the battle places none. Ney is not in it: the corps he commands change with the sector the player gives him
+     (command.front). */
+  chain: { guard: { commander: 'drouot' }, guardcav: { under: 'guard' } },
   map: { LAT0, LON0, MLAT, MLON, NX, NY, CELL, WM, HM, ll2m, m2ll, H, STREAMS, LM, ROADS, SUNKEN, HEDGES, WOODS, BUILDINGS, ENCLOSURES, SANDPIT, VILLAGES, HOUSES, LABELS, EDGE_LABELS,
   NAT, RAW, OFFMAP, DEBATED, LION, rng, hashStr, QUALITY, CALIBRE, CORPS, DIVISION, TRAITS, STRONGPOINTS, OBJECTIVES, ROUTES, CHOKES, PRUSSIANS, HAL_FORCE, GROUCHY_FORCE, FORCES },
 });
@@ -2071,7 +2130,7 @@ P.register('leader', 'toy-ridge', { version: '1.0', era: 'napoleonic', people: {
   garance: { name: 'General Garance', nation: 'FR', army: 'RD', rank: 2, traits: { agg: 0.55, ini: 0.5, obe: 0.8, skill: 0.7, exp: 0.6 } },
   sinople: { name: 'General Sinople', nation: 'PR', army: 'GR', rank: 3, traits: { agg: 0.7, ini: 0.6, obe: 0.9, skill: 0.65, exp: 0.6 } },
 }, source: 'invented for the test battle', confidence: 'none: fiction' });
-P.register('battle', 'toy-ridge', { version: '1.0', oob: 'toy-ridge', terrain: 'toy-ridge',
+P.register('battle', 'toy-ridge', { version: '1.1', oob: 'toy-ridge', terrain: 'toy-ridge', // 1.1: the chain block
   name: 'The ridge at Saint-Ail (test)', date: '1815-07-02', era: 'napoleonic', nations: ['GB', 'NL', 'FR', 'PR'],
   // posture: how its generic commanders fight (attack, defend); reserve: the corps they hold back; objectives: what an objective is worth to
   // this army when it differs from the map's value (Red's aim is the ridge, the farm and the village only on the way; Green marches on Red's
@@ -2117,6 +2176,8 @@ P.register('battle', 'toy-ridge', { version: '1.0', oob: 'toy-ridge', terrain: '
   ],
   leaders: [{ id: 'azur', side: 'BL', at: ll(2000, 900) }, { id: 'cobalt', side: 'BL', unit: 'b2' }, { id: 'carmin', side: 'RD', at: ll(2000, 2800) },
     { id: 'vermillon', side: 'RD', unit: 'r1' }, { id: 'garance', side: 'RD', unit: 'r3' }, { id: 'sinople', side: 'GR', corps: 'green' }],
+  // the chain of command (packs/registry.js: P.chain): each of the test battle's generals commands the corps he rides with (invented)
+  chain: { blue1: { commander: 'cobalt' }, red1: { commander: 'vermillon' }, red2: { commander: 'garance' } },
   map: { STRONGPOINTS, OBJECTIVES, ROUTES },
 });
 })(typeof globalThis !== 'undefined' ? globalThis : this);
@@ -2196,7 +2257,7 @@ const ROUTES = {
   frRetreat: [[50.4900, 4.5540], [50.4800, 4.5470], [50.4725, 4.5435], [50.4600, 4.5380]],
   prRetreat: [[50.5240, 4.5700], [50.5350, 4.5720], [50.5465, 4.5720], [50.5600, 4.5720]],
 };
-P.register('battle', 'ligny', { version: '0.1', oob: 'ligny', terrain: 'ligny',
+P.register('battle', 'ligny', { version: '0.2', oob: 'ligny', terrain: 'ligny', // 0.2: the chain block (the chain of command as data; no number changed)
   name: 'Ligny', date: '1815-06-16', era: 'napoleonic', nations: ['FR', 'PR'],
   sides: [
     { id: 'FR', name: 'French', colour: '#2f4f8f', morale0: 80, coalition: 'FR', fatigue0: 20, rallyBack: 600, chief: 'napoleon', rear: 'S', retreat: 'frRetreat', exit: [50.4725, 4.5435], rearguard: [50.4900, 4.5540], posture: 'attack',
@@ -2284,6 +2345,11 @@ P.register('battle', 'ligny', { version: '0.1', oob: 'ligny', terrain: 'ligny',
   // the historical battle (ai.js): the Prussians are commanded by the generic doctrine with the habits above, and Blücher's counter-strokes
   // from the record below; the French by Napoleon's orders
   commanders: { generic: ['PR'] },
+  /* the chain of command (packs/registry.js: P.chain): what the rule "a leader commands the corps or division that carries his id" cannot know.
+     It restates the command block's corpsCmd below and adds no history of its own: Pajol's and Exelmans' corps answer through
+     Grouchy, who commands the cavalry of the right wing here; the Guard through Drouot, its heavy cavalry with it. */
+  chain: { grouchy: { kind: 'wing', side: 'FR', name: "Grouchy's cavalry", commander: 'grouchy' }, pajol: { under: 'grouchy' }, exelmans: { under: 'grouchy' },
+    guard: { commander: 'drouot' }, guardcav: { under: 'guard' } },
   /* (phase 5, stage 2) the command layer for Ligny played as Napoleon (command.js, orders.js): his corps commanders, where he can stand,
      what he can order. Est. where the accounts say nothing. Grouchy is on the field here, commanding the cavalry of the right wing (Pajol's
      and Exelmans' corps); Ney is at Quatre Bras with the left wing, so there is no field commander between Napoleon and his corps. */
@@ -2860,6 +2926,24 @@ function create(opts = {}) {
   for (const L of W.LEADERS) { const l = { ...L, alive: true, wounded: false, orig: L.name }; if (L.at) { const [x, y] = ll2m(L.at[0], L.at[1]); l.x = x; l.y = y; } E.leaders[L.id] = l; if (L.unit && E.byId[L.unit]) E.byId[L.unit].leader = L.id; }
   const leaderPos = l => l.unit && E.byId[l.unit] ? [E.byId[l.unit].x, E.byId[l.unit].y] : l.x != null ? [l.x, l.y] : null;
   E.leaderPos = leaderPos;
+
+  /* ----- the chain of command (packs/registry.js: P.chain) -----
+     E.chain: every army, wing, corps and division of the battle, with its commander and what it answers to. Shared with the pack and
+     never written to. Nothing in the engine decides anything from it yet: see headOf below, and docs/DECISIONS.md. */
+  E.chain = BATTLE.chain || {};
+  // the bodies in a corps, division, wing or army now (a brigade sent to another corps by order belongs to that one from then on);
+  // a wing's and an army's are their parts' as well
+  E.unitsOf = function (id) {
+    const f = E.chain[id]; if (!f) return [];
+    const own = E.units.filter(u => u.side === f.side && (f.kind === 'division' ? u.div === id : f.kind === 'army' ? !u.corps : u.corps === id));
+    return own.concat(...f.parts.filter(p => E.chain[p].kind !== 'division').map(p => E.unitsOf(p)));
+  };
+  /* who is at the head of a corps today, as the generic commanders have always worked it out (moved here from doctrine.js unchanged):
+     the first leader the battle places who came with the corps, or carries its id, or rides with one of its bodies; null if none.
+     It is not always the corps's commander in the table (Waterloo: Blücher, who arrives with Bülow's corps, is at its head), and the
+     historical runner asks something else again (ai.js: only a leader who carries the corps's id). node tools/oob.js chain <battle>
+     lists them side by side. Making them one rule changes how battles fight, so it waits for Chris. */
+  E.headOf = (side, corps) => Object.values(E.leaders).find(l => l.side === side && l.alive !== false && (l.corps === corps || l.id === corps || (l.unit && E.byId[l.unit] && E.byId[l.unit].corps === corps))) || null;
 
   /* ----- start-of-game hidden draws ----- */
   // (phase 2) each army's ammunition wagons (battle pack): for an ammunition the army is short of, a hidden roll at the start says whether its
@@ -5698,8 +5782,7 @@ function make(opts = {}) {
 const dist = (u, p) => p ? hyp(u.x - p[0], u.y - p[1]) : 0;
 const centroid = us => us.length ? [us.reduce((a, u) => a + u.x, 0) / us.length, us.reduce((a, u) => a + u.y, 0) / us.length] : null;
 function chiefOf(E, side) { const id = (E.sides.find(s => s.id === side) || {}).chief; return id && E.leaders[id] ? E.leaders[id] : Object.values(E.leaders).find(l => l.side === side && l.rank === 3) || null; }
-function leaderOf(E, side, corps) { // the corps' own general: placed with the corps, or riding with one of its units; else the chief
-  return Object.values(E.leaders).find(l => l.side === side && l.alive !== false && (l.corps === corps || l.id === corps || (l.unit && E.byId[l.unit] && E.byId[l.unit].corps === corps))) || chiefOf(E, side); }
+function leaderOf(E, side, corps) { return E.headOf(side, corps) || chiefOf(E, side); } // the general at the corps' head (engine.js: headOf); else the chief
 const seen = (E, side, maxAge, pred) => { const ch = chiefOf(E, side); return AI().known(E, ch ? ch.id : null, maxAge, c => (c.side ? E.coalition[c.side] !== E.coalition[side] : true) && (!pred || pred(c)), E.coalition[side]); };
 function partnerEngaged(E, side) { return E.sideIds.some(s => s !== side && E.coalition[s] === E.coalition[side] && E.engaged && Object.keys(E.engaged).some(k => E.units.some(u => u.side === s && u.corps === k))) || E.sideIds.some(s => s !== side && E.coalition[s] === E.coalition[side] && E.flags[s.toLowerCase() + 'Engaged']); }
 const formedOf = (E, side) => E.units.filter(u => u.side === side && E.formed(u) && u.onMap);
@@ -6661,6 +6744,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = root.WRepl
      V.why(ref)           the chain of causes behind a log entry (umpire's knowledge: shown only on the umpire's map and afterwards)
      V.losses(id, t, m)   what fire cost a unit in the m minutes before t, and from whom (umpire's knowledge, as above)
 
+   For measuring the core loop (tools/loop.js, docs/METHOD.md section 5) the snapshots also carry, as plain values:
+     chief  each order's objective as he wrote it, how many conditions it has, and the staff's estimate of when it will arrive and
+            be acted on (the order form's own ranges); each dispatch, and its event, says whether the staff starred it as news
+     truth  every order with the minute its rider was due to leave and the minutes it was really received and acted on, and its status; and beside each unit whether
+            it is a crewed arm (its strength counts guns, not men) and the opaque key the commander's picture uses for it, if
+            he has one, so that belief can be set against truth
+
    Rules the contract keeps (tools/test_view.js checks each):
    - Plain data. Everything returned survives JSON.stringify and shares no object with the engine.
    - No dice. Looking never changes the battle: a battle watched every tick ends on the same state hash as one never watched.
@@ -6732,13 +6822,50 @@ function install(E) {
     const S = common('truth');
     S.units = E.units.filter(here).map(u => ({ id: u.id, side: u.side, name: u.name, corps: u.corps || null, arm: u.arm, x: r1(u.x), y: r1(u.y), facing: Math.round(u.facing),
       form: u.form, front: Math.round(u.F), depth: Math.round(u.D), str: Math.round(u.str), coh: Math.round(u.coh), status: u.status, task: u.task.kind, place: u.spId || null,
-      firing: !!u.firedTick, charging: !!u.charge }));
+      firing: !!u.firedTick, charging: !!u.charge, crew: crewed(u), key: keys.get(u.id) || null }));
     S.places = E.sps.map(sp => ({ id: sp.id, holder: sp.holder || null }));
     S.morale = Object.fromEntries(E.sideIds.map(s => [s, Math.round(E.morale[s])]));
     S.riders = C() ? C().riders.filter(r => r.status === 'riding' && r.x != null).map(r => ({ x: r1(r.x), y: r1(r.y), side: r.side, kind: r.kind })) : [];
     S.smoke = { nx: E.SX, ny: E.SY, cell: 100, a: Array.from(E.smoke, v => Math.round(v * 100) / 100) };
     S.result = E.result ? { grade: E.result.grade, why: E.result.why, t: E.result.t } : null;
+    // every order as it really went (the umpire's knowledge): the commander's own picture of his orders is in chief().orders
+    S.orders = C() && C().orders ? C().orders.map(o => ({ id: o.id, from: o.from, to: o.to, action: o.action, status: o.status, objective: objective(o), conditions: (o.spec.conditions || []).length,
+      issuedAt: o.issuedAt, sentAt: at(o.sentAt), receivedAt: at(o.receivedAt), actedAt: at(o.actedAt), misread: !!o.misread })) : [];
     return S;
+  }
+  const at = v => v == null ? null : r1(v);
+  // where an order points, as it was written: the named place (and the strongpoint it stands for, if any) or the point on the map
+  function objective(o) {
+    const ob = (o.spec && o.spec.objective) || {}, named = ob.place ? E.objectives[ob.place] : null;
+    const p = named && C().centre ? C().centre(named) : ob.point || null;
+    return p ? { place: ob.place || null, sp: (named && named.sp) || null, x: r1(p[0]), y: r1(p[1]) } : null;
+  }
+  // The staff's estimate of when an order will reach its man and when he will act on it: the earliest and the latest minute, by the
+  // ranges the order form shows the player (_game_orders.js, expectSpec): the staff's writing time, a rider by road or across wet
+  // country to where the recipient's troops are believed to stand, and the time to pass an order down. Built from the commander's
+  // beliefs and the rules' own ranges, never from the dice already drawn for this order. `act` is null when a condition cannot be
+  // timed (a place changing hands, another order done); the whole estimate is null for headquarters' own tasks and for a
+  // recipient off the map. It is the estimate as the staff would give it now: a client that wants it as given takes it at once.
+  function expected(c, B, L, o) {
+    const CK = c.CK, s = o.spec || {}, kind = c.RECIPIENTS && c.RECIPIENTS[o.to] ? c.RECIPIENTS[o.to].kind : null;
+    if (!CK || !kind || kind === 'hq' || kind === 'offmap' || kind === 'army') return null;
+    const X = c.X, fc = X.front ? X.front.cmd : null, gb = c.GRAND_BATTERY || [];
+    const recs = [...B.own.values()].filter(r => { const u = E.byId[r.uid]; if (!u || r.gone) return false; const k = c.cmdOf(u);
+      return o.to === fc ? (X.frontCorps || []).includes(k) : kind === 'battery' ? gb.includes(u.id) || !!u.gbattery : k === o.to; });
+    // The numbers here are the order form's and the order code's, copied so that the estimate matches what the player is shown, and
+    // must follow them if they change: 2500 m when he has no report of the recipient's troops (est., _game_orders.js rideTimes); an
+    // urgent order written in half the time, a wounded commander's in half as long again, and 30% more for each further step of a
+    // letter (est., orders.js write and SEQ_WRITE); a quarter added to the straight line for a ride across country (est., rideTimes);
+    // wet ground slowing a rider by up to 40% (rules doc, command.js RIDER_CROSS). The estimate counts from the minute the order was
+    // given: an order held while headquarters is moving is written later than this says.
+    const d = recs.length ? hyp(recs.reduce((a, r) => a + r.x, 0) / recs.length - L.x, recs.reduce((a, r) => a + r.y, 0) / recs.length - L.y) : 2500;
+    const w = CK.WRITE[c.opts.staff]; if (!w) return null;
+    const f = (s.urgent ? 0.5 : 1) * (c.hq.wounded ? 1.5 : 1) * (o.seq ? 1 + 0.3 * (o.seq.n - 1) : 1);
+    const pass = kind === 'marshal' || kind === 'battery' || s.direct ? CK.INTERP_DIRECT : CK.INTERP;
+    const arrive = [o.issuedAt + w[0] * f + d / CK.RIDER_ROAD, o.issuedAt + w[1] * f + d * 1.25 / (CK.RIDER_CROSS * (1 - 0.4 * E.wet))];
+    let act = [arrive[0] + pass[0], arrive[1] + pass[1]], open = false;
+    for (const k of s.conditions || []) { if (k.type === 'time') act = act.map(v => Math.max(v, k.after)); else open = true; }
+    return { arrive: arrive.map(r1), act: open ? null : act.map(r1) };
   }
   // an order as its writer knows it: written, sent, acknowledged (he learns nothing else until a report tells him)
   const known = o => o.status === 'cancelled' ? 'cancelled' : o.ackedAt != null ? 'acknowledged' : o.sentAt != null ? 'sent' : 'writing';
@@ -6754,8 +6881,9 @@ function install(E) {
       place: r.garrison || null, seenAt: r.t, src: r.src }));
     S.places = Object.entries(B.places).map(([sp, p]) => ({ id: sp, holder: p.holder || null, knownAt: p.t, src: p.src }));
     S.heard = c.heard(id).map(h => ({ dir: h.dir, kind: h.k, words: h.w, level: r1(h.v) }));
-    S.orders = c.orders.filter(o => o.from === id).map(o => ({ id: o.id, to: o.to, action: o.action, text: c.describe ? c.describe(o) : o.action, state: known(o), issuedAt: o.issuedAt, ackedAt: o.ackedAt ?? null }));
-    S.dispatches = c.inbox.slice(-20).map(m => ({ id: m.id, t: m.t, kind: m.kind, title: m.title || null, text: m.text || null, from: m.from || null }));
+    S.orders = c.orders.filter(o => o.from === id).map(o => ({ id: o.id, to: o.to, action: o.action, text: c.describe ? c.describe(o) : o.action, state: known(o), issuedAt: o.issuedAt, ackedAt: o.ackedAt ?? null,
+      objective: objective(o), conditions: (o.spec.conditions || []).length, expect: expected(c, B, L, o) }));
+    S.dispatches = c.inbox.slice(-20).map(m => ({ id: m.id, t: m.t, kind: m.kind, title: m.title || null, text: m.text || null, from: m.from || null, starred: !!m.decision }));
     S.riders = c.riders.filter(r => r.status === 'riding' && r.to === id && r.x != null && hyp(r.x - L.x, r.y - L.y) < P.RIDER_SEEN).map(r => ({ x: r1(r.x), y: r1(r.y) }));
     return S;
   }
@@ -6800,7 +6928,7 @@ function install(E) {
       const u = l.unit ? E.byId[l.unit] : null, sp = l.sp ? E.spById[l.sp] : null, at = u && u.onMap ? u : sp;
       emit({ t: l.t, kind, x: at ? r1(at.x) : null, y: at ? r1(at.y) : null, side: l.side || (u && u.side) || null, unit: l.unit || null, place: l.sp || null, size: u ? Math.round(u.str) : 0, text: l.text, log: logAt });
     }
-    if (C() && feeds.chief) for (; inboxAt < C().inbox.length; inboxAt++) { const m = C().inbox[inboxAt]; push('chief', { t: m.t, kind: 'dispatch', id: m.id, about: m.kind, title: m.title || null }); }
+    if (C() && feeds.chief) for (; inboxAt < C().inbox.length; inboxAt++) { const m = C().inbox[inboxAt]; push('chief', { t: m.t, kind: 'dispatch', id: m.id, about: m.kind, title: m.title || null, starred: !!m.decision }); }
   }
   function drain(who = 'chief', since = 0) { const f = feeds[who]; if (!f) return []; let i = f.length; while (i > 0 && f[i - 1].seq > since) i--; return plain(f.slice(i)); }
 
@@ -9900,7 +10028,7 @@ const WApp = (() => {
 </script>
 
 <script>
-// the offline release: keep every file of the game in this device's cache (release 0e683c51c4)
+// the offline release: keep every file of the game in this device's cache (release 02428ff964)
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>

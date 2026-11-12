@@ -32,6 +32,7 @@ not in your context, read that file before anything else.**
 | The agent harness's tests | `node tools/test_agentplay.js` | 15 s |
 | Strategy bench | `node tools/strategies.js --n 6` | 1 min |
 | Simulation speed beside its baseline | `node tools/ticktime.js` (`--verify`, `--record`) | 20 s |
+| Measures of the core loop | `node tools/loop.js waterloo --n 30` | 4 min |
 | Browser suite (builds first) | `sh regress.sh` | 10 min |
 | UI audit: contrast, overflow, console | `python3 tools/pw.py tests/uiaudit.py` | 3 min |
 | Offline build test | `python3 tools/pw.py ../offline/offtest.py` (after `python3 ../offline/build_offline.py`) | 1 min |
@@ -116,7 +117,7 @@ bench. The 3D relief view of the umpire's picture was merged on 12 Nov. Chris ha
    it needs a Pages setting changed by Chris.
 
 Approved by Chris on 12 Nov, order not chosen: **a dice stream per purpose** (class 3; acceptance test in `DECISIONS.md`),
-**measures of the core loop** from the contract (`docs/METHOD.md`, section 5), and **agent playtests** through Napoleon's view,
+**measures of the core loop** from the contract (built 12 Nov: `tools/loop.js`, `docs/METHOD.md`, section 5), and **agent playtests** through Napoleon's view,
 the umpire's and, once the allied side is playable, Wellington's.
 
 `docs/ROADMAP.md` condenses the "Engine roadmap" doc in Chris's Claude account. Ask him when the order of work matters.

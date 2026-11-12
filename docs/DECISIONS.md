@@ -20,7 +20,8 @@ Never record a guess as a decision.
 - **A dice stream per purpose (12 Nov).** Approved, on the research (common random numbers). It changes results, so it is a
   class 3 task and the references are re-recorded once. Its acceptance test is under "Claude's choices" until Chris confirms it.
 - **Measures of the core loop come before a performance baseline (12 Nov).** Belief error, report staleness, order latency,
-  orders overtaken and decision gaps, computed from the contract alone (`docs/METHOD.md`, section 5). Not built.
+  orders overtaken and decision gaps, computed from the contract alone (`docs/METHOD.md`, section 5). Built 12 Nov as
+  `tools/loop.js`; its definitions and thresholds are Claude's (below).
 - **Agent playtests through every view (12 Nov):** Napoleon's, the umpire's and Wellington's. The harness is built
   (`tools/agentplay.js`, Napoleon's view and the umpire's; `docs/playtests/`). Wellington's waits until the allied side is
   playable: what that needs is listed in `docs/playtests/wellington-headless.md`. **The first playtest has not been run:** the
@@ -75,6 +76,17 @@ Never record a guess as a decision.
 
 These were made to keep moving and are easy to change. Raise them when the subject comes up.
 
+- **How the five loop measures are defined (12 Nov)**, `tools/loop.js` and `docs/METHOD.md`, section 5. Every threshold is
+  (est.): belief is read against truth every 10 minutes; "the situation an order addressed" is who holds its objective and the
+  enemy's horse and foot within 800 m of it; that situation has "changed" if the holder changed, or the enemy's strength there
+  at least doubled or halved by at least 1,000 men; "a choice worth making" is a dispatch the staff starred reaching the
+  commander (the game's own mark, but news only, not whether he had troops free); belief error is given for the middle body
+  and the body at the 90th centile; "overtaken" (truth when given against truth on arrival) is kept apart from "written on a
+  false picture" (belief against truth when given). Seeds 2000 to 2029, the strategy bench's.
+- **What the contract gained for the measures (12 Nov):** on the commander's side each order's objective, count of conditions
+  and the staff's estimate, and whether a dispatch is starred; on the umpire's side every order's real times and status, and
+  beside each unit its key in the commander's picture and whether it is a crewed arm. The estimate is a second copy of the
+  order form's until the page moves onto the contract, and unlike the form it does not use the writing time already rolled.
 - **The reviewer subagent and three skills (12 Nov).** Chris asked for them; the wording is Claude's. The reviewer has `Read`,
   `Grep` and `Glob` only, so the session writes the diff to a file for it; it adds two standards of its own (a change is the
   highest class of anything in it; "blocking" means a rule broken, a gate weakened or a class set too low). `add-battle` puts a
@@ -123,9 +135,33 @@ These were made to keep moving and are easy to change. Raise them when the subje
   arrives as inline base64 that cannot be written exactly. The conversion reproduces `docs/RULES.md` byte for byte, and
   matches the size of the brief's own export. Chris asked for his own export where exactness could not be had; that is
   what "Engine split" waits for.
+- **The agent harness's stops (12 Nov):** fifteen minutes after the first dispatch since the last stop, or sixty minutes with
+  none, or the minute the player names, or the end. The game page's own stops need the ★ and !! marks, which the contract
+  does not carry, so the harness cannot copy them. Both figures are estimates.
+- **What a turn of Napoleon's view holds (12 Nov):** the contract's snapshot and events rendered as text (dispatches, things
+  seen and heard, his orders, his army by corps, the enemy list with ages, a sketch map), with the JSON beside it. Positions
+  are given against the nearest named place. Brigades are listed only where a report has come since the last stop.
+- **What "cannot leak" is taken to mean (12 Nov):** the turns are byte for byte the same when every unit, place and army
+  morale is falsified whenever the harness is looking (`tools/test_agentplay.js`). It does not stop an agent with a shell from
+  reading the code or the packs: the player's brief forbids that, and nothing enforces it.
+- **The umpire's record reads two things outside the contract (12 Nov),** read only and after the battle: which true unit each
+  of the commander's contacts is, and each order's real history. The contract has carried both since the loop measures were
+  built the same day (`key` beside each true unit, `orders` in the truth); the harness has not been moved onto them.
+- **A playtest's folder** (12 Nov): `question.md` written first, `replay.json`, `session.json`, the player's journal and report
+  and the reader's notes unedited, and a summary (`docs/playtests/README.md`).
 
 ## Open questions (not decided)
 
+- **Ligny's historical orders are not the commander's orders.** The plan goes straight to the engine (`via: 'order'`), so no
+  rider carries them and the loop's order measures are empty for it (`tools/loop.js`, 12 Nov). Putting it through the order
+  builder, as Waterloo's is, would change how Ligny fights.
+- **The staff's estimate is almost never wrong, and is about 20 minutes wide** (12 Nov, `tools/loop.js`, 30 battles a plan):
+  at Waterloo 341 of 359 of Napoleon's historical orders arrived inside the range the staff gave; under the packs' strategies
+  all 119 at Waterloo and all 90 at Ligny did. That is close to true by construction: the range is the full spread of the writing dice plus a
+  road and a cross-country ride, so only the ride can fall outside. Is a wide range that always holds what "delay is
+  learnable" should mean, or should the staff give a narrower estimate that is sometimes wrong?
+- **The order form shows the writing time already rolled** (`o.writtenAt`, set when the order is given), so the player's
+  estimate is narrower than the staff could know. Small; noted while building the loop measures.
 - **Three rules for who leads a corps.** `doctrine.js`, `ai.js` and `command.js` each work it out their own way, and
   `node tools/oob.js chain <battle>` lists where they part from the table. Waterloo: the generic commanders put Blücher, not
   Bülow, at the head of IV Corps; the historical runner gives the Guard no general. Ligny: the same for the Guard, and the command
@@ -156,4 +192,13 @@ These were made to keep moving and are easy to change. Raise them when the subje
   time a tick takes on a phone or in a browser. Simulation speed is measured on every change, in Node on the machine that runs
   `check.sh` (`tools/ticktime.js`, 12 Nov: Waterloo about 5 ms a tick, 95th centile 12 ms, on a two-core cloud Xeon), which
   shows a slowdown but says nothing about the roadmap's budget of under 20 ms on the phone.
+- **Things the contract does not tell a client** (four found building the agent harness, 12 Nov; changing `view.js` is a class 2
+  task of its own). Still open: an order reads "sent" from the minute it is given, while it is still being written (11:02 for
+  an order written until 11:11, seed 1815), so a client cannot say when an order can still be torn up; dispatches carry no !!
+  mark; a snapshot holds only the last twenty dispatches. Closed the same day by the loop measures (pull request 6): a
+  dispatch now says whether it is starred, and the truth lists every order with when it was received and acted on. The
+  agent harness's stops do not use the star yet.
+- **How to run the first agent playtest.** The player's brief asked for a journal written before every move, and the model's
+  safeguards stopped the agent on it. Options: a brief that asks only for an after-action report; a different model for the
+  player; or Chris plays the first one through the harness himself.
 - **Which comes next:** moving the 2D map onto the contract, or the idle-army rule. Chris has not chosen.
