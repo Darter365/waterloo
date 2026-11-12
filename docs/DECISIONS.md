@@ -111,6 +111,19 @@ These were made to keep moving and are easy to change. Raise them when the subje
   arrives as inline base64 that cannot be written exactly. The conversion reproduces `docs/RULES.md` byte for byte, and
   matches the size of the brief's own export. Chris asked for his own export where exactness could not be had; that is
   what "Engine split" waits for.
+- **The agent harness's stops (12 Nov):** fifteen minutes after the first dispatch since the last stop, or sixty minutes with
+  none, or the minute the player names, or the end. The game page's own stops need the ★ and !! marks, which the contract
+  does not carry, so the harness cannot copy them. Both figures are estimates.
+- **What a turn of Napoleon's view holds (12 Nov):** the contract's snapshot and events rendered as text (dispatches, things
+  seen and heard, his orders, his army by corps, the enemy list with ages, a sketch map), with the JSON beside it. Positions
+  are given against the nearest named place. Brigades are listed only where a report has come since the last stop.
+- **What "cannot leak" is taken to mean (12 Nov):** the turns are byte for byte the same when every unit, place and army
+  morale is falsified whenever the harness is looking (`tools/test_agentplay.js`). It does not stop an agent with a shell from
+  reading the code or the packs: the player's brief forbids that, and nothing enforces it.
+- **The umpire's record reads two things outside the contract (12 Nov),** read only and after the battle: which true unit each
+  of the commander's contacts is, and each order's real history. Section 5's measures will need both from the contract.
+- **A playtest's folder** (12 Nov): `question.md` written first, `replay.json`, `session.json`, the player's journal and report
+  and the reader's notes unedited, and a summary (`docs/playtests/README.md`).
 
 ## Open questions (not decided)
 
@@ -144,4 +157,12 @@ These were made to keep moving and are easy to change. Raise them when the subje
   time a tick takes on a phone or in a browser. Simulation speed is measured on every change, in Node on the machine that runs
   `check.sh` (`tools/ticktime.js`, 12 Nov: Waterloo about 5 ms a tick, 95th centile 12 ms, on a two-core cloud Xeon), which
   shows a slowdown but says nothing about the roadmap's budget of under 20 ms on the phone.
+- **Four things the contract does not tell a client** (found building the agent harness, 12 Nov; changing `view.js` is a class 2
+  task of its own): an order reads "sent" from the minute it is given, while it is still being written (11:02 for an order
+  written until 11:11, seed 1815), so a client cannot say when an order can still be torn up; dispatches carry no ★ or !!
+  mark, so a client cannot stop the clock as the game page does; a snapshot holds only the last twenty dispatches; and the
+  truth has no orders in it, so "written, received, acted on" must be read from the command layer.
+- **How to run the first agent playtest.** The player's brief asked for a journal written before every move, and the model's
+  safeguards stopped the agent on it. Options: a brief that asks only for an after-action report; a different model for the
+  player; or Chris plays the first one through the harness himself.
 - **Which comes next:** moving the 2D map onto the contract, or the idle-army rule. Chris has not chosen.
