@@ -16,7 +16,7 @@ not in your context, read that file before anything else.**
   `_game*.js` and `_shared_draw.js` (the page), `_game_3d.js` (the 3D relief view), `packs/` (eras, nations, battles, maps),
   `tools/`, `tests/` (browser tests), `ref/` (reference battles).
 - `docs/` is the project's memory: `DECISIONS.md` (the decision log), `ROADMAP.md` (the plan, condensed), `START_HERE.md` (the
-  brief for a new planning conversation).
+  brief for a new planning conversation), `METHOD.md` (procedures and tools), `RULES.md` (the rules doc, a snapshot).
 - `source/README.md` describes every folder and how to add a battle. Read it before structural work.
 - No bundler and no npm packages. `build_game.py` concatenates the scripts into one HTML page. Every `_game*.js` file shares one
   function scope, so top-level names must be unique across them.
@@ -48,21 +48,45 @@ runs only in a session on this one repository; in a project thread or a session 
    (`tools/band.js`; the band was agreed with Chris and is not yours to move), and the references are re-recorded only with his say.
 3. **No battle or era names in the engine.** `tools/lint.js` holds an allow-list that may only shrink. New behaviour is a general
    rule plus pack data.
-4. **Every number is sourced or marked `(est.)`** in a comment. Never present an estimate as history. If a historical fact is
-   uncertain or you cannot source it, say so and ask; do not fill the gap.
+4. **Every number is sourced, derived, calibrated or marked `(est.)`** in a comment: sourced names a work someone can open,
+   derived shows its working, calibrated names the band it was tuned to. Never present an estimate as history. If a
+   historical fact is uncertain or you cannot source it, say so and ask; do not fill the gap.
 5. **Fog of war is kept.** Napoleon's map shows only what he knew. Causes and true positions appear only on the umpire's map and
    after the battle. `tools/test_view.js` enforces this for the contract.
 6. **Same seed and same orders give the same battle.** No `Math.random`, no clock time and no iteration over unordered state in
-   the simulation.
+   the simulation. Verified in Node and Chromium only (`docs/METHOD.md`, section 7).
 7. **Offline, and desktop first.** The offline build makes no external request. Design and judge on a desktop browser (1440 px
    wide, light and dark). The page must still load and play at 390 px, and the suites keep testing that, but the phone no longer
    drives design.
 8. **New clients draw from `view.js` only** (`world`, `snapshot`, `drain`, `why`, `losses`), never from engine objects.
 
+## Merging
+
+Chris approves the task; the gates decide the merge. Claude merges its own pull request when the change is in class 1, 2 or 3
+and every gate for that class passed in this session, with the output in the pull request. Otherwise it opens the pull request
+and waits. If unsure of the class, take the higher one. A task brief that says "show me first" overrides this section.
+
+| Class | What | Gates |
+| --- | --- | --- |
+| 1. Record | `docs/`, comments, tests and tools the page does not load | `sh check.sh` |
+| 2. Results-neutral | The page, the contract, tools and pack data that change no battle | `check.sh`; all 120 reference battles identical; `regress.sh`; the UI audit; the offline test; the rebuilt site in the last commit |
+| 3. Results-changing, approved | A change to how battles fight that Chris approved as a task, with its acceptance test written in `docs/DECISIONS.md` before work began | Class 2's gates bar the references; that acceptance test; Waterloo in its band over 500; `tune.js` with no check leaving its band; the strategy bench with no new failure; references re-recorded in the same pull request; a before-and-after table |
+| 4. Chris only | A band, target or campaign score; rules 1 to 8 and this section; a new dependency; repository or Pages settings; deleting from `ref/` or `results/`; making a new battle playable | None: open the pull request and wait |
+
+- A gate that fails stops the merge. Never edit a test, a band, a `KNOWN` list or the lint allow-list to pass one.
+- Before merging class 2 or 3, a reviewer with fresh context (a subagent that did not write the change) reads the diff against
+  the rules above. Its findings go in the pull request.
+- The pull request says what was verified with the numbers and what was not, and shows screenshots of anything the player sees.
+- After merging: label it `self-merged`, wait for the site to publish, load the live page and play one order through. If that
+  fails, revert the merge at once and tell Chris. A revert needs no approval.
+
 ## How to work here
 
-- One task, one branch, one pull request. Do not push to `main` or run `deploy.sh` for release without Chris's say: `main` is the
-  live site. A release commit carries the source change and the rebuilt root site together.
+- One task, one branch, one pull request. Never push to `main` directly: `main` is the live site and changes only by a merge
+  under Merging above. A release commit carries the source change and the rebuilt root site together.
+- Method for validation, sources, playtests and performance, and which of Claude's tools to use for what, is in
+  `docs/METHOD.md`. Read it before calibration, new battle data, performance work or a playtest. `docs/RULES.md` is a snapshot
+  of the rules doc: every calibration value and where it came from.
 - Report what you verified with the numbers (which suites, how many battles), and what you did not. Explain design choices and
   name your assumptions. Known gaps are listed in the tools (`bench.js`, `strategies.js` KNOWN), never hidden.
 - Comments say why, in plain prose. British spelling. UI text is plain, period-neutral English.
@@ -88,6 +112,10 @@ bench. The 3D relief view of the umpire's picture was merged on 12 Nov. Chris ha
    worth it. If so, embed this JavaScript simulation; do not port it.
 6. **Have GitHub build and publish the site,** so the built files are no longer committed at the root. Its own pull request;
    it needs a Pages setting changed by Chris.
+
+Approved by Chris on 12 Nov, order not chosen: **a dice stream per purpose** (class 3; acceptance test in `DECISIONS.md`),
+**measures of the core loop** from the contract (`docs/METHOD.md`, section 5), and **agent playtests** through Napoleon's view,
+the umpire's and, once the allied side is playable, Wellington's.
 
 `docs/ROADMAP.md` condenses the "Engine roadmap" doc in Chris's Claude account. Ask him when the order of work matters.
 
