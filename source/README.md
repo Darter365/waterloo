@@ -42,6 +42,7 @@ The validator checks the table and holds `corpsCmd` to it. Nothing in the simula
 ## Testing
 - `sh sim/check.sh`: the validator, the lint, the tools' self-tests, the test bench, the test battle and a sample of the reference battles (about two minutes).
 - `node sim/refset.js check sim/ref/p2_hist.json` replays the reference battles; any divergence is reported at the minute it starts.
+- `node sim/tools/ci_verdict.js <gate> <log>` turns a gate's printed output into pass or fail (exit code), for the GitHub workflows in `.github/workflows/` and for anyone who wants a verdict they cannot misread: `refs`, `regress`, `uiaudit`, `offline`, `band`, `fuzz`; `selftest` checks its rules. It changes no gate.
 - `node sim/tools/band.js 500` checks Waterloo against its band; `node sim/tools/tune.js --n 60` checks every battle with targets.
 - `node sim/tools/test_view.js [battle] [seed]` tests the contract: plain data, a watched battle ends on the same state hashes as an unwatched one, and nothing the commander did not know reaches his snapshot or his events.
 - `node sim/tools/strategies.js --n 6` is the strategy bench: every battle with a `stakes` block fought with no orders, the historical orders and the pack's `strategies`, held to expectations (idle play is never rewarded, plans differ, losses are sane). Known gaps are listed, not failed.

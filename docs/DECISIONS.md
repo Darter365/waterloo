@@ -91,6 +91,18 @@ These were made to keep moving and are easy to change. Raise them when the subje
   `Grep` and `Glob` only, so the session writes the diff to a file for it; it adds two standards of its own (a change is the
   highest class of anything in it; "blocking" means a rule broken, a gate weakened or a class set too low). `add-battle` puts a
   pack with `targets` or `stakes` in class 4; `results-change` asks Chris to confirm an acceptance test that is still Claude's.
+- **How GitHub judges a gate (12 Nov).** Chris asked for the gates in GitHub Actions; these parts are Claude's. (1) `refset.js`,
+  `regress.sh`, the UI audit, the offline test, `band.js` and the fuzz exit 0 whatever happened, so a new tool,
+  `tools/ci_verdict.js`, reads each one's output and fails the job. Its rules: every reference battle identical and the count
+  right; every section of `regress.sh` present with an empty console-error line, no `BAD`, no `False` check, no failed replay
+  check; the UI audit at 0 findings and 0 console errors in all four layouts (today's figures, so any new finding fails); the
+  offline test with no external request; `VERDICT in band`; no fuzz finding and no determinism failure. No gate was edited.
+  (2) The quick job runs `bash -o pipefail check.sh`, not `sh check.sh`: under `sh` a check piped through `tail` cannot fail.
+  (3) Node is pinned to 22.23.4, the version the 120 replay on today; the version they were recorded on is not known.
+  (4) Python packages are pinned in the workflow to the versions the gates passed on. (5) The nightly runs at 07:17 UTC.
+  (6) GitHub's own actions (checkout, setup-node, setup-python, upload-artifact) are named by major version, `v7`, not by
+  commit; naming the commit is stricter and costs an edit at each update. Found on the way and left alone: `fzsum.js` reads
+  `fz_*.json` but `fuzz.sh` writes `f4_*.json`, so it sums nothing today.
 - **The chain of command as one table (12 Nov).** Chris asked for Claude's recommendation to be built (corps and divisions as objects with a commander); the
   shape is Claude's. Every army, wing, corps and division is an entry in `battle.chain` (`P.chain`, `source/README.md`), and a battle's
   `chain` block states only what the rule "a leader commands the corps or division that carries his id" cannot know. Results are
