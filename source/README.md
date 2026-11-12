@@ -45,6 +45,10 @@ The validator checks the table and holds `corpsCmd` to it. Nothing in the simula
 - `node sim/tools/band.js 500` checks Waterloo against its band; `node sim/tools/tune.js --n 60` checks every battle with targets.
 - `node sim/tools/test_view.js [battle] [seed]` tests the contract: plain data, a watched battle ends on the same state hashes as an unwatched one, and nothing the commander did not know reaches his snapshot or his events.
 - `node sim/tools/strategies.js --n 6` is the strategy bench: every battle with a `stakes` block fought with no orders, the historical orders and the pack's `strategies`, held to expectations (idle play is never rewarded, plans differ, losses are sane). Known gaps are listed, not failed.
+- `node sim/tools/agentplay.js new|next|umpire|verify <folder>` lets an agent play a battle through one view, a stop at a time
+  (`docs/playtests/README.md`): Napoleon's view is written from the contract's `snapshot('chief')` and drained events alone, orders go
+  in as the order builder's specs, and the finished battle is saved as a replay file. `node sim/tools/test_agentplay.js` fails if any
+  truth reaches a turn of Napoleon's view, or if the saved replay does not end on the state that was played.
 - `node sim/tools/engines.js record <out.json>` hashes every tick of three Waterloo battles and each Math function the simulation calls, in whichever engine runs it (Node, Bun, a page's console); `compare` sets the recordings side by side. `sim/results/engines/` holds 12 November 2026's: the same seed is the same battle within an engine, not across engines (`docs/METHOD.md`, section 7).
 - `sh sim/regress.sh` runs the browser suite (needs Playwright and a Chromium: `sim/tools/pw.py` runs each test with Playwright's own, or failing that with the Chrome a Claude Code cloud session ships). One test alone: `python3 tools/pw.py tests/<name>.py` from `sim/`. `tests/release4test.py` is the phone-size test of the start, the order strip, the verdict and the causes.
 

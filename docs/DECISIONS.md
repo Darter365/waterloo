@@ -21,8 +21,10 @@ Never record a guess as a decision.
   class 3 task and the references are re-recorded once. Its acceptance test is under "Claude's choices" until Chris confirms it.
 - **Measures of the core loop come before a performance baseline (12 Nov).** Belief error, report staleness, order latency,
   orders overtaken and decision gaps, computed from the contract alone (`docs/METHOD.md`, section 5). Not built.
-- **Agent playtests through every view (12 Nov):** Napoleon's, the umpire's and Wellington's. Wellington's waits until the
-  allied side is playable. Not built.
+- **Agent playtests through every view (12 Nov):** Napoleon's, the umpire's and Wellington's. The harness is built
+  (`tools/agentplay.js`, Napoleon's view and the umpire's; `docs/playtests/`). Wellington's waits until the allied side is
+  playable: what that needs is listed in `docs/playtests/wellington-headless.md`. **The first playtest has not been run:** the
+  player agent was stopped by the model's safeguards before its first move (12 Nov), and it is Chris's call how to try again.
 - **Long-term aim.** A 3D game set at the generals' historical headquarters, with sound, riders arriving and a spotting glass,
   later on an engine suited to large asset counts. The map interface and core mechanics come first.
 
