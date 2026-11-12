@@ -10,7 +10,6 @@ on:
   schedule:
     - cron: '17 7 * * *'   # 07:17 UTC, about two in the morning in Virginia; off the hour, when GitHub's queue is shortest
   workflow_dispatch:
-  pull_request:   # THROWAWAY: proves the nightly on this pull request; removed before merge
 
 permissions:
   contents: read
