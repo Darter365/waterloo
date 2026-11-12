@@ -36,6 +36,29 @@ const V3K = {
   // centre of mass. If a building within CLEAR metres would fill the view ahead (inside HALF degrees either side), the eye steps
   // forward STEP metres at a time, at most REACH, until the view is open: a commander stands where he can see (all est.).
   POST: { CLEAR: 80, HALF: 50, STEP: 5, REACH: 80 },
+  // Men in place of slabs, on the ground only. Sizes are ordinary ones and estimates, not measurements (est. throughout):
+  //  PX      a body is drawn man by man where a man would stand at least this many pixels tall; below that the stand-in reads as well.
+  //          The distance follows (derived in v3Cone): 1.75 m and 6 px give about 175 m in the wide view at 690 px, 1 km at the eye's
+  //          step, and FAR (the cap) through a 30-times glass.
+  //  MAX     the most instances of each kind drawn at once. Bodies are taken nearest first; when one does not fit, it and all beyond
+  //          it keep their stand-ins. At these caps the figures come to about 1.25 million triangles (v3Men() reports the count drawn).
+  //  FILE, RANK, COL_RANK   metres a man (or horseman) takes along the front, between ranks in line, and between ranks in column.
+  //  MARCH   files abreast on the road. GUN_GAP, GUN_ROW: metres between pieces and between rows of them. CREW: men drawn at each piece.
+  //  BLOCK   metres from one column or square to the next; SHARE, the part of that a column fills; RING, ranks in an all-round block.
+  //  LINE, LINES, MASS   how the share of men in the firing line and the density (both the contract's) are read: see v3Layout.
+  //  LOOSE   how far men stand from their places, by the body's state (metres); a body out of order is a crowd, MOB_H of its height as a stand-in.
+  //  SEG, THIN, TEETH, NOTCH, BAND   the stand-in: its blocks are at most SEG long and at least THIN deep, with TEETH steps in the top
+  //          edge, each up to NOTCH lower, under a dark band BAND deep.
+  //  COL     colours of everything that is not the side's own colour. Coats take the map's colour for the side: a label, not a uniform.
+  FIG: { PX: 6, FAR: 6000, PAD: 1.5, HIDE: 2, MOVE: 1,
+    MAX: { foot: 9000, horse: 2400, crew: 700, gun: 130, flag: 200, block: 1500 },
+    MAN: 1.75, WHEEL: 1.45, PIKE: 3, CLOTH: [1.6, 1.4], GUIDON: 0.7, GUIDON_UP: 1.2,
+    FILE: { foot: 0.65, horse: 1 }, RANK: { foot: 0.8, horse: 3 }, COL_RANK: { foot: 1.6, horse: 6 }, MARCH: { foot: 4, horse: 2 },
+    GUN_GAP: 12, GUN_ROW: 4, CREW: 5, CREW_AT: [[-0.95, 0.2, 0], [0.95, 0.2, 0], [-1.1, 1.7, 0.5], [1.1, 1.7, -0.5], [0, 3.4, 0]], // right, behind, turned (radians): where the crew stand about the piece
+    BLOCK: 60, SHARE: 0.6, RING: 4, LINE: 0.9, LINES: 0.35, MASS: 3.2, BEHIND: 5,
+    ORDERED: ['steady', 'shaken', 'disordered'], LOOSE: { steady: 0.08, shaken: 0.25, disordered: 0.7, _: 0.3 }, MOB_TURN: 2.2, MOB_H: 0.6,
+    SEG: 40, THIN: 1.5, TEETH: 6, NOTCH: 0.22, BAND: 0.12,
+    COL: { SKIN: 0xd9a781, HAT: 0x1c1b1a, TROUSER: 0xd8d2c4, PACK: 0x3a2f24, MUSKET: 0x4a3626, BOOT: 0x24201c, CARRIAGE: 0x6f7355, BARREL: 0xb08d3c, HORSES: [0x6b4226, 0x4a2f1c, 0x2a221d, 0x8a6a48, 0x9a958c] } },
   MASK: { RIM: '#0b0a09', SHADE: 'rgba(11,10,9,.38)', SOFT: 0.86 }, // the eyepiece: its dark surround, and the shading that begins at SOFT of its radius
   // Two scales. From above, heights, trees and blocks are drawn large so the field reads at five kilometres; every figure is (est.)
   // and chosen for legibility. On the ground everything is life size: heights as surveyed, the eye at the engine's own 2.5 m for a
@@ -154,6 +177,7 @@ function v3Build() {
   V3.tufts = null; V3.tuftAt = null;
   if (V3.cam.ground) { const n = V3K.TUFT_N * V3K.TUFT_N; V3.tufts = new T.InstancedMesh(facet(new T.ConeGeometry(0.09, 0.4, 4)), lam(), n); V3.tufts.frustumCulled = false; for (let i = 0; i < n; i++) tint(V3.tufts, i, V3K.TUFT, i); S.add(V3.tufts); }
   V3.unitGeo = new T.BoxGeometry(1, 1, 1); V3.at = at; V3.put = put;
+  V3.men = null; if (V3.cam.ground) v3MenBuild(); // on the ground the bodies are men and stand-in blocks; from above they stay the enlarged blocks
   if (fresh) { V3.cam.tx = W.size.w / 2; V3.cam.tz = W.size.h / 2; V3.cam.dist = Math.max(W.size.w, W.size.h) * 0.85; V3.cam.az = 0; V3.cam.pol = 0.95; }
 }
 function v3SideColour(side) { const v = getComputedStyle(document.documentElement).getPropertyValue('--m-' + String(side).toLowerCase()).trim(); return v || '#666666'; }
@@ -266,8 +290,7 @@ function v3Frame() { // called every frame by the page's loop; cheap unless the 
   for (const [id, o] of V3.units) { const c = V3.cur.get(id), p = V3.prev.get(id) || c, x = v3lerp(p.x, c.x, t), y = v3lerp(p.y, c.y, t), turn = ((c.facing - p.facing + 540) % 360) - 180, f = p.facing + turn * t;
     const K = V3.K, hh = (K.H[c.arm] || K.H.inf) * (c.status === 'steady' || c.status === 'shaken' ? 1 : 0.6), fr = Math.max(K.MIN_F, v3lerp(p.front, c.front, t)), dp = Math.max(K.MIN_D, v3lerp(p.depth, c.depth, t));
     o.position.set(x, V3.at(x, y) + hh / 2 + K.LIFT, y); o.rotation.y = -f * Math.PI / 180; o.scale.set(fr, hh, dp); o.material.emissive.setHex(c.firing ? 0x3a2a08 : 0x000000);
-    // on the ground, a brigade you are standing inside is not drawn: you would see only the inside of its block
-    if (V3.cam.ground) { o.updateMatrixWorld(); const v = V3.tmp.set(V3.cam.tx, o.position.y, V3.cam.tz); o.worldToLocal(v); o.visible = !(Math.abs(v.x) < 0.5 + K.HIDE / fr && Math.abs(v.z) < 0.5 + K.HIDE / dp); } else o.visible = true; }
+    o.visible = !V3.cam.ground; } // on the ground the bodies are drawn as men and stand-in blocks instead (v3Bodies); the box only keeps the place
   const C = V3.cam, cam = V3.camera, ty = V3.at(C.tx, C.tz);
   const fov = v3Fov(); let saz = 0, spi = 0;
   if (C.ground && C.field === 'glass' && V3.glass && !V3.still) { // a held glass wanders a little: three slow swings, the same every time it is raised
@@ -278,6 +301,7 @@ function v3Frame() { // called every frame by the page's loop; cheap unless the 
   else { cam.position.set(C.tx + C.dist * Math.sin(C.pol) * Math.sin(C.az), ty + C.dist * Math.cos(C.pol), C.tz + C.dist * Math.sin(C.pol) * Math.cos(C.az)); cam.lookAt(C.tx, ty, C.tz); }
   V3.dome.position.copy(cam.position); if (V3.sunDir) V3.disc.position.copy(cam.position).addScaledVector(V3.sunDir, V3.K.FAR * 0.75); if (V3.tufts) v3Tufts();
   if (cam.fov !== fov) { cam.fov = fov; cam.updateProjectionMatrix(); v3Caption(); } v3Mask();
+  if (C.ground && V3.men) v3MenFrame(t);
   R.render(V3.scene, cam); V3.frames++;
 }
 function v3Open() {
@@ -307,18 +331,183 @@ $('v3h').addEventListener('click', () => { if (V3.cam.ground) v3ToPost(); else v
   el.addEventListener('wheel', e => { e.preventDefault(); zoom(e.deltaY > 0 ? 1.12 : 0.89); }, { passive: false });
   el.addEventListener('contextmenu', e => e.preventDefault());
 })();
+/* ---------- men in place of slabs (the ground view) ---------- */
+// A body near the eye, or inside the glass's field, is drawn man by man: ranks of plain low-poly figures, life size, laid out inside
+// the footprint, facing and strength the contract gives. Everything farther keeps a cheap stand-in: blocks with a broken top edge, one
+// for each line or column, following the ground. The contract does not say where each company stands, so the layout inside a
+// footprint is a general rule (v3Layout) and an estimate; coats take the map's colour for the side, which is not a uniform.
+function v3Hex(h) { return [(h >> 16 & 255) / 255, (h >> 8 & 255) / 255, (h & 255) / 255]; }
+// a box from corner to corner, in a colour, without the faces named in `skip` (b bottom, t top, f front (-z), k back (+z), l, r)
+function v3Box(out, x0, y0, z0, x1, y1, z1, col, skip) {
+  const F = { r: [[x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1]], l: [[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]], t: [[x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0]],
+    b: [[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]], k: [[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], f: [[x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0]] };
+  for (const k in F) { if (skip && skip.includes(k)) continue; const q = F[k]; for (const i of [0, 1, 2, 0, 2, 3]) { out.p.push(q[i][0], q[i][1], q[i][2]); out.c.push(col[0], col[1], col[2]); } }
+  return out;
+}
+// lean the vertices added since `from` about a level axis through (py, pz): a sloped musket, a horse's neck, a gun's trail
+function v3Lean(out, from, ang, py, pz) { const c = Math.cos(ang), s = Math.sin(ang); for (let i = from; i < out.p.length; i += 3) { const y = out.p[i + 1] - py, z = out.p[i + 2] - pz; out.p[i + 1] = py + y * c - z * s; out.p[i + 2] = pz + y * s + z * c; } }
+function v3Geo(out) { const T = globalThis.THREE, g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(new Float32Array(out.p), 3)); g.setAttribute('color', new T.BufferAttribute(new Float32Array(out.c), 3)); g.computeVertexNormals(); return g; }
+// the models: every figure stands with its feet at 0, faces -z, and is a few boxes. `tint` parts are white and take the instance's
+// colour (the coat, the horse's hide, the flag); `fixed` parts carry their own colours.
+function v3Models() {
+  const G = V3K.FIG, C = G.COL, c = k => v3Hex(C[k]), W = [1, 1, 1], o = () => ({ p: [], c: [] });
+  const man = (tint, fixed, y, musket, pack) => { // a man standing with his feet at height y (0 on foot)
+    v3Box(tint, -0.22, y + 0.85, -0.12, 0.22, y + 1.45, 0.12, W, 'b'); v3Box(tint, -0.31, y + 0.88, -0.07, -0.22, y + 1.43, 0.07, W, 'r'); v3Box(tint, 0.22, y + 0.88, -0.07, 0.31, y + 1.43, 0.07, W, 'l');
+    v3Box(fixed, -0.09, y + 1.45, -0.1, 0.09, y + 1.68, 0.1, c('SKIN'), 'tb'); v3Box(fixed, -0.11, y + 1.68, -0.12, 0.11, y + 1.9, 0.12, c('HAT'), 'b');
+    if (pack) v3Box(fixed, -0.16, y + 1.0, 0.12, 0.16, y + 1.4, 0.24, c('PACK'), 'f');
+    if (musket) { const from = fixed.p.length; v3Box(fixed, 0.23, y + 0.8, -0.03, 0.28, y + 2.2, 0.02, c('MUSKET'), 'b'); v3Lean(fixed, from, 0.12, y + 0.8, 0); } };
+  const legs = (fixed, y) => { v3Box(fixed, -0.18, y, -0.09, -0.03, y + 0.85, 0.09, c('TROUSER'), 'tb'); v3Box(fixed, 0.03, y, -0.09, 0.18, y + 0.85, 0.09, c('TROUSER'), 'tb'); };
+  const foot = [o(), o()]; man(foot[0], foot[1], 0, true, true); legs(foot[1], 0);
+  const crew = [o(), o()]; man(crew[0], crew[1], 0, false, false); legs(crew[1], 0);
+  // a horse: barrel, neck, head, four legs, tail; the hide takes the instance's colour, legs and tail are darker shares of it
+  const horse = o(), dark = [0.45, 0.45, 0.45], mane = [0.25, 0.25, 0.25];
+  v3Box(horse, -0.28, 0.85, -0.75, 0.28, 1.5, 0.75, W);
+  { const from = horse.p.length; v3Box(horse, -0.13, 1.2, -0.95, 0.13, 2.0, -0.6, W, 'b'); v3Lean(horse, from, -0.5, 1.2, -0.75); }
+  { const from = horse.p.length; v3Box(horse, -0.1, 1.72, -1.72, 0.1, 1.98, -1.12, W, 'k'); v3Lean(horse, from, -0.3, 1.9, -1.15); }
+  for (const [x, z] of [[-0.26, -0.7], [0.12, -0.7], [-0.26, 0.55], [0.12, 0.55]]) v3Box(horse, x, 0, z, x + 0.14, 0.9, z + 0.15, dark, 'tb');
+  v3Box(horse, -0.06, 0.75, 0.75, 0.06, 1.42, 0.85, mane, 'f');
+  // his rider: a man seated at the saddle's height, his legs hanging at the horse's sides
+  const rider = [o(), o()]; man(rider[0], rider[1], 0.68, false, false);
+  v3Box(rider[1], -0.4, 0.78, -0.28, -0.28, 1.56, -0.06, c('BOOT'), ''); v3Box(rider[1], 0.28, 0.78, -0.28, 0.4, 1.56, -0.06, c('BOOT'), '');
+  // a gun: barrel, cheeks, axle, two wheels, and a trail that runs back to the ground
+  const gun = o(), wood = c('CARRIAGE'), R = G.WHEEL / 2;
+  v3Box(gun, -0.09, R + 0.2, -1.55, 0.09, R + 0.38, 0.3, c('BARREL')); v3Box(gun, -0.2, R - 0.05, -0.5, 0.2, R + 0.2, 0.45, wood); v3Box(gun, -0.82, R - 0.06, -0.06, 0.82, R + 0.06, 0.06, wood, 'lr');
+  { const from = gun.p.length; v3Box(gun, -0.12, R - 0.1, 0.2, 0.12, R + 0.12, 2.5, wood, 'f'); v3Lean(gun, from, Math.asin((R - 0.1) / 2.3), R, 0.2); }
+  for (const x of [-0.82, 0.72]) for (let k = 0; k < 8; k++) { const a0 = k / 8 * 2 * Math.PI, a1 = (k + 1) / 8 * 2 * Math.PI, y0 = R + R * Math.cos(a0), z0 = R * Math.sin(a0), y1 = R + R * Math.cos(a1), z1 = R * Math.sin(a1), x1 = x + 0.1, P = (...v) => { gun.p.push(...v); for (let q = 0; q < v.length / 3; q++) gun.c.push(wood[0] * 0.8, wood[1] * 0.8, wood[2] * 0.8); };
+    P(x1, R, 0, x1, y1, z1, x1, y0, z0, x, R, 0, x, y0, z0, x, y1, z1, x, y0, z0, x1, y0, z0, x1, y1, z1, x, y0, z0, x1, y1, z1, x, y1, z1); } // the outer face, the inner face, the rim
+  // a colour on its pike: the cloth takes the instance's colour
+  const flag = o(); v3Box(flag, -0.03, 0, -0.03, 0.03, G.PIKE, 0.03, [0.35, 0.3, 0.25], 'b'); v3Box(flag, 0.03, G.PIKE - G.CLOTH[1], -0.012, 0.03 + G.CLOTH[0], G.PIKE, 0.012, W, 'l');
+  // the stand-in: a block a metre each way with a broken top edge and a dark upper band (hats at a distance); it takes the side's colour
+  const block = o(), n = G.TEETH; for (let k = 0; k < n; k++) { const x0 = -0.5 + k / n, x1 = x0 + 1 / n, h = 1 - G.NOTCH * v3rand(k * 31 + 5), band = h - G.BAND; v3Box(block, x0, 0, -0.5, x1, band, 0.5, W, 'tb'); v3Box(block, x0, band, -0.5, x1, h, 0.5, dark, 'b'); }
+  return { foot, crew, horse, rider, gun, flag, block };
+}
+// the instanced meshes, built once for each scene: meshes of one kind share their matrices (a man's coat and the rest of him)
+function v3MenBuild() {
+  const T = globalThis.THREE, G = V3K.FIG, S = V3.scene, M = v3Models(), mat = both => new T.MeshLambertMaterial({ vertexColors: true, side: both ? T.DoubleSide : T.FrontSide }); // a wheel and a colour are seen from either side
+  const kind = (max, parts) => { const k = { max, cap: max, n: 0, m: new Float32Array(max * 16), meshes: [], cols: [], tris: 0, unit: new Array(max) }, attr = new T.InstancedBufferAttribute(k.m, 16); attr.setUsage(T.DynamicDrawUsage);
+    for (const [out, tinted] of parts) { const g = v3Geo(out), mesh = new T.InstancedMesh(g, mat(tinted === 2 || out === M.gun), max); mesh.instanceMatrix = attr; mesh.count = 0; mesh.frustumCulled = false; k.tris += g.attributes.position.count / 3;
+      let col = null; if (tinted) { col = new Float32Array(max * 3).fill(1); mesh.instanceColor = new T.InstancedBufferAttribute(col, 3); mesh.instanceColor.setUsage(T.DynamicDrawUsage); } k.cols.push(col); k.meshes.push(mesh); S.add(mesh); }
+    k.attr = attr; return k; };
+  V3.men = { foot: kind(G.MAX.foot, [[M.foot[0], 1], [M.foot[1], 0]]), crew: kind(G.MAX.crew, [[M.crew[0], 1], [M.crew[1], 0]]), horse: kind(G.MAX.horse, [[M.horse, 1], [M.rider[0], 1], [M.rider[1], 0]]),
+    gun: kind(G.MAX.gun, [[M.gun, 0]]), flag: kind(G.MAX.flag, [[M.flag, 2]]), block: kind(G.MAX.block, [[M.block, 1]]) };
+  for (const k in V3.men) for (const mesh of V3.men[k].meshes) mesh.userData.fig = k;
+  V3.jit = V3.jit || Float32Array.from({ length: 4096 }, (_, i) => v3rand(i + 17)); V3.menSig = null; V3.menStat = null; V3.sideRGB = new Map();
+}
+function v3SideRGB(side) { let c = V3.sideRGB.get(side); if (!c) { const k = new globalThis.THREE.Color(v3SideColour(side)); c = [k.r, k.g, k.b]; V3.sideRGB.set(side, c); } return c; }
+// one instance: at (x, y, z), turned to face the compass heading h (radians), scaled s; colours (0..1) for each tinted mesh in turn
+function v3Inst(kind, x, y, z, h, s, cols, unit, sy) {
+  const K = V3.men[kind]; if (K.n >= K.cap) return false; const i = K.n++, m = K.m, o = i * 16, c = Math.cos(h) * s, n = Math.sin(h) * s;
+  m[o] = c; m[o + 1] = 0; m[o + 2] = n; m[o + 3] = 0; m[o + 4] = 0; m[o + 5] = sy == null ? s : sy; m[o + 6] = 0; m[o + 7] = 0; m[o + 8] = -n; m[o + 9] = 0; m[o + 10] = c; m[o + 11] = 0; m[o + 12] = x; m[o + 13] = y; m[o + 14] = z; m[o + 15] = 1;
+  let q = 0; for (const col of K.cols) if (col) { const cc = cols[q++] || cols[0]; col[i * 3] = cc[0]; col[i * 3 + 1] = cc[1]; col[i * 3 + 2] = cc[2]; }
+  K.unit[i] = unit; return true;
+}
+// How a body fills its footprint: rows of men, each a line with a centre (cx, cz), a width and depth, the way it faces within the body
+// (yaw, degrees) and its men. From the contract's capabilities and the footprint alone, never from a formation's name:
+//   a crew: its pieces GUN_GAP apart along the front, in as many rows as that needs;
+//   a body holding a place: one rank lining the edge of its footprint, facing out;
+//   an all-round formation: hollow blocks BLOCK metres apart, RING ranks deep, facing out;
+//   a column of march: MARCH files, as long as its footprint;
+//   otherwise by the share of its men in the firing line (fire): nearly all, one line; a third or more, that many lines one behind
+//   another; fewer, columns BLOCK apart each SHARE of its interval wide (one mass where the formation is very dense).
+// A body that is no longer in order (not steady, shaken or disordered) is a crowd scattered over its footprint, backs to the enemy.
+function v3Layout(u, F, D) {
+  const G = V3K.FIG, W = V3.W, A = (W.arms || {})[u.arm] || {}, Fm = (W.formations || {})[u.form] || W.formationElse || {}, rows = [], n = Math.max(1, Math.round(u.str));
+  const guns = A.crew > 0, mounted = !!A.mounted, file = guns ? G.GUN_GAP : mounted ? G.FILE.horse : G.FILE.foot, rank = guns ? G.GUN_ROW : mounted ? G.RANK.horse : G.RANK.foot, deep = guns ? G.GUN_ROW : mounted ? G.COL_RANK.horse : G.COL_RANK.foot;
+  const L = { rows, guns, mounted, mob: false, n, file, head: [0, 0] };
+  const row = (cx, cz, w, d, yaw, m, gap) => { m = Math.round(m); if (m < 1) return null; const per = Math.max(1, Math.min(m, Math.floor(w / file))), ranks = Math.ceil(m / per), r = { cx, cz, w, yaw, n: m, per, ranks, d: d != null ? d : Math.min(ranks * gap, 1e9) }; rows.push(r); return r; };
+  if (!G.ORDERED.includes(u.status)) { L.mob = true; rows.push({ cx: 0, cz: 0, w: F, d: D, yaw: 180, n, per: n, ranks: 1 }); return L; }
+  if (guns) { const per = Math.max(1, Math.floor(F / file)), ranks = Math.ceil(n / per); row(0, 0, F, ranks > 1 ? D : G.GUN_ROW, 0, n, 0); L.head = [0, D / 2 + 6]; return L; }
+  if (u.place) { const peri = 2 * (F + D); for (const [cx, cz, w, yaw] of [[0, -D / 2, F, 0], [F / 2, 0, D, 90], [0, D / 2, F, 180], [-F / 2, 0, D, 270]]) row(cx, cz, w, null, yaw, n * w / peri, rank); L.head = [0, 0]; return L; }
+  if (Fm.allRound) { const c = Math.max(1, Math.round(F / G.BLOCK)), each = n / c, t = G.RING * rank;
+    for (let k = 0; k < c; k++) { const x = (k + 0.5 - c / 2) * F / c, s = v3clamp(each / (4 * G.RING) * file + t, 8, Math.max(8, Math.min(F / c * 0.85, D))), h = s / 2 - t / 2;
+      for (const [dx, dz, yaw] of [[0, -h, 0], [h, 0, 90], [0, h, 180], [-h, 0, 270]]) row(x + dx, dz, s - t, t, yaw, each / 4, rank); }
+    L.head = [(0.5 - c / 2) * F / c, 0]; return L; }
+  if (Fm.column) { const files = mounted ? G.MARCH.horse : G.MARCH.foot, r = row(0, 0, files * file, D, 0, n, 0); r.per = Math.min(n, files); r.ranks = Math.ceil(n / r.per); L.head = [0, -D / 2 - 4]; return L; }
+  const fire = Fm.fire == null ? 0.2 : Fm.fire;
+  if (fire >= G.LINE) { const r = row(0, 0, F, null, 0, n, rank); L.head = [0, r.d / 2 + G.BEHIND]; return L; }
+  if (fire >= G.LINES) { const k = Math.max(2, Math.round(1 / fire)); for (let j = 0; j < k; j++) { const r = row(0, 0, F, null, 0, n / k, rank); r.cz = -D / 2 + r.d / 2 + j * (D - r.d) / (k - 1); } L.head = [0, rows[0].cz + rows[0].d / 2 + G.BEHIND]; return L; }
+  const c = (Fm.density || 0) >= G.MASS ? 1 : Math.max(1, Math.round(F / G.BLOCK)), w = c === 1 ? F : F / c * G.SHARE;
+  for (let k = 0; k < c; k++) { const r = row((k + 0.5 - c / 2) * F / c, 0, w, null, 0, n / c, deep); r.d = Math.min(r.d, D); r.cz = -D / 2 + r.d / 2; }
+  L.head = mounted ? [rows[0].cx, -D / 2 - G.BEHIND] : [rows[0].cx, rows[0].cz + rows[0].d / 2 + G.BEHIND]; return L;
+}
+// the cone the eye takes in, widened so a small turn needs no new layout, and how far off a man is still worth drawing as a man
+function v3Cone() {
+  const C = V3.cam, G = V3K.FIG, cam = V3.camera, fov = v3Fov() * Math.PI / 180, th = Math.tan(fov / 2), asp = (V3.w || 1) / Math.max(1, V3.h || 1), cp = Math.cos(C.pitch);
+  const glass = C.field === 'glass' && V3.glass, half = glass ? Math.atan(th * (V3.maskR || V3.h / 2) / (V3.h / 2)) : Math.atan(th * Math.hypot(1, asp));
+  // a man of height MAN at distance d stands MAN / d / (2 tan(fov / 2) / h) pixels tall (derived), so he is PX pixels tall at this distance
+  const range = Math.min(G.FAR, V3.scene.fog ? V3.scene.fog.far : G.FAR, G.MAN * (V3.h || 690) / (G.PX * 2 * th));
+  return { x: C.tx, y: cam.position.y, z: C.tz, ax: -Math.sin(C.az) * cp, ay: Math.sin(C.pitch), az: -Math.cos(C.az) * cp, half: Math.min(Math.PI * 0.49, half * G.PAD), slack: half * (G.PAD - 1), range, fov };
+}
+// lay every body out again: men where they are near enough and the budget allows (nearest bodies first), stand-in blocks elsewhere
+function v3Bodies(t) {
+  const G = V3K.FIG, K = V3.K, W = V3.W, men = V3.men, cone = v3Cone(), jit = V3.jit, D2R = Math.PI / 180, cosH = Math.cos(cone.half), HORSES = G.COL.HORSES.map(v3Hex);
+  for (const k in men) men[k].n = 0;
+  const list = [];
+  for (const [id] of V3.units) { const c = V3.cur.get(id), p = V3.prev.get(id) || c, x = v3lerp(p.x, c.x, t), y = v3lerp(p.y, c.y, t), turn = ((c.facing - p.facing + 540) % 360) - 180;
+    list.push({ id, c, x, y, f: (p.facing + turn * t) * D2R, F: Math.max(1, v3lerp(p.front, c.front, t)), D: Math.max(1, v3lerp(p.depth, c.depth, t)), d: Math.hypot(x - cone.x, y - cone.z) }); }
+  list.sort((a, b) => a.d - b.d || (a.id < b.id ? -1 : 1));
+  let full = false, bodies = 0, left = 0, nearest = Infinity; const inCone = (x, y, z, r) => { const dx = x - cone.x, dy = y - cone.y, dz = z - cone.z, d = Math.hypot(dx, dy, dz); if (d <= r) return true; const a = Math.acos(v3clamp((dx * cone.ax + dy * cone.ay + dz * cone.az) / d, -1, 1)); return a <= cone.half + Math.asin(Math.min(1, r / d)); };
+  for (const b of list) {
+    const u = b.c, L = v3Layout(u, b.F, b.D), cf = Math.cos(b.f), sf = Math.sin(b.f), rad = Math.hypot(b.F, b.D) / 2 + 2, gy = V3.at(b.x, b.y), col = v3SideRGB(u.side), seed = (Math.imul(b.id.length * 31 + b.id.charCodeAt(0) * 7 + b.id.charCodeAt(b.id.length - 1), 2654435761) >>> 0) & 4095;
+    const world = (lx, lz) => [b.x + lx * cf - lz * sf, b.y + lx * sf + lz * cf]; // the body's frame to the field: x along its front, z to its rear
+    let asMen = !full && b.d - rad < cone.range && inCone(b.x, gy + 1, b.y, rad);
+    if (asMen) { // try to draw it man by man; if the budget runs out part-way, take the men back and fall through to the stand-in
+      const kind = L.guns ? 'gun' : L.mounted ? 'horse' : 'foot', K0 = {}; for (const k in men) K0[k] = men[k].n; let ok = true, drawn = 0, q = seed;
+      for (const r of L.rows) { const cy = Math.cos(r.yaw * D2R), sy = Math.sin(r.yaw * D2R), head = b.f + r.yaw * D2R;
+        for (let k = 0; k < r.n && ok; k++) { const i = k % r.per, rk = (k - i) / r.per; q = (q + 3) & 4095; let lx, lz, h = head;
+          if (L.mob) { lx = (jit[q] - 0.5) * r.w; lz = (jit[(q + 1) & 4095] - 0.5) * r.d; h += (jit[(q + 2) & 4095] - 0.5) * G.MOB_TURN; }
+          else { const j = G.LOOSE[u.status] || G.LOOSE._; lx = (i - (r.per - 1) / 2) * (r.w / r.per) + (jit[q] - 0.5) * j; lz = -r.d / 2 + (rk + 0.5) * r.d / r.ranks + (jit[(q + 1) & 4095] - 0.5) * j; h += (jit[(q + 2) & 4095] - 0.5) * j * 0.3; }
+          const bx = r.cx + lx * cy - lz * sy, bz = r.cz + lx * sy + lz * cy, [wx, wz] = world(bx, bz), dx = wx - cone.x, dz = wz - cone.z, dy = gy + 1 - cone.y, d2 = dx * dx + dy * dy + dz * dz, dot = dx * cone.ax + dy * cone.ay + dz * cone.az;
+          if (d2 < G.HIDE * G.HIDE || dot <= 0 || dot * dot < cosH * cosH * d2) continue; // too close to the eye to draw, or outside what it takes in
+          const y = V3.at(wx, wz), s = 0.94 + 0.12 * jit[(q + 5) & 4095], shade = 0.86 + 0.28 * jit[(q + 7) & 4095], cc = [col[0] * shade, col[1] * shade, col[2] * shade];
+          if (L.guns) { ok = v3Inst('gun', wx, y, wz, h, 1, [], b.id); // the piece, and the men who serve it standing round its trail (CREW of them; the rest are with the teams, not drawn)
+            for (let m = 0; m < G.CREW && ok; m++) { const o = G.CREW_AT[m % G.CREW_AT.length], ch = Math.cos(h), sh = Math.sin(h), mx = wx + o[0] * ch - o[1] * sh, mz = wz + o[0] * sh + o[1] * ch; ok = v3Inst('crew', mx, V3.at(mx, mz), mz, h + o[2], s, [cc], b.id); } }
+          else if (L.mounted) ok = v3Inst('horse', wx, y, wz, h, s, [HORSES[(q + k) % HORSES.length], cc], b.id);
+          else ok = v3Inst('foot', wx, y, wz, h, s, [cc], b.id);
+          if (ok) { drawn++; if (d2 < nearest * nearest) nearest = Math.sqrt(d2); } } }
+      if (ok && !L.mob && !L.guns) { const [hx, hz] = world(L.head[0], L.head[1]), r0 = L.rows[0], [fx, fz] = world(r0.cx, r0.cz); // a mounted officer and a colour (or guidon) for each body drawn as men
+        v3Inst('horse', hx, V3.at(hx, hz), hz, b.f, 1.04, [HORSES[seed % HORSES.length], col], b.id); v3Inst('flag', L.mounted ? hx + 1.5 * cf : fx, V3.at(L.mounted ? hx + 1.5 * cf : fx, L.mounted ? hz + 1.5 * sf : fz) + (L.mounted ? G.GUIDON_UP : 0), L.mounted ? hz + 1.5 * sf : fz, b.f, L.mounted ? G.GUIDON : 1, [[Math.min(1, col[0] * 1.25 + 0.08), Math.min(1, col[1] * 1.25 + 0.08), Math.min(1, col[2] * 1.25 + 0.08)]], b.id); }
+      if (!ok) { for (const k in men) men[k].n = K0[k]; asMen = false; full = true; left++; } else bodies++;
+    } else if (full && b.d - rad < cone.range && inCone(b.x, gy + 1, b.y, rad)) left++;
+    if (asMen) continue;
+    // the stand-in: one block for each line or column, cut into lengths of SEG metres so that it follows the ground
+    const hgt = ((W.arms || {})[u.arm] || {}).height || K.H[u.arm] || K.H.inf, hh = hgt * (L.mob ? G.MOB_H : 1);
+    for (const r of L.rows) { const cy = Math.cos(r.yaw * D2R), sy = Math.sin(r.yaw * D2R), head = b.f + r.yaw * D2R, w = L.mob ? r.w * 0.8 : r.w, d = Math.max(G.THIN, L.mob ? r.d * 0.8 : r.d), segs = Math.max(1, Math.ceil(w / G.SEG));
+      for (let k = 0; k < segs; k++) { const lx = (k + 0.5 - segs / 2) * w / segs, [wx, wz] = world(r.cx + lx * cy, r.cz + lx * sy);
+        if (Math.hypot(wx - cone.x, wz - cone.z) < Math.max(w / segs, d) / 2 + K.HIDE) continue; // never the inside of a block: the eye is standing in it
+        const K2 = men.block; if (K2.n >= K2.max) break; const i = K2.n++, m = K2.m, o = i * 16, ch = Math.cos(head), sh = Math.sin(head), ws = w / segs;
+        m[o] = ch * ws; m[o + 1] = 0; m[o + 2] = sh * ws; m[o + 3] = 0; m[o + 4] = 0; m[o + 5] = hh; m[o + 6] = 0; m[o + 7] = 0; m[o + 8] = -sh * d; m[o + 9] = 0; m[o + 10] = ch * d; m[o + 11] = 0; m[o + 12] = wx; m[o + 13] = V3.at(wx, wz) + K.LIFT; m[o + 14] = wz; m[o + 15] = 1;
+        const cl = K2.cols[0]; cl[i * 3] = col[0]; cl[i * 3 + 1] = col[1]; cl[i * 3 + 2] = col[2]; K2.unit[i] = b.id; } }
+  }
+  let tris = 0, inst = 0; for (const k in men) { const Kd = men[k]; Kd.attr.needsUpdate = true; for (const mesh of Kd.meshes) { mesh.count = Kd.n; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true; } tris += Kd.n * Kd.tris; inst += Kd.n; }
+  V3.menStat = { foot: men.foot.n, horse: men.horse.n, crew: men.crew.n, gun: men.gun.n, flag: men.flag.n, block: men.block.n, bodies, left, tris, instances: inst, range: Math.round(cone.range), nearest: nearest === Infinity ? null : nearest, max: Object.fromEntries(Object.entries(men).map(([k, v]) => [k, v.cap])) };
+  V3.menAt = cone;
+}
+// called every frame on the ground: lay the bodies out again only when something moved (the bodies, the eye, or the field of view)
+function v3MenFrame(t) {
+  const C = V3.cam, last = V3.menAt, sig = `${V3.tick}|${t}|${V3.w}x${V3.h}|${C.field}`; let need = sig !== V3.menSig || !last;
+  if (!need) { const cp = Math.cos(C.pitch), ax = -Math.sin(C.az) * cp, ay = Math.sin(C.pitch), az = -Math.cos(C.az) * cp; need = Math.hypot(C.tx - last.x, C.tz - last.z) > V3K.FIG.MOVE || Math.acos(v3clamp(ax * last.ax + ay * last.ay + az * last.az, -1, 1)) > last.slack * 0.6; }
+  if (need) { V3.menSig = sig; v3Bodies(t); }
+}
 // test hooks (view3dtest.py)
 globalThis.WGame && Object.assign(globalThis.WGame, { v3: () => ({ on: V3.on, err: V3.err, units: V3.units.size, shown: V3.cur ? V3.cur.size : 0, tris: V3.tris || 0, frames: V3.frames, tick: V3.tick, smoke: V3.smoke ? V3.smoke.count : 0, button: !$('v3btn').hidden, three: !!globalThis.THREE,
     mover: (() => { let best = null, bd = 0; for (const [id, o] of V3.units) { const c = V3.cur.get(id), p = V3.prev.get(id) || c, d = Math.hypot(c.x - p.x, c.y - p.y); if (d > bd) { bd = d; best = { id, x: o.position.x, z: o.position.z, cx: c.x, cy: c.y, px: p.x, py: p.y, d }; } } return best; })() }), // the brigade that moved furthest this tick
   v3Open: () => v3Open(), v3Close: () => v3Close(), v3Cam: (az, pol, dist) => { V3.cam.az = az; V3.cam.pol = pol; V3.cam.dist = dist; },
-  v3Probe: (nx, ny) => { const T = globalThis.THREE, rc = new T.Raycaster(); rc.setFromCamera(new T.Vector2(nx, ny), V3.camera); const h = rc.intersectObjects(V3.scene.children.filter(o => o.visible), false)[0]; if (!h) return null; let unit = null; for (const [id, o] of V3.units) if (o === h.object) unit = id; return { dist: Math.round(h.distance), unit, geo: h.object.geometry.type, colour: h.object.material.color.getHexString(), instance: h.instanceId ?? null }; }, // what is drawn at a point of the screen (-1..1)
+  v3Probe: (nx, ny) => { const T = globalThis.THREE, rc = new T.Raycaster(); rc.setFromCamera(new T.Vector2(nx, ny), V3.camera); const h = rc.intersectObjects(V3.scene.children.filter(o => o.visible), false)[0]; if (!h) return null; let unit = null; for (const [id, o] of V3.units) if (o === h.object) unit = id; const fig = h.object.userData.fig || null; if (fig === 'block') unit = V3.men.block.unit[h.instanceId];
+    return { dist: Math.round(h.distance), unit, geo: h.object.geometry.type, colour: h.object.material.color.getHexString(), instance: h.instanceId ?? null, figure: fig && fig !== 'block' ? fig : null, body: fig ? V3.men[fig].unit[h.instanceId] : null }; }, // what is drawn at a point of the screen (-1..1)
   v3Stand: (x, y, az) => { V3.cam.tx = x; V3.cam.tz = y; V3.cam.az = az; if (V3.cam.atPost) { V3.cam.atPost = false; v3Caption(); } }, v3Sky: () => Object.assign({ horizon: V3.scene.background.getHexString(), sunColour: V3.sun.color.getHexString(), tufts: V3.tufts ? V3.tufts.count : 0, step: V3.K.STEP }, V3.light), v3Eye: () => ({ ex: V3.K.EX, treeH: V3.K.TREE_H, blockH: V3.K.H.inf, ground: V3.cam.ground, y: V3.camera.position.y, floor: V3.at(V3.cam.tx, V3.cam.tz), trees: V3.trees, shrubs: V3.shrubs, fov: V3.camera.fov }),
   // the field's steps: v3Field(step) sets one ('wide', 'eye', 'glass') or steps on; v3Glass() says what is shown and why
   v3Field: to => { v3Field(to); return V3.cam.field; }, v3Still: on => { V3.still = !!on; },
   v3At: () => ({ x: V3.cam.tx, z: V3.cam.tz, az: V3.cam.az, pitch: V3.cam.pitch, ground: V3.cam.ground, atPost: V3.cam.atPost, step: V3.postStep || 0, aim: V3.postAim || null, caption: $('v3cap').textContent, second: $('v3h').hidden ? null : $('v3h').textContent }),
   // what the contract says, for the tests to work the standpoint out for themselves: the commander's place, the sides, and every body's side, place and strength
   v3Contract: () => { const W = SIM.view.world(), T = SIM.view.snapshot('truth'); let c = null; try { c = SIM.view.snapshot('chief'); } catch (e) { c = null; }
-    return { at: c && c.at, side: c && c.side, glass: c && c.glass, eye: SIM.view.P.EYE, sides: W.sides, objectives: W.objectives, buildings: W.buildings, units: T.units.map(u => ({ id: u.id, side: u.side, arm: u.arm, form: u.form, x: u.x, y: u.y, str: u.str, front: u.front, depth: u.depth, facing: u.facing, status: u.status })) }; },
+    return { at: c && c.at, side: c && c.side, glass: c && c.glass, eye: SIM.view.P.EYE, sides: W.sides, arms: W.arms, formations: W.formations, objectives: W.objectives, buildings: W.buildings, units: T.units.map(u => ({ id: u.id, side: u.side, arm: u.arm, form: u.form, x: u.x, y: u.y, str: u.str, front: u.front, depth: u.depth, facing: u.facing, status: u.status })) }; },
+  // the bodies on the ground: how many instances of each kind are drawn, the caps, the triangles, and which bodies are drawn as men
+  v3Men: () => V3.men && V3.menStat ? Object.assign({ trisEach: Object.fromEntries(Object.entries(V3.men).map(([k, v]) => [k, v.tris])), asMen: [...new Set(['foot', 'horse', 'gun'].flatMap(k => V3.men[k].unit.slice(0, V3.men[k].n)))], hide: V3K.FIG.HIDE, px: V3K.FIG.PX }, V3.menStat) : null,
+  // every figure drawn for one body: its kind, where it stands and the compass heading it faces (degrees), read back from what is drawn
+  v3Figures: id => { const out = []; if (V3.men) for (const k of ['foot', 'horse', 'gun', 'crew', 'flag', 'block']) { const K = V3.men[k]; for (let i = 0; i < K.n; i++) if (K.unit[i] === id) { const o = i * 16; out.push([k, K.m[o + 12], K.m[o + 14], (Math.atan2(K.m[o + 2], K.m[o]) * 180 / Math.PI + 360) % 360, K.m[o + 13]]); } } return out; },
+  v3Look: (x, y, up) => { const C = V3.cam, dx = x - C.tx, dz = y - C.tz, d = Math.hypot(dx, dz) || 1; C.az = Math.atan2(-dx, -dz); C.pitch = Math.atan2(V3.at(x, y) + (up || 0) - (V3.at(C.tx, C.tz) + V3.eye), d); return { az: C.az, pitch: C.pitch, dist: d }; }, // turn the eye to a point of the field
+  v3Cap: caps => { if (!V3.men) return null; for (const k in V3.men) V3.men[k].cap = Math.min(V3.men[k].max, caps && caps[k] != null ? caps[k] : V3.men[k].max); V3.menSig = null; return true; }, // lower a kind's cap for a test of the budget (never above the constant); no argument restores them
   v3Post: () => v3ToPost(), v3Project: (x, y, up) => { const v = new globalThis.THREE.Vector3(x, V3.at(x, y) + (up || 0), y).project(V3.camera); return { x: v.x, y: v.y, z: v.z }; }, // where a point of the field falls on the screen (-1..1)
   v3Glass: () => ({ field: V3.cam.field, fov: V3.camera ? V3.camera.fov : null, want: v3Fov(), power: v3Power(), glass: V3.glass, h: V3.h, w: V3.w, mask: !$('v3m').hidden, maskR: V3.maskR || 0, sway: V3.sway || [0, 0], button: !$('v3f').hidden, label: $('v3f').textContent, caption: $('v3cap').textContent,
     turn: V3K.FIELD.TURN / v3Power() }) });

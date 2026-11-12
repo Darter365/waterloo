@@ -73,6 +73,50 @@ async def desktop():
         for i in range(3): await pg.click('#v3f'); await pg.wait_for_timeout(150); seq.append((await pg.evaluate("WGame.v3Glass()"))['field'])
         await pg.click('#v3g'); await pg.wait_for_timeout(1200); a1 = await pg.evaluate("WGame.v3Eye()"); f1 = await pg.evaluate("document.getElementById('v3f').hidden"); m1 = (await pg.evaluate("WGame.v3Glass()"))['mask']
         print('STEPS', 'OK' if seq == ['eye', 'glass', 'wide'] and a1['fov'] == 38 and not a1['ground'] and f1 and not m1 else 'BAD', seq, a1['fov'], f1, m1)
+        # men in place of slabs. From above nothing changes: no figures, and the enlarged block of each body is what is drawn
+        m0 = await pg.evaluate("WGame.v3Men()"); pa = await pg.evaluate("(() => { const c = WGame.v3Contract(), u = c.units[0], p = WGame.v3Project(u.x, u.y, 20); return [u.id, WGame.v3Probe(p.x, p.y)]; })()")
+        await pg.click('#v3g'); await pg.wait_for_timeout(2000); await pg.evaluate("WGame.v3Still(true)"); m = await pg.evaluate("WGame.v3Men()"); c = await pg.evaluate("WGame.v3Contract()"); U = {u['id']: u for u in c['units']}
+        kinds = ('foot', 'horse', 'crew', 'gun', 'flag', 'block'); within = all(0 <= m[k] <= m['max'][k] for k in kinds); tris = sum(m[k] * m['trisEach'][k] for k in kinds)
+        print('MEN', 'OK' if m0 is None and pa[1] and pa[1]['unit'] == pa[0] and pa[1]['figure'] is None and m['foot'] > 500 and m['block'] > 100 and m['bodies'] >= 1 and within and tris == m['tris'] and m['max']['foot'] == 9000 else 'BAD',
+              {k: m[k] for k in kinds}, 'bodies as men', m['bodies'], 'triangles', m['tris'], 'men drawn within m', m['range'], 'caps', m['max'])
+        # a body drawn as men keeps the contract's footprint and facing: every man stands inside the front and depth the contract gives, turned
+        # to its facing, and no more men are drawn than it has (all of them, where the whole body is in view)
+        def inside(u, pts, pad):
+            f = math.radians(u['facing']); cf, sf = math.cos(f), math.sin(f); worst = 0
+            for k, x, z, h, y in pts:
+                dx, dz = x - u['x'], z - u['y']; lx, lz = dx * cf + dz * sf, -dx * sf + dz * cf; worst = max(worst, abs(lx) - u['front'] / 2, abs(lz) - u['depth'] / 2)
+            return worst <= pad, round(worst, 2)
+        res = []; whole = 0
+        for uid in m['asMen']:
+            u = U[uid]; figs = await pg.evaluate(f"WGame.v3Figures('{uid}')"); arm = c['arms'][u['arm']]; kind = 'gun' if arm['crew'] else 'horse' if arm['mounted'] else 'foot'
+            pts = [p for p in figs if p[0] == kind]; n = len(pts) - (1 if kind == 'horse' else 0)  # a mounted body's officer is one more horseman
+            ok_in, worst = inside(u, [p for p in figs if p[0] in ('foot', 'gun')] if kind != 'horse' else pts, 7)  # 7 m: the officer and guidon stand just outside the ranks
+            if n < 1: continue  # in range but wholly outside what the eye takes in: nothing of it to check
+            turn = max(abs((p[3] - u['facing'] + 540) % 360 - 180) for p in pts); whole += n == u['str']
+            res.append(ok_in and n <= u['str'] and turn < 3 and not any(p[0] == 'block' for p in figs))
+            last = {'body': uid, 'arm': u['arm'], 'men': u['str'], 'drawn': n, 'furthest outside footprint m': worst, 'largest turn from facing, degrees': round(turn, 2)}
+        print('FOOTPRINT', 'OK' if len(res) >= 2 and all(res) and whole >= 1 else 'BAD', len(res), 'bodies checked,', whole, 'drawn whole; last', last)
+        # the budget holds: with the cap on men lowered for the test to one short of what was drawn, the last body no longer fits and keeps
+        # its stand-in blocks, while the nearer ones are still men
+        cap = m['foot'] - 1; await pg.evaluate(f"WGame.v3Cap({{ foot: {cap} }})"); await pg.wait_for_timeout(600); mb = await pg.evaluate("WGame.v3Men()"); gone = [i for i in m['asMen'] if i not in mb['asMen']]
+        fb = await pg.evaluate(f"WGame.v3Figures('{gone[0]}')") if gone else []; await pg.evaluate("WGame.v3Cap()"); await pg.wait_for_timeout(600); mr = await pg.evaluate("WGame.v3Men()")
+        print('BUDGET', 'OK' if 0 < mb['foot'] <= cap and mb['left'] >= 1 and gone and fb and all(p[0] == 'block' for p in fb) and mr['foot'] == m['foot'] and mr['left'] == 0 else 'BAD', {'cap': cap, 'men drawn': mb['foot'], 'bodies left as blocks': mb['left'], 'blocks for the first': len(fb), 'restored': mr['foot']})
+        # through the glass, horse and guns are drawn as horsemen and as pieces with their crews: aim at the nearest of each and see what is at the centre
+        mine = [u for u in c['units'] if u['side'] == c['side']]; near = lambda want: min([u for u in mine if want(c['arms'][u['arm']]) and u['status'] == 'steady'], key=lambda u: math.hypot(u['x'] - c['at']['x'], u['y'] - c['at']['y']))
+        await pg.evaluate("WGame.v3Field('glass')"); out = {}
+        for name, want, up in (('foot', lambda a: not a['mounted'] and not a['crew'], 1.2), ('horse', lambda a: a['mounted'], 1.6), ('gun', lambda a: a['crew'] > 0, 0.9)):
+            u = near(want); lk = await pg.evaluate(f"WGame.v3Look({u['x']}, {u['y']}, {up})"); await pg.wait_for_timeout(900); mm = await pg.evaluate("WGame.v3Men()"); figs = await pg.evaluate(f"WGame.v3Figures('{u['id']}')")
+            hits = [await pg.evaluate(f"WGame.v3Probe({x / 10}, {y / 10})") for x in range(-3, 4) for y in (-1, 0, 1)]; seen = {h['figure'] for h in hits if h and h['figure']}
+            out[name] = {'body': u['id'], 'm': round(lk['dist']), 'drawn': sum(1 for p in figs if p[0] == name), 'crew': sum(1 for p in figs if p[0] == 'crew'), 'at the centre': sorted(seen)}
+            await shot('v3d_4_glass_' + name)
+        okg = out['foot']['drawn'] > 20 and 'foot' in out['foot']['at the centre'] and out['horse']['drawn'] > 20 and 'horse' in out['horse']['at the centre'] and out['gun']['drawn'] >= 1 and out['gun']['crew'] == 5 * out['gun']['drawn'] and ({'gun', 'crew'} & set(out['gun']['at the centre']))
+        print('ARMS', 'OK' if okg else 'BAD', out)
+        # standing among the men of a body, none is drawn within 2 m of the eye and no stand-in block surrounds it
+        u = near(lambda a: not a['mounted'] and not a['crew']); await pg.evaluate("WGame.v3Field('wide')"); await pg.evaluate(f"WGame.v3Stand({u['x']}, {u['y']}, 0)"); await pg.wait_for_timeout(900)
+        fi = [p for p in await pg.evaluate(f"WGame.v3Figures('{u['id']}')") if p[0] == 'foot']; mid = fi[len(fi) // 2]  # one of its men (in a front rank): stand where he stands and look back down the ranks
+        await pg.evaluate(f"WGame.v3Stand({mid[1]}, {mid[2]}, {math.pi - math.radians(u['facing'])})"); await pg.wait_for_timeout(900); mi = await pg.evaluate("WGame.v3Men()"); fi = await pg.evaluate(f"WGame.v3Figures('{u['id']}')")
+        print('AMONG', 'OK' if mi['nearest'] is not None and mi['hide'] == 2 and mi['hide'] <= mi['nearest'] < 4 and u['id'] in mi['asMen'] and not any(p[0] == 'block' for p in fi) else 'BAD', {'body': u['id'], 'nearest man m': round(mi['nearest'], 2) if mi['nearest'] else None})
+        await shot('v3d_5_among'); await pg.evaluate("WGame.v3Post()"); await pg.click('#v3g'); await pg.wait_for_timeout(1200)
         # walking leaves headquarters (the caption stops saying so); the second button goes back; and from above the second button steps down
         # where the view is centred, as the ground view first worked
         await pg.click('#v3g'); await pg.wait_for_timeout(1200); await pg.mouse.move(box[0], box[1]); await pg.mouse.wheel(0, -100); await pg.wait_for_timeout(200); w1 = await pg.evaluate("WGame.v3At()")
@@ -127,6 +171,8 @@ async def main():
         print('GROUND', 'OK' if e['ground'] and abs(e['y'] - e['floor'] - 2.5) < 0.01 and e['ex'] == 1 and e['treeH'] <= 25 and e['blockH'] <= 2 and e['fov'] == 60 and e['trees'] > 2000 and e['shrubs'] > 300 else 'BAD', {k: round(v, 1) if isinstance(v, float) else v for k, v in e.items()})
         k = await pg.evaluate("WGame.v3Sky()")
         print('LIGHT', 'OK' if k['alt'] > 50 and 120 < k['bearing'] < 240 and k['sun'] > 0.4 and k['tufts'] == 4096 and k['step'] == 1 and 3000 < k['fogFar'] <= 20000 else 'BAD', {a: (round(b, 2) if isinstance(b, float) else b) for a, b in k.items()})
+        m = await pg.evaluate("WGame.v3Men()"); kinds = ('foot', 'horse', 'crew', 'gun', 'flag', 'block')  # men and stand-in blocks at phone size, inside their caps
+        print('MEN', 'OK' if m and m['block'] > 50 and all(0 <= m[k] <= m['max'][k] for k in kinds) and m['foot'] + m['horse'] + m['gun'] > 0 else 'BAD', {k: m[k] for k in kinds}, 'triangles', m['tris'])
         # the field's steps at phone size: the eye keeps one minute of arc a pixel (or its 8 degree floor), and the eyepiece fits the screen
         await pg.tap('#v3f'); await pg.wait_for_timeout(400); g = await pg.evaluate("WGame.v3Glass()"); want = min(60, max(8, 2 * math.degrees(math.atan(g['h'] * math.tan(math.radians(1 / 60)) / 2)))); ok = g['field'] == 'eye' and abs(g['fov'] - want) < 1e-6
         await pg.tap('#v3f'); await pg.wait_for_timeout(400); g = await pg.evaluate("WGame.v3Glass()"); want = 2 * math.degrees(math.atan(math.tan(math.radians(30)) / g['glass']['power']))

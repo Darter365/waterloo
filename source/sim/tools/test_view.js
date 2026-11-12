@@ -24,6 +24,12 @@ const B = make(), V = View.install(B), hashesB = []; V.watch('chief'); V.watch('
 const world = V.world();
 ok(JSON.stringify(JSON.parse(JSON.stringify(world))) === JSON.stringify(world), 'the world is plain data');
 ok(world.grid.heights.length === world.grid.nx * world.grid.ny, 'the height grid is whole');
+// arms and formations as capabilities: every arm and formation a body on the field has is described, and matches the era pack
+{ const era = B.era, T0 = V.snapshot('truth'), armsSeen = new Set(T0.units.map(u => u.arm)), formsSeen = new Set(T0.units.map(u => u.form));
+  ok([...armsSeen].every(a => world.arms[a] && typeof world.arms[a].mounted === 'boolean' && typeof world.arms[a].crew === 'number'), `every arm on the field is described to a client (${[...armsSeen].join(', ')})`);
+  ok(Object.entries(world.arms).every(([id, a]) => a.mounted === !!era.arms[id].charges && a.crew === (era.arms[id].crew || 0)), 'an arm rides or serves pieces as the era pack says');
+  ok([...formsSeen].every(f => world.formations[f] || world.formationElse), `every formation on the field is described (${[...formsSeen].join(', ')})`);
+  ok(Object.entries(world.formations).every(([id, f]) => f.allRound === !!era.formations[id].allRound && f.column === !!era.formations[id].column && f.fire === (era.formations[id].fire ?? null)), 'a formation faces all round, marches or fires as the era pack says'); }
 let lastC = 0, lastT = 0, nC = 0, nT = 0, leak = 0, keyLeak = 0, posOnUnseen = 0, extraOnUnseen = 0, order = 0, subTick = 0, staleShown = 0, enemySeen = 0, ownFromBelief = 0, ownChecked = 0, kinds = {}, heardOnly = 0, moved = 0, tampered = 0;
 // the values the loop's measures read (tools/loop.js): orders, the staff's estimate, starred dispatches, the keys beside the truth
 let diceSeen = 0, diceTampered = 0, ordKnows = 0, ordShape = 0, ordSeen = 0, expSeen = 0, starShape = 0, stars = 0, keyWrong = 0, keyOwn = 0, keysMatched = 0, truthOrd = 0, truthOrdBad = 0;

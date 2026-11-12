@@ -2,7 +2,8 @@
    A client (the 2D map today, a 3D headquarters later) needs nothing else from the engine:
 
      const V = WView.install(E);
-     V.world()            the ground, once: heights, roads, woods, buildings, places (never changes during a battle)
+     V.world()            the ground, once: heights, roads, woods, buildings, places (never changes during a battle); and what the
+                          era's arms and formations are, as capabilities (does it ride, is it a crew, does it face all round)
      V.snapshot('chief')  what the player's commander believes right now: his own brigades as last reported, the enemy as last
                           seen, who he thinks holds each place, what he hears, the orders he has given as far as he knows;
                           where he stands (at) and the telescope he carries (glass: its power and its field, from the packs)
@@ -81,6 +82,12 @@ function install(E) {
       places: E.sps.map(sp => ({ id: sp.id, name: sp.name, x: r1(sp.x), y: r1(sp.y) })),
       objectives: Object.values(E.objectives || {}).map(o => ({ id: o.id, name: o.name, x: o.point ? r1(o.point[0]) : null, y: o.point ? r1(o.point[1]) : null })),
       sides: E.sides.map(s => ({ id: s.id, coalition: E.coalition[s.id] })),
+      // what a client needs to draw a body as men rather than a block, as capabilities and never as names: whether an arm rides,
+      // how many serve each piece if it is a crew, how tall a target it makes; and for each formation the share of the men in the
+      // firing line, how dense it stands, whether it faces all round and whether it is a column of march (all from the era pack)
+      arms: Object.fromEntries(Object.entries(arms).map(([id, a]) => [id, { mounted: !!a.charges, crew: a.crew || 0, height: a.height || null }])),
+      formations: Object.fromEntries(Object.entries(E.era.formations || {}).map(([id, f]) => [id, { fire: f.fire ?? null, density: f.density ?? null, allRound: !!f.allRound, column: !!f.column }])),
+      formationElse: { fire: (E.era.formationElse || {}).fire ?? null, density: null, allRound: false, column: false },
       light: { sunset: E.light.sunset, dark: E.light.dark },
     });
   }
