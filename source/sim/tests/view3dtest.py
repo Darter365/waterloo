@@ -35,6 +35,14 @@ async def desktop():
         g0 = await pg.evaluate("({ f: document.getElementById('v3f').hidden })")
         await pg.click('#v3btn'); await pg.wait_for_timeout(1200); a0 = await pg.evaluate("WGame.v3Eye()"); f0 = await pg.evaluate("document.getElementById('v3f').hidden")
         await pg.click('#v3g'); await pg.wait_for_timeout(1500); g = await pg.evaluate("WGame.v3Glass()")
+        # headquarters: "On the ground" opens at the commander's post as the contract gives it (or up to 80 m forward of it, where a building
+        # would fill the view), at the engine's eye height, facing the enemy's centre of mass by strength; worked out here from the contract alone
+        at = await pg.evaluate("WGame.v3At()"); c = await pg.evaluate("WGame.v3Contract()"); e = await pg.evaluate("WGame.v3Eye()"); co = {sd['id']: sd['coalition'] for sd in c['sides']}
+        foe = [u for u in c['units'] if co[u['side']] != co[c['side']]]; sw = sum(u['str'] for u in foe); cx = sum(u['x'] * u['str'] for u in foe) / sw; cy = sum(u['y'] * u['str'] for u in foe) / sw
+        d = math.hypot(cx - c['at']['x'], cy - c['at']['y']); dx = (cx - c['at']['x']) / d; dy = (cy - c['at']['y']) / d; az = math.atan2(-dx, -dy)
+        off = math.hypot(at['x'] - c['at']['x'] - dx * at['step'], at['z'] - c['at']['y'] - dy * at['step']); pj = await pg.evaluate(f"WGame.v3Project({cx}, {cy}, 0)"); pr = await pg.evaluate("WGame.v3Probe(0, 0)")
+        print('HQ', 'OK' if at['ground'] and at['atPost'] and off < 0.2 and 0 <= at['step'] <= 80 and abs(at['az'] - az) < 1e-6 and abs(e['y'] - e['floor'] - c['eye']) < 0.01 and c['eye'] == 2.5 and abs(pj['x']) < 0.01 and pj['z'] < 1 and (pr is None or pr['dist'] > 80) and 'at headquarters' in at['caption'] and at['second'] == 'To headquarters' else 'BAD',
+              {'post': [c['at']['x'], c['at']['y']], 'eye': [r3(at['x']), r3(at['z'])], 'stepped forward m': at['step'], 'faces': r3(math.degrees(-at['az']) % 360), 'enemy centre on screen x': r3(pj['x']), 'first thing ahead m': pr and pr['dist'], 'eye height': r3(e['y'] - e['floor'])})
         # wide: 60 degrees as before, no eyepiece; the button belongs to the ground view only
         print('WIDE', 'OK' if g0['f'] and f0 and a0['fov'] == 38 and g['button'] and g['field'] == 'wide' and g['fov'] == 60 and not g['mask'] and 'wide view' in g['caption'] and g['sway'] == [0, 0] else 'BAD', {k: r3(g[k]) for k in ('field', 'fov', 'mask', 'label', 'h', 'w')})
         await shot('v3d_1_wide')
@@ -65,6 +73,13 @@ async def desktop():
         for i in range(3): await pg.click('#v3f'); await pg.wait_for_timeout(150); seq.append((await pg.evaluate("WGame.v3Glass()"))['field'])
         await pg.click('#v3g'); await pg.wait_for_timeout(1200); a1 = await pg.evaluate("WGame.v3Eye()"); f1 = await pg.evaluate("document.getElementById('v3f').hidden"); m1 = (await pg.evaluate("WGame.v3Glass()"))['mask']
         print('STEPS', 'OK' if seq == ['eye', 'glass', 'wide'] and a1['fov'] == 38 and not a1['ground'] and f1 and not m1 else 'BAD', seq, a1['fov'], f1, m1)
+        # walking leaves headquarters (the caption stops saying so); the second button goes back; and from above the second button steps down
+        # where the view is centred, as the ground view first worked
+        await pg.click('#v3g'); await pg.wait_for_timeout(1200); await pg.mouse.move(box[0], box[1]); await pg.mouse.wheel(0, -100); await pg.wait_for_timeout(200); w1 = await pg.evaluate("WGame.v3At()")
+        await pg.click('#v3h'); await pg.wait_for_timeout(200); w2 = await pg.evaluate("WGame.v3At()")
+        await pg.click('#v3g'); await pg.wait_for_timeout(1200); up = await pg.evaluate("WGame.v3At()"); await pg.evaluate("WGame.v3Stand(3350, 5250, 0.05)"); await pg.click('#v3h'); await pg.wait_for_timeout(1500); w3 = await pg.evaluate("WGame.v3At()"); e3 = await pg.evaluate("WGame.v3Eye()")
+        print('WALK', 'OK' if not w1['atPost'] and math.hypot(w1['x'] - at['x'], w1['z'] - at['z']) > 50 and 'headquarters' not in w1['caption'] and w2['atPost'] and math.hypot(w2['x'] - at['x'], w2['z'] - at['z']) < 0.01 and abs(w2['az'] - az) < 1e-6 else 'BAD', {'walked m': r3(math.hypot(w1['x'] - at['x'], w1['z'] - at['z'])), 'back at post': w2['atPost']})
+        print('STEPDOWN', 'OK' if up['second'] == 'Step down here' and not up['ground'] and w3['ground'] and not w3['atPost'] and abs(w3['x'] - 3350) < 0.01 and abs(w3['z'] - 5250) < 0.01 and abs(w3['az'] - 0.05) < 1e-9 and abs(e3['y'] - e3['floor'] - 2.5) < 0.01 else 'BAD', [w3['x'], w3['z'], w3['az'], w3['atPost']])
         print('errors', errs[:6])
         await b.close()
 async def main():
@@ -107,6 +122,8 @@ async def main():
         await pg.evaluate("WGame.v3Cam(0.5, 1.15, 3600)"); await pg.wait_for_timeout(400); await shot('v3_2_running')
         # on the ground: the eye comes down to a rider's height, looks level, and walks forward on a pinch or scroll
         await pg.evaluate("WGame.v3Stand(3350, 5250, 0.05)"); await pg.tap('#v3g'); await pg.wait_for_timeout(1500); e = await pg.evaluate("WGame.v3Eye()")
+        hq = await pg.evaluate("WGame.v3At()"); c = await pg.evaluate("WGame.v3Contract()")  # "On the ground" now opens at headquarters, not where the view from above was centred
+        print('HQ', 'OK' if hq['atPost'] and math.hypot(hq['x'] - c['at']['x'], hq['z'] - c['at']['y']) <= hq['step'] + 0.2 <= 80.2 and 'at headquarters' in hq['caption'] else 'BAD', [c['at']['x'], c['at']['y']], [r3(hq['x']), r3(hq['z'])], hq['step'])
         print('GROUND', 'OK' if e['ground'] and abs(e['y'] - e['floor'] - 2.5) < 0.01 and e['ex'] == 1 and e['treeH'] <= 25 and e['blockH'] <= 2 and e['fov'] == 60 and e['trees'] > 2000 and e['shrubs'] > 300 else 'BAD', {k: round(v, 1) if isinstance(v, float) else v for k, v in e.items()})
         k = await pg.evaluate("WGame.v3Sky()")
         print('LIGHT', 'OK' if k['alt'] > 50 and 120 < k['bearing'] < 240 and k['sun'] > 0.4 and k['tufts'] == 4096 and k['step'] == 1 and 3000 < k['fogFar'] <= 20000 else 'BAD', {a: (round(b, 2) if isinstance(b, float) else b) for a, b in k.items()})

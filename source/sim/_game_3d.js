@@ -6,7 +6,7 @@
 // three.js (vendor/three.min.js, MIT) is carried in the page as text and only started the first time this view opens.
 // Sizes marked (est.) are chosen to read well at a distance; they are not measurements.
 const V3 = { on: false, sim: null, tick: -1, prev: null, cur: null, units: new Map(), err: null, frames: 0,
-  cam: { az: 0, pol: 0.95, dist: 7000, tx: 0, tz: 0, ground: false, pitch: 0, field: 'wide' }, glass: null, still: false, t0: 0 };
+  cam: { az: 0, pol: 0.95, dist: 7000, tx: 0, tz: 0, ground: false, pitch: 0, field: 'wide', atPost: false }, glass: null, chief: null, still: false, t0: 0 };
 const V3K = {
   TEX: 1024,                   // ground picture, pixels along the long side
   LOW: [0x9c, 0xb8, 0x6a], HIGH: [0xe2, 0xd9, 0x9a], // ground colour from the lowest ground to the highest
@@ -32,6 +32,10 @@ const V3K = {
   //         view is taken as power 1), shown in a round eyepiece whose circle is the glass's true field. SWAY is how far a held glass
   //         wanders, as a share of that field, and SWAY_S the seconds of its three slow swings (est.; repeatable, no dice).
   FIELD: { ABOVE: 38, WIDE: 60, ARCMIN: 1, EYE_MIN: 8, SWAY: 0.03, SWAY_S: [3.1, 4.7, 1.3], TURN: 0.004, TILT: 0.003 },
+  // Standing at headquarters: the ground view opens at the commander's post (the contract's own place for him), facing the enemy's
+  // centre of mass. If a building within CLEAR metres would fill the view ahead (inside HALF degrees either side), the eye steps
+  // forward STEP metres at a time, at most REACH, until the view is open: a commander stands where he can see (all est.).
+  POST: { CLEAR: 80, HALF: 50, STEP: 5, REACH: 80 },
   MASK: { RIM: '#0b0a09', SHADE: 'rgba(11,10,9,.38)', SOFT: 0.86 }, // the eyepiece: its dark surround, and the shading that begins at SOFT of its radius
   // Two scales. From above, heights, trees and blocks are drawn large so the field reads at five kilometres; every figure is (est.)
   // and chosen for legibility. On the ground everything is life size: heights as surveyed, the eye at the engine's own 2.5 m for a
@@ -84,6 +88,7 @@ function v3Ground(W) { // the ground's picture: height bands shaded by slope as 
 function v3Build() {
   const T = globalThis.THREE, W = SIM.view.world(), g = W.grid, box = $('v3'), cv = $('v3c');
   const K = V3.K = v3K(), fresh = V3.sim !== SIM;
+  V3.eye = (SIM.view.P && SIM.view.P.EYE) || V3K.GROUND.EYE; // the eye's height is the contract's (the engine's own, for a mounted officer)
   if (V3.scene) V3.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); // the last scale's models
   if (!V3.renderer) { V3.renderer = new T.WebGLRenderer({ canvas: cv, antialias: true }); V3.renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1)); }
   const S = V3.scene = new T.Scene(); V3.camera = new T.PerspectiveCamera(38, 1, K.NEAR, K.FAR); V3.w = 0; V3.W = W; V3.units = new Map(); V3.sim = SIM; V3.tick = -1; V3.prev = V3.cur = null;
@@ -157,7 +162,9 @@ function v3Take() { // a new tick: keep the last picture to glide from, take the
   V3.prev = V3.cur || m; V3.cur = m; V3.snap = snap; V3.tick = SIM.tick;
   // the player's commander, from his own snapshot: only where he stands and the glass he carries are read here (the picture drawn
   // stays the umpire's). A battle with no command layer has no commander to stand beside, and no glass.
-  { let c = null; try { c = SIM.view.snapshot('chief'); } catch (e) { c = null; } V3.glass = c && c.glass ? c.glass : null; if (!V3.glass && V3.cam.field === 'glass') v3Field('wide'); }
+  { let c = null; try { c = SIM.view.snapshot('chief'); } catch (e) { c = null; } V3.glass = c && c.glass ? c.glass : null; if (!V3.glass && V3.cam.field === 'glass') v3Field('wide');
+    const was = V3.chief; V3.chief = c && c.at ? { x: c.at.x, y: c.at.y, side: c.side } : null; $('v3h').hidden = !V3.chief;
+    if (V3.cam.ground && V3.cam.atPost && V3.chief && was && (was.x !== V3.chief.x || was.y !== V3.chief.y)) v3ToPost(true); } // headquarters moved: the eye goes with it
   const T = globalThis.THREE, S = V3.scene;
   for (const [id, o] of V3.units) if (!m.has(id)) { S.remove(o); o.material.dispose(); V3.units.delete(id); }
   for (const u of snap.units) if (!V3.units.has(u.id)) { const o = new T.Mesh(V3.unitGeo, new T.MeshLambertMaterial({ color: new T.Color(v3SideColour(u.side)) })); V3.units.set(u.id, o); S.add(o); }
@@ -207,7 +214,7 @@ function v3Caption() {
   if (!V3.snap) return; const C = V3.cam, x = n => (Math.round(n * 10) / 10).toString();
   const how = !C.ground ? 'heights drawn ×' + V3K.ABOVE.EX : 'life size · ' + (C.field === 'glass' && V3.glass ? `through the glass, ${x(V3.glass.power)}×`
     : C.field === 'eye' ? `as sharp as the eye (a screen correction, ${x(v3Power())}×; not a glass)` : 'wide view');
-  $('v3cap').textContent = `${C.ground ? 'On the ground' : 'The field in relief'} · the umpire’s picture · ${V3.snap.clock} · ${how}`;
+  $('v3cap').textContent = `${C.ground ? (C.atPost ? 'On the ground at headquarters' : 'On the ground') : 'The field in relief'} · the umpire’s picture · ${V3.snap.clock} · ${how}`;
 }
 // the round eyepiece: everything outside the glass's true field is blacked out. Its radius on the screen is derived: the circle seen
 // in the eyepiece (apparent) against the wide field the screen stands for, r = (h / 2) tan(apparent / 2) / tan(WIDE / 2).
@@ -221,9 +228,34 @@ function v3Field(to) {
   const C = V3.cam, steps = V3.glass ? ['wide', 'eye', 'glass'] : ['wide', 'eye']; C.field = to && steps.includes(to) ? to : steps[(steps.indexOf(C.field) + 1) % steps.length]; V3.t0 = performance.now();
   $('v3f').textContent = 'View: ' + { wide: 'wide', eye: 'the eye', glass: 'the glass' }[C.field]; v3Caption();
 }
-function v3Ground2(on) { // step down to the ground where the view from above is centred, or back up
-  V3.cam.ground = on; V3.cam.pitch = 0; if (V3.on) { v3Build(); V3.tick = -1; V3.cur = V3.prev = null; } const b = $('v3g'); b.textContent = on ? 'From above' : 'On the ground'; b.setAttribute('aria-pressed', on ? 'true' : 'false');
+// Where the player's commander stands, and which way he would look: read from the contract (his own snapshot for his place, the
+// truth for the enemy, since this is the umpire's picture). The facing is toward the enemy's centre of mass, by strength, or, with no
+// enemy on the field, toward the nearest objective.
+function v3Chief() { let c = null; try { c = SIM.view.snapshot('chief'); } catch (e) { c = null; } return c && c.at ? { x: c.at.x, y: c.at.y, side: c.side } : null; }
+function v3Blocked(W, x, y, dx, dy) { // does a building stand close ahead of this spot, or over it?
+  const K = V3K.POST, cosH = Math.cos(K.HALF * Math.PI / 180);
+  for (const b of [...W.buildings, ...W.houses]) { const r = (b.rot || 0) * Math.PI / 180, cs = Math.cos(r), sn = Math.sin(r), hw = b.w / 2, hh = b.h / 2, u = (x - b.x) * cs + (y - b.y) * sn, v = -(x - b.x) * sn + (y - b.y) * cs;
+    if (Math.abs(u) < hw + 1 && Math.abs(v) < hh + 1) return true;
+    for (const [a, c] of [[0, 0], [-hw, -hh], [hw, -hh], [-hw, hh], [hw, hh], [0, -hh], [0, hh], [-hw, 0], [hw, 0]]) { const px = b.x + a * cs - c * sn - x, py = b.y + a * sn + c * cs - y, d = Math.hypot(px, py); if (d < K.CLEAR && (px * dx + py * dy) / (d || 1) > cosH) return true; } }
+  return false;
+}
+function v3ToPost(keepLook) { // put the eye at headquarters; keepLook leaves its facing alone (headquarters moved while you were looking)
+  const C = V3.cam, at = V3.chief || v3Chief(), W = V3.W; if (!at || !W) return false;
+  const snap = V3.snap || SIM.view.snapshot('truth'), co = Object.fromEntries(W.sides.map(sd => [sd.id, sd.coalition])); let sx = 0, sy = 0, sw = 0;
+  for (const u of snap.units) if (co[u.side] !== co[at.side]) { sx += u.x * u.str; sy += u.y * u.str; sw += u.str; }
+  let aim = sw > 0 ? [sx / sw, sy / sw] : null;
+  if (!aim) { let bd = Infinity; for (const o of W.objectives) if (o.x != null) { const d = Math.hypot(o.x - at.x, o.y - at.y); if (d > 1 && d < bd) { bd = d; aim = [o.x, o.y]; } } }
+  let dx = 0, dy = -1; if (aim) { const d = Math.hypot(aim[0] - at.x, aim[1] - at.y) || 1; dx = (aim[0] - at.x) / d; dy = (aim[1] - at.y) / d; }
+  let step = 0; while (step < V3K.POST.REACH && v3Blocked(W, at.x + dx * step, at.y + dy * step, dx, dy)) step += V3K.POST.STEP;
+  if (step >= V3K.POST.REACH && v3Blocked(W, at.x + dx * step, at.y + dy * step, dx, dy)) step = 0; // no open view within reach: stay at the post itself
+  C.tx = v3clamp(at.x + dx * step, 0, W.size.w); C.tz = v3clamp(at.y + dy * step, 0, W.size.h); C.atPost = true; V3.postStep = step; V3.postAim = aim;
+  if (!keepLook) { C.az = Math.atan2(-dx, -dy); C.pitch = 0; } // the camera looks along (-sin az, -cos az)
+  v3Caption(); return true;
+}
+function v3Ground2(on, here) { // down to the ground, or back up. Down is to headquarters; `here` steps down where the view from above is centred instead
+  V3.cam.ground = on; V3.cam.pitch = 0; V3.cam.atPost = false; if (V3.on) { v3Build(); V3.tick = -1; V3.cur = V3.prev = null; } const b = $('v3g'); b.textContent = on ? 'From above' : 'On the ground'; b.setAttribute('aria-pressed', on ? 'true' : 'false');
   $('v3f').hidden = !on; v3Field(V3.cam.field); // the field's steps belong to the ground view; the step last used is kept
+  if (on && !here) v3ToPost(); $('v3h').textContent = on ? 'To headquarters' : 'Step down here'; $('v3h').hidden = !(V3.chief || v3Chief());
 }
 function v3Frame() { // called every frame by the page's loop; cheap unless the view is open
   const b = $('v3btn'), ok = v3ok(); if (b.hidden === ok) b.hidden = !ok;
@@ -242,7 +274,7 @@ function v3Frame() { // called every frame by the page's loop; cheap unless the 
     const s = (performance.now() - V3.t0) / 1000, a = V3K.FIELD.SWAY * V3.glass.field * Math.PI / 180, P = V3K.FIELD.SWAY_S, w = k => 2 * Math.PI * s / P[k];
     saz = a * (0.6 * Math.sin(w(0)) + 0.3 * Math.sin(w(1) + 1) + 0.1 * Math.sin(w(2))); spi = a * (0.6 * Math.sin(w(1)) + 0.3 * Math.sin(w(0) + 2) + 0.1 * Math.sin(w(2) + 1)); }
   V3.sway = [saz, spi];
-  if (C.ground) { const ey = ty + V3K.GROUND.EYE, az = C.az + saz, pi = C.pitch + spi, cp = Math.cos(pi); cam.position.set(C.tx, ey, C.tz); cam.lookAt(C.tx - Math.sin(az) * cp * 100, ey + Math.sin(pi) * 100, C.tz - Math.cos(az) * cp * 100); } // standing on the ground, looking the way the view from above was facing
+  if (C.ground) { const ey = ty + V3.eye, az = C.az + saz, pi = C.pitch + spi, cp = Math.cos(pi); cam.position.set(C.tx, ey, C.tz); cam.lookAt(C.tx - Math.sin(az) * cp * 100, ey + Math.sin(pi) * 100, C.tz - Math.cos(az) * cp * 100); } // standing on the ground, looking the way the view from above was facing
   else { cam.position.set(C.tx + C.dist * Math.sin(C.pol) * Math.sin(C.az), ty + C.dist * Math.cos(C.pol), C.tz + C.dist * Math.sin(C.pol) * Math.cos(C.az)); cam.lookAt(C.tx, ty, C.tz); }
   V3.dome.position.copy(cam.position); if (V3.sunDir) V3.disc.position.copy(cam.position).addScaledVector(V3.sunDir, V3.K.FAR * 0.75); if (V3.tufts) v3Tufts();
   if (cam.fov !== fov) { cam.fov = fov; cam.updateProjectionMatrix(); v3Caption(); } v3Mask();
@@ -259,11 +291,13 @@ $('v3btn').addEventListener('click', () => V3.on ? v3Close() : v3Open());
 $('v3x').addEventListener('click', v3Close);
 $('v3g').addEventListener('click', () => v3Ground2(!V3.cam.ground));
 $('v3f').addEventListener('click', () => v3Field());
+// the second button: from above, step down where the view is centred (the first way this view worked); on the ground, go back to headquarters
+$('v3h').addEventListener('click', () => { if (V3.cam.ground) v3ToPost(); else v3Ground2(true, true); });
 // one finger or the mouse turns the field; two fingers, the wheel or shift-drag move and zoom
 (function () {
   const el = $('v3c'), P = new Map(); let pinch = 0, mid = null;
-  const pan = (dx, dy) => { const C = V3.cam, k = C.ground ? V3K.WALK : C.dist / Math.max(200, V3.h || 400); C.tx = v3clamp(C.tx - (dx * Math.cos(C.az) + dy * Math.sin(C.az)) * k, 0, V3.W.size.w); C.tz = v3clamp(C.tz - (-dx * Math.sin(C.az) + dy * Math.cos(C.az)) * k, 0, V3.W.size.h); };
-  const zoom = f => { const C = V3.cam; if (C.ground) { const d = (1 - f) * 900; C.tx = v3clamp(C.tx - Math.sin(C.az) * d, 0, V3.W.size.w); C.tz = v3clamp(C.tz - Math.cos(C.az) * d, 0, V3.W.size.h); } else C.dist = v3clamp(C.dist * f, 600, 16000); }; // on the ground, zooming in is walking forward
+  const pan = (dx, dy) => { const C = V3.cam, k = C.ground ? V3K.WALK : C.dist / Math.max(200, V3.h || 400); C.tx = v3clamp(C.tx - (dx * Math.cos(C.az) + dy * Math.sin(C.az)) * k, 0, V3.W.size.w); C.tz = v3clamp(C.tz - (-dx * Math.sin(C.az) + dy * Math.cos(C.az)) * k, 0, V3.W.size.h); if (C.atPost) { C.atPost = false; v3Caption(); } };
+  const zoom = f => { const C = V3.cam; if (C.ground) { const d = (1 - f) * 900; C.tx = v3clamp(C.tx - Math.sin(C.az) * d, 0, V3.W.size.w); C.tz = v3clamp(C.tz - Math.cos(C.az) * d, 0, V3.W.size.h); if (C.atPost) { C.atPost = false; v3Caption(); } } else C.dist = v3clamp(C.dist * f, 600, 16000); }; // on the ground, zooming in is walking forward
   el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); P.set(e.pointerId, [e.clientX, e.clientY]); pinch = 0; mid = null; });
   el.addEventListener('pointermove', e => { if (!P.has(e.pointerId) || !V3.on) return; const was = P.get(e.pointerId), dx = e.clientX - was[0], dy = e.clientY - was[1]; P.set(e.pointerId, [e.clientX, e.clientY]);
     // through the glass or the eye's step a drag turns the eye less, by the power, so a narrow field can still be aimed
@@ -278,9 +312,13 @@ globalThis.WGame && Object.assign(globalThis.WGame, { v3: () => ({ on: V3.on, er
     mover: (() => { let best = null, bd = 0; for (const [id, o] of V3.units) { const c = V3.cur.get(id), p = V3.prev.get(id) || c, d = Math.hypot(c.x - p.x, c.y - p.y); if (d > bd) { bd = d; best = { id, x: o.position.x, z: o.position.z, cx: c.x, cy: c.y, px: p.x, py: p.y, d }; } } return best; })() }), // the brigade that moved furthest this tick
   v3Open: () => v3Open(), v3Close: () => v3Close(), v3Cam: (az, pol, dist) => { V3.cam.az = az; V3.cam.pol = pol; V3.cam.dist = dist; },
   v3Probe: (nx, ny) => { const T = globalThis.THREE, rc = new T.Raycaster(); rc.setFromCamera(new T.Vector2(nx, ny), V3.camera); const h = rc.intersectObjects(V3.scene.children.filter(o => o.visible), false)[0]; if (!h) return null; let unit = null; for (const [id, o] of V3.units) if (o === h.object) unit = id; return { dist: Math.round(h.distance), unit, geo: h.object.geometry.type, colour: h.object.material.color.getHexString(), instance: h.instanceId ?? null }; }, // what is drawn at a point of the screen (-1..1)
-  v3Stand: (x, y, az) => { V3.cam.tx = x; V3.cam.tz = y; V3.cam.az = az; }, v3Sky: () => Object.assign({ horizon: V3.scene.background.getHexString(), sunColour: V3.sun.color.getHexString(), tufts: V3.tufts ? V3.tufts.count : 0, step: V3.K.STEP }, V3.light), v3Eye: () => ({ ex: V3.K.EX, treeH: V3.K.TREE_H, blockH: V3.K.H.inf, ground: V3.cam.ground, y: V3.camera.position.y, floor: V3.at(V3.cam.tx, V3.cam.tz), trees: V3.trees, shrubs: V3.shrubs, fov: V3.camera.fov }),
+  v3Stand: (x, y, az) => { V3.cam.tx = x; V3.cam.tz = y; V3.cam.az = az; if (V3.cam.atPost) { V3.cam.atPost = false; v3Caption(); } }, v3Sky: () => Object.assign({ horizon: V3.scene.background.getHexString(), sunColour: V3.sun.color.getHexString(), tufts: V3.tufts ? V3.tufts.count : 0, step: V3.K.STEP }, V3.light), v3Eye: () => ({ ex: V3.K.EX, treeH: V3.K.TREE_H, blockH: V3.K.H.inf, ground: V3.cam.ground, y: V3.camera.position.y, floor: V3.at(V3.cam.tx, V3.cam.tz), trees: V3.trees, shrubs: V3.shrubs, fov: V3.camera.fov }),
   // the field's steps: v3Field(step) sets one ('wide', 'eye', 'glass') or steps on; v3Glass() says what is shown and why
   v3Field: to => { v3Field(to); return V3.cam.field; }, v3Still: on => { V3.still = !!on; },
-  v3At: () => ({ x: V3.cam.tx, z: V3.cam.tz, az: V3.cam.az, pitch: V3.cam.pitch, ground: V3.cam.ground }),
+  v3At: () => ({ x: V3.cam.tx, z: V3.cam.tz, az: V3.cam.az, pitch: V3.cam.pitch, ground: V3.cam.ground, atPost: V3.cam.atPost, step: V3.postStep || 0, aim: V3.postAim || null, caption: $('v3cap').textContent, second: $('v3h').hidden ? null : $('v3h').textContent }),
+  // what the contract says, for the tests to work the standpoint out for themselves: the commander's place, the sides, and every body's side, place and strength
+  v3Contract: () => { const W = SIM.view.world(), T = SIM.view.snapshot('truth'); let c = null; try { c = SIM.view.snapshot('chief'); } catch (e) { c = null; }
+    return { at: c && c.at, side: c && c.side, glass: c && c.glass, eye: SIM.view.P.EYE, sides: W.sides, objectives: W.objectives, buildings: W.buildings, units: T.units.map(u => ({ id: u.id, side: u.side, arm: u.arm, form: u.form, x: u.x, y: u.y, str: u.str, front: u.front, depth: u.depth, facing: u.facing, status: u.status })) }; },
+  v3Post: () => v3ToPost(), v3Project: (x, y, up) => { const v = new globalThis.THREE.Vector3(x, V3.at(x, y) + (up || 0), y).project(V3.camera); return { x: v.x, y: v.y, z: v.z }; }, // where a point of the field falls on the screen (-1..1)
   v3Glass: () => ({ field: V3.cam.field, fov: V3.camera ? V3.camera.fov : null, want: v3Fov(), power: v3Power(), glass: V3.glass, h: V3.h, w: V3.w, mask: !$('v3m').hidden, maskR: V3.maskR || 0, sway: V3.sway || [0, 0], button: !$('v3f').hidden, label: $('v3f').textContent, caption: $('v3cap').textContent,
     turn: V3K.FIELD.TURN / v3Power() }) });
