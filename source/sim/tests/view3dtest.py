@@ -1,19 +1,75 @@
 import os
 # the field in relief (3D umpire's view) at phone size: hidden on Napoleon's map during play, opens on the umpire's map, draws every
 # brigade the contract's truth snapshot holds, glides between ticks, and opens after the battle on Napoleon's map
-import asyncio, sys
+#   python3 tools/pw.py tests/view3dtest.py [shots-folder]            the phone-size run (390 x 844)
+#   python3 tools/pw.py tests/view3dtest.py desktop [shots-folder]    the desktop run (1440 x 900): the ground view's field steps
+#                                                                     (wide, the eye, the glass)
+import asyncio, math, sys
 from playwright.async_api import async_playwright
 D = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/'  # source/sim: the built page is read from there, and scratch pages are written there
 html = open(D + 'game.html').read()
 open(D + 'pv.html', 'w').write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style></head><body>' + html + '</body></html>')
-SHOTS = sys.argv[1] if len(sys.argv) > 1 else None
+DESKTOP = 'desktop' in sys.argv[1:]; ARGS = [a for a in sys.argv[1:] if a != 'desktop']
+SHOTS = ARGS[0] if ARGS else None
+GL = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
+r3 = lambda v: round(v, 3) if isinstance(v, float) else v
 OPEN = "document.getElementById('s-more').open = true"
 async def start(pg, mode):
     await pg.goto('file://' + D + 'pv.html'); await pg.wait_for_timeout(800)
     await pg.evaluate(OPEN); await pg.select_option('#s-map', mode); await pg.fill('#s-seed', '4242'); await pg.tap('#s-go'); await pg.wait_for_timeout(500)
+async def dstart(pg, mode):  # the desktop run starts a battle with the mouse
+    await pg.goto('file://' + D + 'pv.html'); await pg.wait_for_timeout(800)
+    await pg.evaluate(OPEN); await pg.select_option('#s-map', mode); await pg.fill('#s-seed', '4242'); await pg.click('#s-go'); await pg.wait_for_timeout(500)
+async def desktop():
+    async with async_playwright() as p:
+        b = await p.chromium.launch(args=GL)
+        ctx = await b.new_context(viewport={'width': 1440, 'height': 900})
+        pg = await ctx.new_page(); errs = []; pg.on('pageerror', lambda e: errs.append('PAGEERR ' + str(e))); pg.on('console', lambda m: errs.append('CONSOLE ' + m.text) if m.type == 'error' else None)
+        shot = (lambda n: pg.screenshot(path=f'{SHOTS}/{n}.png')) if SHOTS else (lambda n: asyncio.sleep(0))
+        # 1. fog, at desktop size too: on Napoleon's map during play there is no button, the view will not open and three.js is not started
+        await dstart(pg, 'napoleon'); await pg.wait_for_timeout(300)
+        v = await pg.evaluate("WGame.v3()"); r = await pg.evaluate("WGame.v3Open()")
+        print('DFOG', 'OK' if not v['button'] and r is False and not v['three'] and not await pg.evaluate("!!globalThis.THREE") else 'BAD', v['button'], r, v['three'])
+        # 2. the umpire's map, on the ground: the field's three steps
+        await dstart(pg, 'umpire'); await pg.evaluate("document.getElementById('mapbox').scrollIntoView({block: 'start'})"); await pg.wait_for_timeout(300)
+        g0 = await pg.evaluate("({ f: document.getElementById('v3f').hidden })")
+        await pg.click('#v3btn'); await pg.wait_for_timeout(1200); a0 = await pg.evaluate("WGame.v3Eye()"); f0 = await pg.evaluate("document.getElementById('v3f').hidden")
+        await pg.click('#v3g'); await pg.wait_for_timeout(1500); g = await pg.evaluate("WGame.v3Glass()")
+        # wide: 60 degrees as before, no eyepiece; the button belongs to the ground view only
+        print('WIDE', 'OK' if g0['f'] and f0 and a0['fov'] == 38 and g['button'] and g['field'] == 'wide' and g['fov'] == 60 and not g['mask'] and 'wide view' in g['caption'] and g['sway'] == [0, 0] else 'BAD', {k: r3(g[k]) for k in ('field', 'fov', 'mask', 'label', 'h', 'w')})
+        await shot('v3d_1_wide')
+        # the eye: one pixel at the centre spans one minute of arc, tan(f/2) = h tan(1') / 2 (kept between 8 and 60 degrees); a screen correction, and the caption says so
+        await pg.click('#v3f'); await pg.wait_for_timeout(500); g = await pg.evaluate("WGame.v3Glass()")
+        want = min(60, max(8, 2 * math.degrees(math.atan(g['h'] * math.tan(math.radians(1 / 60)) / 2)))); px = math.degrees(math.atan(2 * math.tan(math.radians(g['fov'] / 2)) / g['h'])) * 60
+        print('EYE', 'OK' if g['field'] == 'eye' and abs(g['fov'] - want) < 1e-6 and 0.99 < px < 1.01 and not g['mask'] and 'screen correction' in g['caption'] and 'not a glass' in g['caption'] and g['sway'] == [0, 0] else 'BAD', {'fov': r3(g['fov']), 'want': r3(want), 'arcmin a pixel': r3(px), 'power': r3(g['power']), 'caption': g['caption'][-60:]})
+        await shot('v3d_2_eye')
+        # the glass: the commander's power from the contract, tan(f/2) = tan(30 degrees) / power, in a round eyepiece; the caption states the power
+        await pg.click('#v3f'); await pg.wait_for_timeout(500); g = await pg.evaluate("WGame.v3Glass()")
+        P = g['glass']['power']; want = 2 * math.degrees(math.atan(math.tan(math.radians(30)) / P)); rwant = round(g['h'] / 2 * math.tan(math.radians(g['glass']['apparent'] / 2)) / math.tan(math.radians(30)))
+        print('GLASS', 'OK' if g['field'] == 'glass' and P == 30 and abs(g['fov'] - want) < 1e-6 and abs(g['power'] - P) < 1e-6 and g['mask'] and g['maskR'] == rwant and f'through the glass, {P}×' in g['caption'] else 'BAD', {'power': P, 'fov': r3(g['fov']), 'want': r3(want), 'true field': g['glass']['field'], 'eyepiece radius px': g['maskR'], 'caption': g['caption'][-28:]})
+        # the hand's sway is slight (never over 3% of the glass's field) and repeatable; held still for the checks that follow
+        sw = []
+        for i in range(6): await pg.wait_for_timeout(180); sw.append((await pg.evaluate("WGame.v3Glass()"))['sway'])
+        lim = math.radians(0.03 * g['glass']['field']); big = max(max(abs(a), abs(b)) for a, b in sw); moved = len({tuple(x) for x in sw}) > 1
+        await pg.evaluate("WGame.v3Still(true)"); await pg.wait_for_timeout(200); st = (await pg.evaluate("WGame.v3Glass()"))['sway']
+        print('SWAY', 'OK' if moved and 0 < big <= lim * 1.0001 and st == [0, 0] else 'BAD', {'largest, degrees': round(math.degrees(big), 4), 'limit': round(math.degrees(lim), 4), 'still': st})
+        # aiming: a drag turns the eye by 0.004 radians a pixel in the wide view, and by that over the power through the glass
+        box = await pg.evaluate("(() => { const r = document.getElementById('v3c').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; })()")
+        async def drag(dx):
+            a = await pg.evaluate("WGame.v3At()"); await pg.mouse.move(box[0], box[1]); await pg.mouse.down(); await pg.mouse.move(box[0] + dx / 2, box[1], steps=4); await pg.mouse.move(box[0] + dx, box[1], steps=4); await pg.mouse.up(); await pg.wait_for_timeout(120)
+            return (await pg.evaluate("WGame.v3At()"))['az'] - a['az']
+        dg = await drag(120); await shot('v3d_3_glass'); await pg.evaluate("WGame.v3Field('wide')"); await pg.wait_for_timeout(200); dw = await drag(120)
+        print('AIM', 'OK' if abs(dw - 120 * 0.004) < 1e-6 and abs(dg - 120 * 0.004 / P) < 1e-6 else 'BAD', {'wide, radians for 120 px': r3(dw), 'glass': round(dg, 5), 'ratio': r3(dw / dg) if dg else None})
+        # the steps go round: wide, the eye, the glass, wide; and from above the field is as it was
+        seq = []
+        for i in range(3): await pg.click('#v3f'); await pg.wait_for_timeout(150); seq.append((await pg.evaluate("WGame.v3Glass()"))['field'])
+        await pg.click('#v3g'); await pg.wait_for_timeout(1200); a1 = await pg.evaluate("WGame.v3Eye()"); f1 = await pg.evaluate("document.getElementById('v3f').hidden"); m1 = (await pg.evaluate("WGame.v3Glass()"))['mask']
+        print('STEPS', 'OK' if seq == ['eye', 'glass', 'wide'] and a1['fov'] == 38 and not a1['ground'] and f1 and not m1 else 'BAD', seq, a1['fov'], f1, m1)
+        print('errors', errs[:6])
+        await b.close()
 async def main():
     async with async_playwright() as p:
-        b = await p.chromium.launch(args=['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'])
+        b = await p.chromium.launch(args=GL)
         ctx = await b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True, is_mobile=True)
         pg = await ctx.new_page(); errs = []; pg.on('pageerror', lambda e: errs.append('PAGEERR ' + str(e))); pg.on('console', lambda m: errs.append('CONSOLE ' + m.text) if m.type == 'error' else None)
         shot = (lambda n: pg.screenshot(path=f'{SHOTS}/{n}.png')) if SHOTS else (lambda n: asyncio.sleep(0))
@@ -54,6 +110,11 @@ async def main():
         print('GROUND', 'OK' if e['ground'] and abs(e['y'] - e['floor'] - 2.5) < 0.01 and e['ex'] == 1 and e['treeH'] <= 25 and e['blockH'] <= 2 and e['fov'] == 60 and e['trees'] > 2000 and e['shrubs'] > 300 else 'BAD', {k: round(v, 1) if isinstance(v, float) else v for k, v in e.items()})
         k = await pg.evaluate("WGame.v3Sky()")
         print('LIGHT', 'OK' if k['alt'] > 50 and 120 < k['bearing'] < 240 and k['sun'] > 0.4 and k['tufts'] == 4096 and k['step'] == 1 and 3000 < k['fogFar'] <= 20000 else 'BAD', {a: (round(b, 2) if isinstance(b, float) else b) for a, b in k.items()})
+        # the field's steps at phone size: the eye keeps one minute of arc a pixel (or its 8 degree floor), and the eyepiece fits the screen
+        await pg.tap('#v3f'); await pg.wait_for_timeout(400); g = await pg.evaluate("WGame.v3Glass()"); want = min(60, max(8, 2 * math.degrees(math.atan(g['h'] * math.tan(math.radians(1 / 60)) / 2)))); ok = g['field'] == 'eye' and abs(g['fov'] - want) < 1e-6
+        await pg.tap('#v3f'); await pg.wait_for_timeout(400); g = await pg.evaluate("WGame.v3Glass()"); want = 2 * math.degrees(math.atan(math.tan(math.radians(30)) / g['glass']['power']))
+        print('FIELD', 'OK' if ok and g['field'] == 'glass' and abs(g['fov'] - want) < 1e-6 and g['mask'] and 0 < g['maskR'] <= min(g['w'], g['h']) / 2 and 'through the glass' in g['caption'] else 'BAD', {'eye': ok, 'glass fov': r3(g['fov']), 'eyepiece radius px': g['maskR'], 'box': [g['w'], g['h']]})
+        await shot('v3_4b_glass'); await pg.evaluate("WGame.v3Field('wide')"); await pg.wait_for_timeout(300)
         await shot('v3_4_ground'); await pg.evaluate("WGame.v3Stand(2470, 4760, 0.0)"); await pg.wait_for_timeout(400); await shot('v3_5_ground_wood')
         pr = await pg.evaluate("WGame.v3Probe(0, -0.6)"); print('INSIDE', 'OK' if pr and pr['unit'] is None else 'BAD', pr)  # standing in a brigade's block, the block is not drawn
         await pg.tap('#v3g'); await pg.wait_for_timeout(1200); e = await pg.evaluate("WGame.v3Eye()"); print('ABOVE', 'OK' if not e['ground'] and e['y'] - e['floor'] > 300 and e['ex'] == 3 and e['trees'] < 1000 else 'BAD', e['ex'], e['trees'])
@@ -70,4 +131,4 @@ async def main():
         await pg.evaluate("document.getElementById('mapbox').scrollIntoView({block: 'start'})"); await pg.evaluate("WGame.v3Cam(-0.4, 1.0, 5200)"); await pg.wait_for_timeout(500); await shot('v3_3_after'); await pg.evaluate("WGame.v3Stand(3350, 5250, 0.05)"); await pg.tap('#v3g'); await pg.wait_for_timeout(1500); await shot('v3_7_ground_dusk')
         print('errors', errs[:6])
         await b.close()
-asyncio.run(main())
+asyncio.run(desktop() if DESKTOP else main())

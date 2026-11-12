@@ -355,11 +355,23 @@ function validate(id) {
     if (pl.unit && units[pl.unit] && units[pl.unit].side !== pl.side) E(`leader ${pl.id} rides with ${pl.unit}, which is on the other side`);
     for (const t of TRAITS) if (!num(p.traits && p.traits[t]) || p.traits[t] < 0 || p.traits[t] > 1) E(`leader ${pl.id}: trait ${t} must be 0-1`);
     if (![1, 2, 3].includes(p.rank)) E(`leader ${pl.id}: rank ${p.rank} must be 1 (division), 2 (corps or wing) or 3 (army)`);
+    // his telescope (the view only): a power of 1 to 100 times, with where the figure comes from and how far to trust it
+    if (p.glass != null) {
+      if (!num(p.glass.power) || p.glass.power < 1 || p.glass.power > 100) E(`leader ${pl.id}: glass.power ${p.glass.power} must be 1-100 (how many times his telescope magnifies)`);
+      if (!p.glass.source) Wn(`leader ${pl.id}: his glass names no source (say est. if it is an estimate)`);
+      if (!/^(doc|approx|low|none)\b/.test(p.glass.confidence || '')) Wn(`leader ${pl.id}: his glass's confidence should be doc, approx, low or none`);
+    }
   }
   for (const s of sideIds) if (!(B.leaders || []).some(pl => pl.side === s && (P.leader(pl.id) || {}).rank === 3)) Wn(`side ${s} has no army commander (rank 3)`);
 
   /* ----- the era ----- */
   if (!era.K) E(`era ${era.id}: no K constants`);
+  // the era's telescope (the view only): power 0 means the era has none; otherwise 1-100 times and an eyepiece circle of 5-90 degrees
+  if (era.glass != null) {
+    const gl = era.glass;
+    if (!num(gl.power) || gl.power < 0 || gl.power > 100) E(`era ${era.id}: glass.power ${gl.power} must be 0 (no telescope) to 100`);
+    if (gl.power > 0 && (!num(gl.apparent) || gl.apparent < 5 || gl.apparent > 90)) E(`era ${era.id}: glass.apparent ${gl.apparent} must be 5-90 degrees (the circle seen in the eyepiece)`);
+  }
   else for (const [k, v] of Object.entries(era.K)) if (!num(v)) E(`era ${era.id}: K.${k} is not a number`);
   const table = (name, t, mono) => {
     if (!Array.isArray(t) || !t.length) { E(`era ${era.id}: ${name} is empty`); return; }

@@ -5,12 +5,14 @@
      exposure (how far forward he rides); reserve (how readily he commits his reserves); rally (how well he rallies men round him);
      coord (how well he combines foot, horse and guns); tempo (how quickly he acts on an order: 1 usual, under 1 quicker).
    habits: writes (minutes to write an order); clarity (how clear his orders are, 0-1); reports (minutes between his reports).
+   glass: his field telescope, for the view only (no rule of the battle reads it): power, how many times it magnifies; with its
+     source and confidence. A leader who gives none has the era pack's (est.).
    source and confidence: where the settings come from and how far to trust them. The first five traits are the rules doc's; the
    rest default by nation and rank (est.) until a source sets them. A setting a person does not give comes from the defaults. */
 (function (root) {
 'use strict';
 const P = root.WPacks || (typeof require === 'function' ? require('../registry.js') : null);
-P.register('leader', 'napoleonic-1815', { version: '1.1', // 1.1: the commanders added for Ligny
+P.register('leader', 'napoleonic-1815', { version: '1.2', // 1.1: the commanders added for Ligny; 1.2: the two army commanders' telescopes (the view only)
   era: 'napoleonic',
   // defaults by nation and rank (est.: the engine's values before leader files, so that a leader the file leaves out acts as before)
   defaults: {
@@ -18,7 +20,10 @@ P.register('leader', 'napoleonic-1815', { version: '1.1', // 1.1: the commanders
   },
   people: {
     // writes: Napoleon's orders went through his chief of staff; Wellington pencilled his own (est.)
-    napoleon: { name: 'Napoleon', nation: 'FR', army: 'FR', rank: 3, traits: { agg: 0.7, ini: 0.8, obe: 1, skill: 0.85, exp: 0.3 }, habits: { writes: [5, 15] } },
+    // glass: 30 (est.). No stated power was found for his telescopes by Lerebours of Paris: the Science Museum Group holds one (object
+    // 1981-451) and its catalogue entry gives no magnification. Set equal to Wellington's until a source gives a figure.
+    napoleon: { name: 'Napoleon', nation: 'FR', army: 'FR', rank: 3, traits: { agg: 0.7, ini: 0.8, obe: 1, skill: 0.85, exp: 0.3 }, habits: { writes: [5, 15] },
+      glass: { power: 30, source: 'est.: no stated power found (Science Museum Group object 1981-451, a Lerebours telescope of his, gives none)', confidence: 'none' } },
     ney: { name: 'Ney', nation: 'FR', army: 'FR', rank: 2, traits: { agg: 0.95, ini: 0.9, obe: 0.4, skill: 0.55, exp: 0.95 } },
     derlon: { name: "d'Erlon", nation: 'FR', army: 'FR', rank: 2, traits: { agg: 0.6, ini: 0.5, obe: 0.7, skill: 0.55, exp: 0.6 } },
     reille: { name: 'Reille', nation: 'FR', army: 'FR', rank: 2, traits: { agg: 0.4, ini: 0.4, obe: 0.8, skill: 0.75, exp: 0.5 } },
@@ -28,7 +33,11 @@ P.register('leader', 'napoleonic-1815', { version: '1.1', // 1.1: the commanders
     duhesme: { name: 'Duhesme', nation: 'FR', army: 'FR', rank: 1, traits: { agg: 0.7, ini: 0.6, obe: 0.8, skill: 0.7, exp: 0.8 } },
     kellermann: { name: 'Kellermann', nation: 'FR', army: 'FR', rank: 2, traits: { agg: 0.6, ini: 0.6, obe: 0.8, skill: 0.75, exp: 0.6 } },
     milhaud: { name: 'Milhaud', nation: 'FR', army: 'FR', rank: 2, traits: { agg: 0.7, ini: 0.5, obe: 0.8, skill: 0.65, exp: 0.6 } },
-    wellington: { name: 'Wellington', nation: 'GB', army: 'AL', rank: 3, traits: { agg: 0.3, ini: 0.8, obe: 1, skill: 0.95, exp: 0.7 }, habits: { writes: [2, 6] } },
+    // glass: 30, sourced: "Wellington's Telescope", Age of Revolution / Waterloo 200 object page, https://ageofrevolution.org/?p=868
+    // (a telescope by Berge of London; the page says it magnified 30 times). Seen on 12 Nov 2026 in a search result's text only: the
+    // page itself was not opened, so the confidence is approx until someone opens it.
+    wellington: { name: 'Wellington', nation: 'GB', army: 'AL', rank: 3, traits: { agg: 0.3, ini: 0.8, obe: 1, skill: 0.95, exp: 0.7 }, habits: { writes: [2, 6] },
+      glass: { power: 30, source: "Wellington's Telescope, Age of Revolution / Waterloo 200, https://ageofrevolution.org/?p=868 (read in a search result's text; the page not opened)", confidence: 'approx' } },
     uxbridge: { name: 'Uxbridge', nation: 'GB', army: 'AL', rank: 2, traits: { agg: 0.85, ini: 0.8, obe: 0.6, skill: 0.6, exp: 0.9 } },
     orange: { name: 'Prince of Orange', nation: 'NL', army: 'AL', rank: 2, traits: { agg: 0.7, ini: 0.6, obe: 0.7, skill: 0.35, exp: 0.8 } },
     picton: { name: 'Picton', nation: 'GB', army: 'AL', rank: 1, traits: { agg: 0.8, ini: 0.7, obe: 0.7, skill: 0.75, exp: 0.9 } },

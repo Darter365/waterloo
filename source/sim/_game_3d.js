@@ -6,7 +6,7 @@
 // three.js (vendor/three.min.js, MIT) is carried in the page as text and only started the first time this view opens.
 // Sizes marked (est.) are chosen to read well at a distance; they are not measurements.
 const V3 = { on: false, sim: null, tick: -1, prev: null, cur: null, units: new Map(), err: null, frames: 0,
-  cam: { az: 0, pol: 0.95, dist: 7000, tx: 0, tz: 0, ground: false, pitch: 0 } };
+  cam: { az: 0, pol: 0.95, dist: 7000, tx: 0, tz: 0, ground: false, pitch: 0, field: 'wide' }, glass: null, still: false, t0: 0 };
 const V3K = {
   TEX: 1024,                   // ground picture, pixels along the long side
   LOW: [0x9c, 0xb8, 0x6a], HIGH: [0xe2, 0xd9, 0x9a], // ground colour from the lowest ground to the highest
@@ -21,6 +21,18 @@ const V3K = {
   SMOKE_MIN: 0.12, SMOKE_MAX: 500, TREES: 7000,
   CROWNS: [0x2f6b34, 0x3f7f3a, 0x4f8f3f, 0x2a5a30], TRUNK: 0x6b4a2e, ORCHARD: [0x6fa64a, 0x86b85a], BUSH: [0x4c8a3c, 0x3c7434, 0x5d9a48], WALL: 0xb9a98c,
   WALK: 1.5,                   // metres moved for each pixel dragged with two fingers in the ground view
+  // The field of view on the ground, top to bottom of the picture. Three steps, changed by a button:
+  //  wide   60 degrees (est.: the view as first built; it takes in the field but draws a man a kilometre off about one pixel tall).
+  //  eye    a screen correction, not history. A healthy eye separates about one minute of arc (the usual measure of normal sight;
+  //         recalled, no source opened). One pixel at the centre of a picture h pixels tall with field f spans atan(2 tan(f/2) / h),
+  //         so one pixel is one minute when tan(f/2) = h tan(1') / 2 (derived): at h = 690 that is f = 11.5 degrees, 5.8 times the
+  //         wide view. A CSS pixel is itself defined as about 1.3 minutes at arm's length, so the picture then holds roughly what
+  //         an eye on the spot could make out. Kept between EYE_MIN and the wide field (est.), so a small screen is not all zoom.
+  //  glass  the commander's telescope, from the contract (the packs' power): tan(f/2) = tan(WIDE/2) / power (derived: the wide
+  //         view is taken as power 1), shown in a round eyepiece whose circle is the glass's true field. SWAY is how far a held glass
+  //         wanders, as a share of that field, and SWAY_S the seconds of its three slow swings (est.; repeatable, no dice).
+  FIELD: { ABOVE: 38, WIDE: 60, ARCMIN: 1, EYE_MIN: 8, SWAY: 0.03, SWAY_S: [3.1, 4.7, 1.3], TURN: 0.004, TILT: 0.003 },
+  MASK: { RIM: '#0b0a09', SHADE: 'rgba(11,10,9,.38)', SOFT: 0.86 }, // the eyepiece: its dark surround, and the shading that begins at SOFT of its radius
   // Two scales. From above, heights, trees and blocks are drawn large so the field reads at five kilometres; every figure is (est.)
   // and chosen for legibility. On the ground everything is life size: heights as surveyed, the eye at the engine's own 2.5 m for a
   // mounted officer, and the rest my estimates of ordinary sizes (est.): a mature tree 18 m, a fruit tree 4 m, a hedge 2 m, a garden
@@ -143,6 +155,9 @@ function v3SideColour(side) { const v = getComputedStyle(document.documentElemen
 function v3Take() { // a new tick: keep the last picture to glide from, take the new one
   const snap = SIM.view.snapshot('truth'), m = new Map(); for (const u of snap.units) m.set(u.id, u);
   V3.prev = V3.cur || m; V3.cur = m; V3.snap = snap; V3.tick = SIM.tick;
+  // the player's commander, from his own snapshot: only where he stands and the glass he carries are read here (the picture drawn
+  // stays the umpire's). A battle with no command layer has no commander to stand beside, and no glass.
+  { let c = null; try { c = SIM.view.snapshot('chief'); } catch (e) { c = null; } V3.glass = c && c.glass ? c.glass : null; if (!V3.glass && V3.cam.field === 'glass') v3Field('wide'); }
   const T = globalThis.THREE, S = V3.scene;
   for (const [id, o] of V3.units) if (!m.has(id)) { S.remove(o); o.material.dispose(); V3.units.delete(id); }
   for (const u of snap.units) if (!V3.units.has(u.id)) { const o = new T.Mesh(V3.unitGeo, new T.MeshLambertMaterial({ color: new T.Color(v3SideColour(u.side)) })); V3.units.set(u.id, o); S.add(o); }
@@ -180,9 +195,35 @@ function v3Tufts() { // re-lay the tufts when the eye has moved a few metres; ea
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++, k++) { const gx = ax - n / 2 + i, gz = az - n / 2 + j, hsh = gx * 7919 + gz * 104729, s = 0.6 + v3rand(hsh + 2) * 1.1; V3.put(V3.tufts, k, (gx + v3rand(hsh)) * gap, (gz + v3rand(hsh + 1)) * gap, s, s, s, v3rand(hsh + 3) * 90, 0.2 * s); }
   V3.tufts.instanceMatrix.needsUpdate = true;
 }
-function v3Caption() { if (V3.snap) $('v3cap').textContent = `${V3.cam.ground ? 'On the ground' : 'The field in relief'} · the umpire’s picture · ${V3.snap.clock} · ${V3.cam.ground ? 'life size' : 'heights drawn ×' + V3K.ABOVE.EX}`; }
+// the field of view for the present step (degrees, top to bottom), and how many times it magnifies the wide view
+function v3Fov() {
+  const C = V3.cam, F = V3K.FIELD, half = Math.tan(F.WIDE * Math.PI / 360); if (!C.ground) return F.ABOVE;
+  if (C.field === 'glass' && V3.glass) return 2 * Math.atan(half / V3.glass.power) * 180 / Math.PI;
+  if (C.field === 'eye') return v3clamp(2 * Math.atan((V3.h || 690) * Math.tan(F.ARCMIN / 60 * Math.PI / 180) / 2) * 180 / Math.PI, F.EYE_MIN, F.WIDE);
+  return F.WIDE;
+}
+const v3Power = () => Math.tan(V3K.FIELD.WIDE * Math.PI / 360) / Math.tan(v3Fov() * Math.PI / 360);
+function v3Caption() {
+  if (!V3.snap) return; const C = V3.cam, x = n => (Math.round(n * 10) / 10).toString();
+  const how = !C.ground ? 'heights drawn ×' + V3K.ABOVE.EX : 'life size · ' + (C.field === 'glass' && V3.glass ? `through the glass, ${x(V3.glass.power)}×`
+    : C.field === 'eye' ? `as sharp as the eye (a screen correction, ${x(v3Power())}×; not a glass)` : 'wide view');
+  $('v3cap').textContent = `${C.ground ? 'On the ground' : 'The field in relief'} · the umpire’s picture · ${V3.snap.clock} · ${how}`;
+}
+// the round eyepiece: everything outside the glass's true field is blacked out. Its radius on the screen is derived: the circle seen
+// in the eyepiece (apparent) against the wide field the screen stands for, r = (h / 2) tan(apparent / 2) / tan(WIDE / 2).
+function v3Mask() {
+  const m = $('v3m'), on = V3.cam.ground && V3.cam.field === 'glass' && !!V3.glass; if (m.hidden === on) m.hidden = !on; if (!on) return;
+  const r = Math.round(Math.min(Math.min(V3.w, V3.h) / 2 - 4, V3.h / 2 * Math.tan(V3.glass.apparent * Math.PI / 360) / Math.tan(V3K.FIELD.WIDE * Math.PI / 360)));
+  if (V3.maskR !== r) { V3.maskR = r; m.style.background = `radial-gradient(circle at 50% 50%, transparent ${Math.round(r * V3K.MASK.SOFT)}px, ${V3K.MASK.SHADE} ${r - 2}px, ${V3K.MASK.RIM} ${r}px)`; }
+}
+// step the field on: wide, the eye, the glass (where the commander has one), and round again
+function v3Field(to) {
+  const C = V3.cam, steps = V3.glass ? ['wide', 'eye', 'glass'] : ['wide', 'eye']; C.field = to && steps.includes(to) ? to : steps[(steps.indexOf(C.field) + 1) % steps.length]; V3.t0 = performance.now();
+  $('v3f').textContent = 'View: ' + { wide: 'wide', eye: 'the eye', glass: 'the glass' }[C.field]; v3Caption();
+}
 function v3Ground2(on) { // step down to the ground where the view from above is centred, or back up
-  V3.cam.ground = on; V3.cam.pitch = 0; if (V3.on) { v3Build(); V3.tick = -1; V3.cur = V3.prev = null; } const b = $('v3g'); b.textContent = on ? 'From above' : 'On the ground'; b.setAttribute('aria-pressed', on ? 'true' : 'false'); v3Caption();
+  V3.cam.ground = on; V3.cam.pitch = 0; if (V3.on) { v3Build(); V3.tick = -1; V3.cur = V3.prev = null; } const b = $('v3g'); b.textContent = on ? 'From above' : 'On the ground'; b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  $('v3f').hidden = !on; v3Field(V3.cam.field); // the field's steps belong to the ground view; the step last used is kept
 }
 function v3Frame() { // called every frame by the page's loop; cheap unless the view is open
   const b = $('v3btn'), ok = v3ok(); if (b.hidden === ok) b.hidden = !ok;
@@ -196,10 +237,15 @@ function v3Frame() { // called every frame by the page's loop; cheap unless the 
     // on the ground, a brigade you are standing inside is not drawn: you would see only the inside of its block
     if (V3.cam.ground) { o.updateMatrixWorld(); const v = V3.tmp.set(V3.cam.tx, o.position.y, V3.cam.tz); o.worldToLocal(v); o.visible = !(Math.abs(v.x) < 0.5 + K.HIDE / fr && Math.abs(v.z) < 0.5 + K.HIDE / dp); } else o.visible = true; }
   const C = V3.cam, cam = V3.camera, ty = V3.at(C.tx, C.tz);
-  if (C.ground) { const ey = ty + V3K.GROUND.EYE, cp = Math.cos(C.pitch); cam.position.set(C.tx, ey, C.tz); cam.lookAt(C.tx - Math.sin(C.az) * cp * 100, ey + Math.sin(C.pitch) * 100, C.tz - Math.cos(C.az) * cp * 100); } // standing on the ground, looking the way the view from above was facing
+  const fov = v3Fov(); let saz = 0, spi = 0;
+  if (C.ground && C.field === 'glass' && V3.glass && !V3.still) { // a held glass wanders a little: three slow swings, the same every time it is raised
+    const s = (performance.now() - V3.t0) / 1000, a = V3K.FIELD.SWAY * V3.glass.field * Math.PI / 180, P = V3K.FIELD.SWAY_S, w = k => 2 * Math.PI * s / P[k];
+    saz = a * (0.6 * Math.sin(w(0)) + 0.3 * Math.sin(w(1) + 1) + 0.1 * Math.sin(w(2))); spi = a * (0.6 * Math.sin(w(1)) + 0.3 * Math.sin(w(0) + 2) + 0.1 * Math.sin(w(2) + 1)); }
+  V3.sway = [saz, spi];
+  if (C.ground) { const ey = ty + V3K.GROUND.EYE, az = C.az + saz, pi = C.pitch + spi, cp = Math.cos(pi); cam.position.set(C.tx, ey, C.tz); cam.lookAt(C.tx - Math.sin(az) * cp * 100, ey + Math.sin(pi) * 100, C.tz - Math.cos(az) * cp * 100); } // standing on the ground, looking the way the view from above was facing
   else { cam.position.set(C.tx + C.dist * Math.sin(C.pol) * Math.sin(C.az), ty + C.dist * Math.cos(C.pol), C.tz + C.dist * Math.sin(C.pol) * Math.cos(C.az)); cam.lookAt(C.tx, ty, C.tz); }
   V3.dome.position.copy(cam.position); if (V3.sunDir) V3.disc.position.copy(cam.position).addScaledVector(V3.sunDir, V3.K.FAR * 0.75); if (V3.tufts) v3Tufts();
-  const fov = C.ground ? 60 : 38; if (cam.fov !== fov) { cam.fov = fov; cam.updateProjectionMatrix(); }
+  if (cam.fov !== fov) { cam.fov = fov; cam.updateProjectionMatrix(); v3Caption(); } v3Mask();
   R.render(V3.scene, cam); V3.frames++;
 }
 function v3Open() {
@@ -212,6 +258,7 @@ function v3Close() { V3.on = false; $('v3').hidden = true; $('v3btn').setAttribu
 $('v3btn').addEventListener('click', () => V3.on ? v3Close() : v3Open());
 $('v3x').addEventListener('click', v3Close);
 $('v3g').addEventListener('click', () => v3Ground2(!V3.cam.ground));
+$('v3f').addEventListener('click', () => v3Field());
 // one finger or the mouse turns the field; two fingers, the wheel or shift-drag move and zoom
 (function () {
   const el = $('v3c'), P = new Map(); let pinch = 0, mid = null;
@@ -219,7 +266,8 @@ $('v3g').addEventListener('click', () => v3Ground2(!V3.cam.ground));
   const zoom = f => { const C = V3.cam; if (C.ground) { const d = (1 - f) * 900; C.tx = v3clamp(C.tx - Math.sin(C.az) * d, 0, V3.W.size.w); C.tz = v3clamp(C.tz - Math.cos(C.az) * d, 0, V3.W.size.h); } else C.dist = v3clamp(C.dist * f, 600, 16000); }; // on the ground, zooming in is walking forward
   el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); P.set(e.pointerId, [e.clientX, e.clientY]); pinch = 0; mid = null; });
   el.addEventListener('pointermove', e => { if (!P.has(e.pointerId) || !V3.on) return; const was = P.get(e.pointerId), dx = e.clientX - was[0], dy = e.clientY - was[1]; P.set(e.pointerId, [e.clientX, e.clientY]);
-    if (P.size === 1) { if (e.shiftKey || e.buttons === 2) pan(dx, dy); else if (V3.cam.ground) { V3.cam.az += dx * 0.004; V3.cam.pitch = v3clamp(V3.cam.pitch + dy * 0.003, -0.5, 0.6); } else { V3.cam.az -= dx * 0.006; V3.cam.pol = v3clamp(V3.cam.pol - dy * 0.005, 0.15, 1.45); } }
+    // through the glass or the eye's step a drag turns the eye less, by the power, so a narrow field can still be aimed
+    if (P.size === 1) { if (e.shiftKey || e.buttons === 2) pan(dx, dy); else if (V3.cam.ground) { const k = 1 / v3Power(); V3.cam.az += dx * V3K.FIELD.TURN * k; V3.cam.pitch = v3clamp(V3.cam.pitch + dy * V3K.FIELD.TILT * k, -0.5, 0.6); } else { V3.cam.az -= dx * 0.006; V3.cam.pol = v3clamp(V3.cam.pol - dy * 0.005, 0.15, 1.45); } }
     else if (P.size === 2) { const [a, b] = [...P.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; if (pinch) zoom(pinch / Math.max(1, d)); if (mid) pan(m[0] - mid[0], m[1] - mid[1]); pinch = d; mid = m; } });
   const up = e => { P.delete(e.pointerId); pinch = 0; mid = null; }; el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   el.addEventListener('wheel', e => { e.preventDefault(); zoom(e.deltaY > 0 ? 1.12 : 0.89); }, { passive: false });
@@ -230,4 +278,9 @@ globalThis.WGame && Object.assign(globalThis.WGame, { v3: () => ({ on: V3.on, er
     mover: (() => { let best = null, bd = 0; for (const [id, o] of V3.units) { const c = V3.cur.get(id), p = V3.prev.get(id) || c, d = Math.hypot(c.x - p.x, c.y - p.y); if (d > bd) { bd = d; best = { id, x: o.position.x, z: o.position.z, cx: c.x, cy: c.y, px: p.x, py: p.y, d }; } } return best; })() }), // the brigade that moved furthest this tick
   v3Open: () => v3Open(), v3Close: () => v3Close(), v3Cam: (az, pol, dist) => { V3.cam.az = az; V3.cam.pol = pol; V3.cam.dist = dist; },
   v3Probe: (nx, ny) => { const T = globalThis.THREE, rc = new T.Raycaster(); rc.setFromCamera(new T.Vector2(nx, ny), V3.camera); const h = rc.intersectObjects(V3.scene.children.filter(o => o.visible), false)[0]; if (!h) return null; let unit = null; for (const [id, o] of V3.units) if (o === h.object) unit = id; return { dist: Math.round(h.distance), unit, geo: h.object.geometry.type, colour: h.object.material.color.getHexString(), instance: h.instanceId ?? null }; }, // what is drawn at a point of the screen (-1..1)
-  v3Stand: (x, y, az) => { V3.cam.tx = x; V3.cam.tz = y; V3.cam.az = az; }, v3Sky: () => Object.assign({ horizon: V3.scene.background.getHexString(), sunColour: V3.sun.color.getHexString(), tufts: V3.tufts ? V3.tufts.count : 0, step: V3.K.STEP }, V3.light), v3Eye: () => ({ ex: V3.K.EX, treeH: V3.K.TREE_H, blockH: V3.K.H.inf, ground: V3.cam.ground, y: V3.camera.position.y, floor: V3.at(V3.cam.tx, V3.cam.tz), trees: V3.trees, shrubs: V3.shrubs, fov: V3.camera.fov }) });
+  v3Stand: (x, y, az) => { V3.cam.tx = x; V3.cam.tz = y; V3.cam.az = az; }, v3Sky: () => Object.assign({ horizon: V3.scene.background.getHexString(), sunColour: V3.sun.color.getHexString(), tufts: V3.tufts ? V3.tufts.count : 0, step: V3.K.STEP }, V3.light), v3Eye: () => ({ ex: V3.K.EX, treeH: V3.K.TREE_H, blockH: V3.K.H.inf, ground: V3.cam.ground, y: V3.camera.position.y, floor: V3.at(V3.cam.tx, V3.cam.tz), trees: V3.trees, shrubs: V3.shrubs, fov: V3.camera.fov }),
+  // the field's steps: v3Field(step) sets one ('wide', 'eye', 'glass') or steps on; v3Glass() says what is shown and why
+  v3Field: to => { v3Field(to); return V3.cam.field; }, v3Still: on => { V3.still = !!on; },
+  v3At: () => ({ x: V3.cam.tx, z: V3.cam.tz, az: V3.cam.az, pitch: V3.cam.pitch, ground: V3.cam.ground }),
+  v3Glass: () => ({ field: V3.cam.field, fov: V3.camera ? V3.camera.fov : null, want: v3Fov(), power: v3Power(), glass: V3.glass, h: V3.h, w: V3.w, mask: !$('v3m').hidden, maskR: V3.maskR || 0, sway: V3.sway || [0, 0], button: !$('v3f').hidden, label: $('v3f').textContent, caption: $('v3cap').textContent,
+    turn: V3K.FIELD.TURN / v3Power() }) });
