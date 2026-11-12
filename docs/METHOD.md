@@ -25,7 +25,9 @@ under "Claude's choices awaiting Chris" in `DECISIONS.md` until he confirms it.
 - **Citing.** Name the work and say whether it was opened in this session or recalled. No page numbers or quotations from
   memory. Where accounts disagree, store the range and who says what, and look for a source from each army's tradition.
 - **Known weak spots.** `docs/RULES.md` cites Wikipedia, web articles and a web copy of Keegan for some sourced values, and a
-  "research brief" that is not in the repository. Those are `approx` at best until a source pass replaces them (section 8).
+  "research brief" (now `docs/RESEARCH_BRIEF.md`). Those are `approx` at best. The source pass of 12 Nov 2026
+  (`docs/SOURCES.md`) sets a primary document or a standard history beside each, with what was opened and what was not;
+  it changed no value, and its figures still need checking by eye against the scans.
 
 ## 3. Validation
 
@@ -94,8 +96,13 @@ roadmap's "rules the loop must keep".
 ## 7. Performance and execution
 
 - **The budget exists.** The roadmap gives about 13 ms per 2-minute tick (27 Oct) and a budget of under 20 ms on the phone.
-  No tool was found that checks it on each change. Add one to `check.sh`: median and 95th centile over fixed seeds, on a
-  named machine, with the result kept in `results/`.
+  `tools/ticktime.js` (12 Nov) measures the simulation on each change: median and 95th centile per tick and battles a minute,
+  Waterloo and Ligny over fixed seeds, with the Node version and the machine, beside `results/ticktime_baseline.json`.
+  `check.sh` runs the short version and warns, never fails, past 1.5 times the baseline (est.). After a change meant to alter
+  speed, or on a new machine or Node, `node tools/ticktime.js --record` and commit the baseline with the reason.
+- **It does not check the budget.** The figure is Node on whatever machine ran it: it compares one commit with another there.
+  A phone's tick has not been measured, and the machine behind the roadmap's 13 ms is not recorded. Measure the page itself on
+  a phone or on Chris's desktop browser (section 8) before saying the budget is kept.
 - Simulation speed sets how much validation is affordable: `band.js 500` is listed as "long".
 - **Frame rate on a real GPU has never been measured** (the tests use software rendering). The built-in browser on Chris's
   desktop can measure it (section 8).
@@ -123,6 +130,10 @@ Decided 12 Nov: use them fully. Check what the session actually has before assum
 | Showing Chris a result | Artifacts | A dashboard for a batch of runs; the branch's built page to try before it merges |
 | Telling Chris | A push notification | After a merge, a revert or a failed gate |
 | Review and design | Account skills where present: code review, testing strategy, deploy checklist, design critique, accessibility review, statistical analysis | A session may not have them; say which were used |
+
+The repository carries a fresh-context `reviewer` subagent (`.claude/agents/reviewer.md`) and three skills (`.claude/skills/`:
+`add-battle`, `results-change`, `release`), each a checklist that points back at these docs; they load in a Claude Code
+session on the repository and not in a project thread, where the docs themselves are the procedure.
 
 Monarch and Robinhood are attached to scheduled tasks by default and have nothing to do with this project. Never call them
 from it.
