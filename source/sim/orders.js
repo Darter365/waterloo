@@ -103,7 +103,8 @@ function install(E) {
     o.writtenAt = E.t + w; o.sentAt = o.writtenAt; o.status = 'writing';
     for (const f of followers(o)) { f.writtenAt = o.writtenAt; f.sentAt = o.sentAt; f.status = 'writing'; }
     const toName = RECIPIENTS[o.to] ? RECIPIENTS[o.to].name : o.to;
-    const r = { kind: 'order', from: s.from, to: kindOf(o.to) === 'battery' || OFF(o.to) ? null : o.to, side: SIDE, label: `the order to ${toName.replace(/ \(.*\)/, '')} of ${fmtT(o.writtenAt)}`, text: o.seq ? describeLetter(o) : describe(o), payload: o, group: 'g' + o.id };
+    const r = { kind: 'order', from: s.from, to: kindOf(o.to) === 'battery' || OFF(o.to) ? null : o.to, side: SIDE, label: `the order to ${toName.replace(/ \(.*\)/, '')} of ${fmtT(o.writtenAt)}`, text: o.seq ? describeLetter(o) : describe(o), payload: o, group: 'g' + o.id,
+      diceKey: `${o.to}>${o.action}:${JSON.stringify((s.objective || s.sector || s.post) ?? '')}:${fmtT(o.writtenAt)}` }; // whose rider this is, for the dice: two orders to one general written in the same minute share a label
     if (kindOf(o.to) === 'battery') { const g = batteryUnits(); r.toPos = g.length ? [g.reduce((a, u) => a + u.x, 0) / g.length, g.reduce((a, u) => a + u.y, 0) / g.length] : null; }
     const off = OFF(o.to); if (off) { r.toPos = offPos(off); r.offmapRide = Math.max(30, rnd.tri(...off.ride, 'ride to Grouchy', o.to) - 60); } // (the dice keep Waterloo's name)
     r.onDeliver = rr => { received(rr.payload); for (const f of followers(rr.payload)) received(f); };
@@ -417,14 +418,14 @@ function install(E) {
       if (!e.onMap || e.gone || e.str <= 0 || E.coalition[e.side] === E.coalition[SIDE]) continue;
       const d = hyp(e.x - p[0], e.y - p[1]); if (d > 5000) continue;
       const l = E.los(p[0], p[1], 2.5, e.x, e.y, e.type === 'cav' ? 2.6 : e.lying ? 0.5 : 1.8); if (!l.clear) continue;
-      if (rnd('aide sighting', o.to, e.id) < E.detectP(d / CK.TELESCOPE, l.trans, e.type === 'art' ? e.str * 15 : e.str)) seen.push(e);
+      if (rnd('aide sighting', r.label, e.id) < E.detectP(d / CK.TELESCOPE, l.trans, e.type === 'art' ? e.str * 15 : e.str)) seen.push(e);
     }
     const places = {}; for (const sp of E.sps) if (hyp(sp.x - p[0], sp.y - p[1]) < 1500) places[sp.id] = sp.holder;
     const lookedAt = E.t;
     const back = { kind: 'aide', from: null, fromPos: p, to: CHIEF, side: SIDE, label: `the aide returning from ${C.objName(o.spec)}`, group: 'b' + o.id };
     back.onDeliver = () => {
       const B = C.B[CHIEF], src = `aide at ${fmtT(lookedAt)}`;
-      const recs = seen.map(e => { const rec = { tid: e.id, side: hyp(e.x - p[0], e.y - p[1]) < CK.ID_GLASS ? e.side : null, nat: hyp(e.x - p[0], e.y - p[1]) < CK.ID_GLASS ? e.nat : null, idLevel: hyp(e.x - p[0], e.y - p[1]) < CK.ID_GLASS ? 1 : 0, kind: e.type === 'gar' ? 'inf' : e.type, guns: e.type === 'art' ? e.str : 0, form: e.form, status: e.status === 'broken' ? 'broken' : null, str: (e.type === 'art' ? e.str * 12 : e.str) * (1 + rnd.normal('aide estimate') * 0.2), x: e.x, y: e.y, t: lookedAt, src, moving: false }; C.mergeContact(B, rec); return rec; });
+      const recs = seen.map(e => { const rec = { tid: e.id, side: hyp(e.x - p[0], e.y - p[1]) < CK.ID_GLASS ? e.side : null, nat: hyp(e.x - p[0], e.y - p[1]) < CK.ID_GLASS ? e.nat : null, idLevel: hyp(e.x - p[0], e.y - p[1]) < CK.ID_GLASS ? 1 : 0, kind: e.type === 'gar' ? 'inf' : e.type, guns: e.type === 'art' ? e.str : 0, form: e.form, status: e.status === 'broken' ? 'broken' : null, str: (e.type === 'art' ? e.str * 12 : e.str) * (1 + rnd.normal('aide estimate', back.label, e.id) * 0.2), x: e.x, y: e.y, t: lookedAt, src, moving: false }; C.mergeContact(B, rec); return rec; });
       for (const [sp, h] of Object.entries(places)) { const o2 = B.places[sp]; if (!o2 || o2.t <= lookedAt) B.places[sp] = { holder: h, t: lookedAt, src }; }
       // (5e) the aide says what he saw and where, as a corps commander would, not just a count
       const groups = C.cluster ? C.cluster(recs).filter(g => g.str > 250 || g.guns).slice(0, 5) : [];
@@ -494,13 +495,14 @@ function install(E) {
     const from = x.from, us = (x.units || []).map(id => E.byId[id]).filter(Boolean);
     const target = us.length ? [us.reduce((a, u) => a + u.x, 0) / us.length, us.reduce((a, u) => a + u.y, 0) / us.length] : (C.posOf(x.to) || null);
     const range = FC && from === FC ? CK.WRITE.field : from === CHIEF ? CK.WRITE[C.opts.staff] : CK.WRITE.corps;
-    const w = x.writeMin ?? rnd.range(range[0], range[1], 'order writing', x.to) * (x.direct ? 0.5 : 1);
+    const w = x.writeMin ?? rnd.range(range[0], range[1], 'order writing', x.to || x.from, E.orderKey(x)) * (x.direct ? 0.5 : 1);
     x.sentAt = E.t; x.status = 'carried'; E.orders.push(x);
     // (phase 5, stage 2) an order from a commander off this map (Ligny: Ney's recall of d'Erlon) crosses no ground here: no rider on the map,
     // it arrives after its writing and riding minutes and is read as any order is
-    if (x.offField) { const at = E.t + w + (x.rideMin || 0) + rnd.range(...(x.direct ? CK.INTERP_DIRECT : CK.INTERP), 'interpretation', x.to) * (x.direct ? 0.5 : 1); x.status = 'interpreting'; C.legacy.push({ at, x }); return x; }
-    const r = { kind: 'order', from, to: null, toPos: target, side: E.leaders[from] ? E.leaders[from].side : SIDE, label: `${E.leaders[from] ? E.leaders[from].name : from}'s order`, text: x.text || '', payload: x, group: 'g' + (x.id || C.nextId++) + 'x' + C.nextId++ };
-    r.onDeliver = () => { x.status = 'interpreting'; const at = E.t + rnd.range(...(x.direct ? CK.INTERP_DIRECT : CK.INTERP), 'interpretation', x.to) * (x.direct ? 0.5 : 1); C.legacy.push({ at, x }); };
+    if (x.offField) { const at = E.t + w + (x.rideMin || 0) + rnd.range(...(x.direct ? CK.INTERP_DIRECT : CK.INTERP), 'interpretation', x.to || x.from, E.orderKey(x)) * (x.direct ? 0.5 : 1); x.status = 'interpreting'; C.legacy.push({ at, x }); return x; }
+    const r = { kind: 'order', from, to: null, toPos: target, side: E.leaders[from] ? E.leaders[from].side : SIDE, label: `${E.leaders[from] ? E.leaders[from].name : from}'s order`, text: x.text || '', payload: x, group: 'g' + (x.id || C.nextId++) + 'x' + C.nextId++,
+      diceKey: `${from}>${x.to || ''}:${E.orderKey(x)}` }; // whose rider this is, for the dice: one leader's orders all carry the same label
+    r.onDeliver = () => { x.status = 'interpreting'; const at = E.t + rnd.range(...(x.direct ? CK.INTERP_DIRECT : CK.INTERP), 'interpretation', x.to || x.from, E.orderKey(x)) * (x.direct ? 0.5 : 1); C.legacy.push({ at, x }); };
     r.onLost = () => { x.status = 'lost'; };
     C.pendingLaunch.push({ at: E.t + w, r });
     return x;

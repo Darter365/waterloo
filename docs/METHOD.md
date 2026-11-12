@@ -63,10 +63,16 @@ a check.
   times that draw was asked for in the tick: `rnd('shock', attacker.id, defender.id)`. Change one order and a draw that both
   battles ask for keeps its value, so two plans can be compared battle by battle on the same seeds, not only as
   distributions. The battles still part where the order reaches: compare paired differences, with their spread.
-  Measured before choosing (30 battles, seeds 1000 to 1029, one order's objective changed at 16:30, draws that occur in both
-  battles from then on): one sequence re-rolled a median 72% of them, a stream per purpose 70%, keyed draws none; of the
-  unchanged battle's later log events, 40%, 53% and about 80% still happened word for word. `node tools/dice_compare.js`
-  repeats it; `node tools/test_dice.js` (in `check.sh`) holds the engine to it.
+  Measured (30 battles, seeds 1000 to 1029, one order at 16:30, everything from then on; median, with lowest and highest):
+
+  | Dice | Objective changed: draws in both re-rolled | later events kept | Sent 20 min later: re-rolled | events kept |
+  | --- | --- | --- | --- | --- |
+  | One sequence (to 0.4) | 72% (0 to 79) | 40% (25 to 100) | 99.5% (82 to 100) | 22% (17 to 32) |
+  | A stream per purpose | 70% (59 to 78) | 53% (35 to 68) | 71% (0 to 79) | 46% (32 to 98) |
+  | Keyed (0.5) | 0, by construction | 79% (49 to 95) | 0, by construction | 75% (49 to 92) |
+
+  A stream per purpose buys little: the busy purposes are shared by every body on the field. `node tools/dice_compare.js`
+  repeats the table (`results/dice_compare_2026-11-12.json`); `node tools/test_dice.js` (in `check.sh`) holds the engine to it.
 - **A new draw says whose it is,** with ids that mean the same in two battles (a unit, a leader, a side, a place, an order's
   recipient), never a running number. Two draws with the same purpose, owner and tick take turns, and are tied to each other.
 

@@ -56,7 +56,8 @@ const K = ERA.K;
    create({ diceTrace: new Map() }) records every draw under its identity, "purpose|who|whom|tick|n". counts (draws by purpose) is
    kept in every design: the reference battles' hash includes the number of dice drawn. */
 function makeRng(seed, opts = {}) {
-  const mode = opts.mode || 'keyed', tickOf = opts.tick || (() => 0), trace = opts.trace || null;
+  const mode = opts.mode || 'keyed'; if (!['keyed', 'purpose', 'single'].includes(mode)) throw new Error(`dice "${mode}": keyed, purpose or single`);
+  const tickOf = opts.tick || (() => 0), trace = opts.trace || null;
   const fmix = h => { h ^= h >>> 16; h = Math.imul(h, 0x85EBCA6B); h ^= h >>> 13; h = Math.imul(h, 0xC2B2AE35); return (h ^ h >>> 16) >>> 0; }; // (MurmurHash3's 32-bit finaliser)
   const hs = new Map(), hash = k => { if (k == null) return 0; let h = hs.get(k); if (h === undefined) { const str = String(k); h = 0x811C9DC5; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 0x01000193); h = fmix(h) || 1; hs.set(k, h); } return h; }; // (FNV-1a, then mixed)
   const mulberry = s => { let t = s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -76,7 +77,7 @@ function makeRng(seed, opts = {}) {
     if (trace) trace.set(why + '|' + (a ?? '') + '|' + (b ?? '') + '|' + seenTick + '|' + n, v);
     return v;
   };
-  r.counts = counts; r.mode = mode;
+  r.counts = counts; r.mode = mode; // (the multipliers above are arbitrary odd constants for mixing bits; they are not calibration)
   r.normal = (why, a, b) => { const u = Math.max(1e-9, r(why, a, b)), v = r(why, a, b); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
   r.logn = (sig, why, a, b) => Math.exp(sig * r.normal(why, a, b) - sig * sig / 2);
   r.tri = (lo, m, hi, why, a, b) => { const u = r(why, a, b), f = (m - lo) / (hi - lo); return u < f ? lo + Math.sqrt(u * (hi - lo) * (m - lo)) : hi - Math.sqrt((1 - u) * (hi - lo) * (hi - m)); };
@@ -245,6 +246,7 @@ function create(opts = {}) {
     pathCost: {}, losCache: new Map(), metrics: Object.fromEntries([...(BATTLE.battle.metrics || []).map(m => m.id), 'guardAttack', ...SIDE_IDS.map(x => x.toLowerCase() + 'Break')].map(k => [k, null])),
     flags: {}, over: false, result: null, ai: null, ruleHooks: [], history_: [], spTaken: {},
   };
+  E.orderKey = o => `${o.kind || ''}:${o.obj || ''}:${(o.units || []).join('+')}`; // what an order says, for the dice
   E.fmtT = fmtT; E.W = W; E.T = T; E.TT = TT; E.hAt = hAt; E.ll2m = ll2m; E.m2ll = m2ll;
   E.light = { sunset: SUNSET, dark: DARK, end: END, sunAt, date: BATTLE.battle.date, lat: CLAT, lon: CLON, humidFrom: WEATHER.humidFrom ?? null }; // (phase 2) this battle's light, computed
   E.battleId = BATTLE.id; E.sideIds = SIDE_IDS; E.sides = SIDES; E.coalition = COAL; E.footprint = footprint; E.bgVis = bgVis; E.nations = NATIONS; E.era = ERA;
@@ -496,10 +498,11 @@ function create(opts = {}) {
     const fp = from ? leaderPos(from) : null, tp = to ? leaderPos(to) : (o.unitTo && E.byId[o.unitTo] ? [E.byId[o.unitTo].x, E.byId[o.unitTo].y] : null);
     const dist = fp && tp ? hyp(fp[0] - tp[0], fp[1] - tp[1]) : 1500;
     const OR = ERA.orders, wr = (from && from.writes) || OR.write; // minutes to write: the sender's habit (leader file), else the era's
-    const write = o.writeMin ?? rnd.range(wr[0], wr[1], 'order writing') * (o.urgent ? 0.5 : 1);
+    // (an order's draws are keyed by what it says, never by its id: ids are running numbers and shift when another order is added)
+    const write = o.writeMin ?? rnd.range(wr[0], wr[1], 'order writing', o.to || o.unitTo || o.from, E.orderKey(o)) * (o.urgent ? 0.5 : 1);
     const speed = (OR.rider * (1 - OR.riderWet * E.wet) * 1000 / 60); // cross-country rider, m/min
     const ride = o.rideMin ?? dist / speed;
-    const interp = o.interpMin ?? (o.direct ? rnd.range(OR.interpDirect[0], OR.interpDirect[1], 'interpretation') : rnd.range(OR.interp[0], OR.interp[1], 'interpretation'));
+    const interp = o.interpMin ?? (o.direct ? rnd.range(OR.interpDirect[0], OR.interpDirect[1], 'interpretation', o.to || o.unitTo || o.from, E.orderKey(o)) : rnd.range(OR.interp[0], OR.interp[1], 'interpretation', o.to || o.unitTo || o.from, E.orderKey(o)));
     o.sentAt = E.t; o.arriveAt = E.t + write + ride; o.actAt = o.arriveAt + interp; o.status = 'riding';
     E.orders.push(o); return o;
   };

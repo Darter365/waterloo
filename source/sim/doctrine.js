@@ -632,7 +632,7 @@ function escalateOnRepulse(E, side, list, a, tgt, st) {
   for (const g of list) {
     if (a.side !== side || !tgt.sp || tgt.sp.id !== g.place) continue;
     const L = E.leaders[g.leader]; st.repulses = st.repulses || {}; st.repulses[g.place] = (st.repulses[g.place] || 0) + 1;
-    if (E.rnd('escalate', side, g.place) < (L ? L.agg : 0.5) * g.chance) {
+    if (E.rnd('escalate', g.place, a.id) < (L ? L.agg : 0.5) * g.chance) {
       const next = g.units.map(id => E.byId[id]).find(u => u && E.formed(u) && u.task.kind !== 'attack' && u.task.sp !== g.place);
       if (next) { E.sendOrder({ id: g.place.slice(0, 4) + '_' + next.id, from: g.leader, to: g.to, kind: 'attack', obj: g.place, units: [next.id], form: 'attack', maxAttempts: g.maxAttempts, direct: true, rideMin: g.rideMin, cause: E.cause(`${L ? L.name : 'Its general'} threw ${next.name} into ${E.spById[g.place].name} after ${a.name} was repulsed`) }); if (g.says) E.logEvent('orders', g.says.replace('{unit}', next.name), { side, hidden: true }); }
     }

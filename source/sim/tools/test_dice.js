@@ -1,10 +1,16 @@
 /* The dice's own tests (engine.js, makeRng; docs/METHOD.md section 4).
      node tools/test_dice.js [seed=1003]
    1. Same seed and same orders: the same draws and the same battle (rule 6).
-   2. One order changed, or sent later: the battle differs, and yet every draw that both battles asked for has the same value.
-      "A draw the order does not touch" is one whose identity (purpose, whose draw, tick, count within the tick) occurs in both.
-   3. Every draw says whose it is (bar the few that belong to the whole field), and no purpose asks for the same owner's draw more
-      often in a tick than its own rule needs: a higher count means two different things share one identity and each other's luck.
+   2. One order changed, or sent later. A draw's identity is its purpose, whose draw it is, the tick, and its count within the tick,
+      and a keyed draw's value follows from its identity: so "a draw both battles ask for has the same value" is true by
+      construction, and is checked here only as a guard on the generator. What the design is for is tested on the field itself:
+      forty minutes after the order, every body outside the commanded corps stands exactly as it did in the unchanged battle, and
+      two thirds of the unchanged battle's later events still happen, word for word, at the same minute. The old single sequence
+      is fought beside it and must fail the first of these, which shows the test can fail.
+   3. Every draw says whose it is (bar the few that belong to the whole field), and no owner's draw is asked for more often in a
+      tick than its rule needs (once; twice for a normal deviate). More means two things share one identity and so each other's
+      luck. Checked across the ways battles are fought: the command layer with either chief of staff, aides sent to look, a second
+      battle, and the generic commanders with no command layer.
    4. The values behave as dice: evenly spread, and one owner's draws in successive ticks, or for two purposes, are unrelated. */
 'use strict';
 const path = require('path'), crypto = require('crypto');
@@ -20,13 +26,20 @@ function stateHash(E) { // as refset.js
   const dice = Object.values(E.rnd.counts || {}).reduce((a, b) => a + b, 0);
   return crypto.createHash('sha1').update(JSON.stringify([E.t, E.morale, units, places, dice])).digest('hex').slice(0, 16);
 }
-function fight(s, at, place) {
-  const trace = new Map(), E = R.setup({ seed: s, history: 'uncertain', scenario: '1100', staff: 'soult', silence: 0, diceTrace: trace });
+const unitState = (E, own) => new Map(E.units.filter(u => E.command.cmdOf(u) !== own).map(u => [u.id, [u.x, u.y, u.str, u.coh, u.status, u.form].join()]));
+function fight(s, at, place, o = {}) {
+  const trace = new Map(), E = R.setup({ seed: s, history: 'uncertain', scenario: '1100', staff: o.staff || 'soult', silence: 0, dice: o.dice, diceTrace: trace });
   Scr.historical(E);
-  let sent = at == null, guard = 0;
-  while (!E.over && guard++ < 2000) { if (!sent && E.t >= at) { sent = true; const r = E.command.order(ORDER(place)); if (!r.ok) throw new Error('order refused: ' + r.error); } E.step(); }
-  return { E, trace, hash: stateHash(E), dice: Object.values(E.rnd.counts).reduce((a, b) => a + b, 0) };
+  let sent = at == null, guard = 0, after40 = null;
+  while (!E.over && guard++ < 2000) {
+    if (!sent && E.t >= at) { sent = true; const r = E.command.order(ORDER(place)); if (!r.ok) throw new Error('order refused: ' + r.error); }
+    if (o.aidesAt && E.t === o.aidesAt) for (const pl of ['plancenoit', 'papelotte']) E.command.order({ to: 'hq', action: 'observe', objective: { place: pl }, conditions: [], manner: {} });
+    E.step();
+    if (E.t === T0 + 40) after40 = unitState(E, 'lobau');
+  }
+  return { E, trace, after40, hash: stateHash(E), dice: Object.values(E.rnd.counts).reduce((a, b) => a + b, 0), events: new Set(E.log.filter(e => e.t >= T0).map(e => e.t + '|' + e.cat + '|' + e.text)) };
 }
+const stood = (a, b) => { let n = 0, same = 0; for (const [id, st] of a.after40) { n++; if (b.after40.get(id) === st) same++; } return [same, n]; };
 const same = (a, b) => { if (a.size !== b.size) return false; for (const [k, v] of a) if (b.get(k) !== v) return false; return true; };
 
 /* 1. the same battle twice */
@@ -39,34 +52,51 @@ ok(base.trace.size === base.dice, `every draw has its own identity (${base.trace
 /* 2. one order changed */
 const tick0 = (T0 - R.START) / 2;
 for (const [name, other] of [['its objective changed', fight(seed, T0, 'smohain')], ['sent twenty minutes later', fight(seed, T0 + 20, 'frischermont')]]) {
-  let later = 0, both = 0, rerolled = 0, before = 0, beforeOff = 0;
+  let later = 0, both = 0, rerolled = 0, before = 0, beforeOff = 0, kept = 0;
   for (const [k, v] of base.trace) {
     const w = other.trace.get(k), late = +k.split('|')[3] >= tick0;
     if (!late) { before++; if (w !== v) beforeOff++; continue; }
     later++; if (w === undefined) continue; both++; if (w !== v) rerolled++;
   }
+  for (const e of base.events) if (other.events.has(e)) kept++;
+  const [same, n] = stood(base, other);
   ok(other.hash !== base.hash, `one order with ${name}: the battle is a different one`);
   ok(beforeOff === 0, `one order with ${name}: nothing before 16:30 differs (${beforeOff} of ${before} draws)`);
   ok(rerolled === 0, `one order with ${name}: no draw asked for in both battles is re-rolled (${rerolled} of ${both})`);
   ok(both > 0.5 * later, `one order with ${name}: most later draws are asked for in both battles (${both} of ${later})`);
-  console.log(`  one order with ${name}: ${later} draws from 16:30, ${both} in both battles, ${rerolled} re-rolled`);
+  ok(same === n && n > 100, `one order with ${name}: at 17:10 every body outside Lobau's corps stands as in the unchanged battle (${same} of ${n})`);
+  ok(kept >= base.events.size * 2 / 3, `one order with ${name}: two thirds of the later events still happen (${kept} of ${base.events.size})`);
+  console.log(`  one order with ${name}: ${later} draws from 16:30, ${both} in both battles, ${rerolled} re-rolled; at 17:10 ${same} of ${n} bodies outside the corps unchanged; ${kept} of ${base.events.size} later events kept`);
 }
+{ // the single sequence, fought the same way, must not pass: the delayed order shifts every later draw
+  const b1 = fight(seed, T0, 'frischermont', { dice: 'single' }), l1 = fight(seed, T0 + 20, 'frischermont', { dice: 'single' }), [same, n] = stood(b1, l1);
+  ok(same < 0.9 * n, `the old single sequence fails the same test (${same} of ${n} bodies unchanged at 17:10 with the order sent later)`);
+  console.log(`  the old single sequence, order sent twenty minutes later: at 17:10 ${same} of ${n} bodies outside the corps unchanged`); }
 const otherSeed = fight(seed + 1, T0, 'frischermont');
 { let both = 0, eq = 0; for (const [k, v] of base.trace) { const w = otherSeed.trace.get(k); if (w !== undefined) { both++; if (w === v) eq++; } }
   ok(both > 1000 && eq < both / 1000, `another seed is other luck (${eq} of ${both} shared draws equal)`); }
 
 /* 3. whose draw, and how often */
 const FIELD = new Set(['gust', 'moving headquarters', 'Napoleon hit']); // the whole field's, or the one headquarters'
-const MOST = { 'strength estimate': 3, 'position error': 4, melee: 3, // a range and a normal; x and y; an assault's loss and the locked fight's in one tick
+const MOST = { wind: 2, 'shock test': 2, 'casualty noise': 2, 'cavalry melee': 2, 'cavalry morale test': 2, 'gun count': 2, 'prisoner exaggerates': 2, 'aide estimate': 2, // one normal deviate: two draws
+  'strength estimate': 3, 'position error': 4, melee: 3, // a range and a normal; x and y; an assault's loss and the locked fight's in one tick
+  'extra rider': 2, 'rider under fire': 2, 'rider captured': 2, // the same order written twice in one minute is one identity (Ligny: Napoleon to Gérard, twice at 19:50)
   'order writing': 4, interpretation: 4, 'misread order': 4 }; // a general's draw is his own: three orders to him in one tick (d'Erlon at 13:30) take three in turn
-const noOwner = new Set(), tooOften = {};
-for (const k of base.trace.keys()) {
-  const [why, a, , , n] = k.split('|');
-  if (a === '' && !FIELD.has(why)) noOwner.add(why);
-  if (+n + 1 > (MOST[why] || 2)) tooOften[why] = Math.max(tooOften[why] || 0, +n + 1);
+const P = require(path.join(SIM, 'packs', 'all.js')), En = require(path.join(SIM, 'engine.js')), Doc = require(path.join(SIM, 'doctrine.js'));
+(function noise(o) { if (!o || typeof o !== 'object') return; if (o.noise && o.noise.roll) MOST[o.noise.roll] = 2; for (const v of Object.values(o)) noise(v); })(Object.keys(P.battles).map(id => P.battle(id).battle)); // the packs' own normal deviates (a march's noise)
+const generic = id => { const trace = new Map(), E = En.create({ battle: id, seed, diceTrace: trace }); Doc.make({}).init(E); E.run(); return trace; };
+const ligny = () => { const trace = new Map(), E = R.setup({ battle: 'ligny', seed, history: 'uncertain', staff: 'berthier', silence: 0, diceTrace: trace }); Scr.historical(E); E.run(); return trace; };
+for (const [name, trace] of [['Waterloo, Soult', base.trace], ['Waterloo, Berthier, two aides sent', fight(seed + 2, null, null, { staff: 'berthier', aidesAt: 800 }).trace], ['Ligny', ligny()],
+  ...Object.keys(P.battles).map(id => [`${id}, generic commanders`, generic(id)])]) {
+  const noOwner = new Set(), tooOften = {};
+  for (const k of trace.keys()) {
+    const [why, a, , , n] = k.split('|');
+    if (a === '' && !FIELD.has(why)) noOwner.add(why);
+    if (+n + 1 > (MOST[why] || 1)) tooOften[why] = Math.max(tooOften[why] || 0, +n + 1);
+  }
+  ok(noOwner.size === 0, `${name}: every draw says whose it is (without an owner: ${[...noOwner].join(', ') || 'none'})`);
+  ok(Object.keys(tooOften).length === 0, `${name}: no owner's draw is asked for more often in a tick than its rule needs (${JSON.stringify(tooOften)})`);
 }
-ok(noOwner.size === 0, `every draw says whose it is (without an owner: ${[...noOwner].join(', ') || 'none'})`);
-ok(Object.keys(tooOften).length === 0, `no owner's draw is asked for more often in a tick than its rule needs (${JSON.stringify(tooOften)})`);
 
 /* 4. the values as dice */
 { const vals = [...base.trace.values()], n = vals.length, mean = vals.reduce((a, b) => a + b, 0) / n, bins = new Array(20).fill(0);

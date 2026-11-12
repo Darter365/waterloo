@@ -405,6 +405,8 @@ function install(E, opts = {}) {
     for (let i = 1; i < pts.length; i++) path = path.concat(E.astar('rider', pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]));
     return path;
   }
+  // whose draw a rider's is: what he carries and the minute he left (an hourly message has the same label every hour)
+  const riderKey = r => (r.diceKey || r.label || r.group) + '@' + r.leftAt;
   function launch(r) {
     r.id = 'r' + C.nextId++; r.status = 'riding'; r.ridden = 0; r.leftAt = E.t; r.trail = [];
     if (r.onLaunch) r.onLaunch(r);
@@ -440,8 +442,8 @@ function install(E, opts = {}) {
       const ne = nearestEnemy(r.side, r.x, r.y, CK.NEAR);
       if (ne) {
         const [eu, d] = ne, km = Math.max(0.05, (riderSpeed(r.x, r.y) * 2) / 1000), rate = d < CK.CLOSE ? CK.LOSS_CLOSE : CK.LOSS_NEAR;
-        if (rnd('rider under fire', r.label || r.group, r.spread || 0) < 1 - Math.pow(1 - rate, km)) {
-          const captured = (eu.type === 'cav' || d < CK.CLOSE) && rnd('rider captured', r.label || r.group, r.spread || 0) < CK.CAPTURE;
+        if (rnd('rider under fire', riderKey(r), r.spread || 0) < 1 - Math.pow(1 - rate, km)) {
+          const captured = (eu.type === 'cav' || d < CK.CLOSE) && rnd('rider captured', riderKey(r), r.spread || 0) < CK.CAPTURE;
           r.status = captured ? 'captured' : 'lost'; r.lostAt = E.t; r.lostWhere = whereIs(r.x, r.y);
           E.logEvent('hidden', `A rider carrying ${r.label} is ${captured ? 'captured' : 'shot down'} ${r.lostWhere}.`, { side: r.side, hidden: true, rider: r.id });
           if (captured) intercept(r, eu);
@@ -659,7 +661,7 @@ function install(E, opts = {}) {
   function reports() {
     for (const cid of REPORTERS) if (reportDue(cid)) sendReport(cid);
     for (const p of C.pendingLaunch.filter(p => E.t >= p.at)) {
-      const r = p.r; const n = r.kind === 'order' && C.opts.staff === 'berthier' ? 2 + (rnd('extra rider', r.label || r.group) < 0.5 ? 1 : 0) : 1;
+      const r = p.r; const n = r.kind === 'order' && C.opts.staff === 'berthier' ? 2 + (rnd('extra rider', (r.diceKey || r.label || r.group) + '@' + E.t) < 0.5 ? 1 : 0) : 1;
       for (let i = 0; i < n; i++) launch(Object.assign({}, r, { spread: n > 1 ? (i - (n - 1) / 2) * 700 : 0, onDeliver: r.onDeliver, onLost: r.onLost }));
     }
     C.pendingLaunch = C.pendingLaunch.filter(p => E.t < p.at);
