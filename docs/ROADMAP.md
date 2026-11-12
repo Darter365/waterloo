@@ -31,6 +31,9 @@ It serves a command game that is engaging, immersive and true to its period, goo
 - **The chain of command as data (12 Nov):** every army, wing, corps and division an entry with its commander
   (`battle.chain`), checked by the validator and printed by `tools/oob.js chain`. No change to results; the commanders' code
   does not read it yet (`DECISIONS.md`, open questions).
+- **Measures of the core loop (12 Nov):** `tools/loop.js` reads belief error, report staleness, order latency against the
+  staff's estimate, orders overtaken and decision gaps from the contract alone, per plan, and saves them in `results/`
+  (`METHOD.md`, section 5). The contract gained plain values for it; no change to results.
 
 - **The agent harness (12 Nov):** `tools/agentplay.js` plays a battle headless through Napoleon's view or the umpire's, a stop
   at a time, and saves it as a replay; `tools/test_agentplay.js` fails if truth reaches Napoleon's turns. The first agent

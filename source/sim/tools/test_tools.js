@@ -177,6 +177,15 @@ broken('t-toguns', B => onSide(B, 'FR', s => { s.toGuns[0].force = 'nobody'; ret
   broken('t-chain-side', B => { B.chain = { wing: { kind: 'wing' } }; }, /has no side/);
   broken('t-chain-key', B => { B.chain = { guard: { leader: 'drouot' } }; }, /unknown key "leader"/); }
 console.log(`tools: ${n} checks passed`);
+/* ----- the loop's measures (tools/loop.js): the centile and the test for a changed situation ----- */
+{ const Lp = require('./loop.js');
+  ok(Lp.pct([5, 1, 3, null, 2, 4], 0.5) === 3 && Lp.pct([], 0.5) === null && Lp.pct([7], 0.9) === 7, 'a centile by nearest rank, nulls left out');
+  ok(Lp.changed({ holder: 'FR', enemy: 0 }, { holder: 'AL', enemy: 0 }) === 'holder', 'a place changing hands is a changed situation');
+  ok(Lp.changed({ holder: undefined, enemy: 2000 }, { holder: 'AL', enemy: 2000 }) === null, 'a holder not known on one side is not compared');
+  ok(Lp.changed({ enemy: 1500 }, { enemy: 3000 }) === 'strength' && Lp.changed({ enemy: 3000 }, { enemy: 1500 }) === 'strength', 'the enemy doubling or halving by 1,000 men is a changed situation');
+  ok(Lp.changed({ enemy: 300 }, { enemy: 900 }) === null && Lp.changed({ enemy: 5000 }, { enemy: 6500 }) === null, 'a small body trebling, or a large one growing by a third, is not');
+  ok(Lp.changed(null, { enemy: 1 }) === null, 'nothing to compare gives no change'); }
+
 // every bench case builds a battle pack that validates
 { const { benchBattle } = require('./bench.js'), fs = require('fs'), path = require('path');
   for (const f of fs.readdirSync(path.join(__dirname, '..', 'bench')).filter(f => f.endsWith('.js'))) for (const c of require(path.join(__dirname, '..', 'bench', f)).filter(c => c && c.id)) {
