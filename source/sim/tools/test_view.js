@@ -81,6 +81,15 @@ ok(kinds.dispatch > 10 && kinds.cannon > 0, `the chief's stream carries dispatch
   const az = t => View.sunPos(L.date, L.lat, L.lon, t).az; ok(az(480) > 60 && az(480) < 120 && Math.abs(az(720) - 180) < 12 && az(1080) > 250 && az(1080) < 300, `the sun bears east at 08:00, south at noon, west at 18:00 (${Math.round(az(480))}, ${Math.round(az(720))}, ${Math.round(az(1080))})`);
   const S = V.snapshot('truth'); ok(typeof S.light.bearing === 'number' && typeof S.light.damp === 'boolean' && S.light.seeing > 0, 'a snapshot carries the sun\'s bearing, the damp and the seeing'); }
 
+// the commander's place and glass: where he stands is his leader's true place (he knows where he is), and his telescope is the packs'
+// (his own power, else the era's), with the true field that follows from the power and the eyepiece's circle
+{ const S = V.snapshot('chief'), L = B.leaders[chiefId], P = require(path.join(SIM, 'packs', 'all.js')), person = P.leader(chiefId) || {}, era = P.era(P.battles[battle].era);
+  ok(S.at && Math.abs(S.at.x - L.x) < 0.06 && Math.abs(S.at.y - L.y) < 0.06, 'the chief snapshot says where the commander stands');
+  const want = person.glass ? person.glass.power : era.glass.power;
+  ok(S.glass && S.glass.power === want && S.glass.apparent === era.glass.apparent, `the chief snapshot carries the commander's glass from the packs (${S.glass && S.glass.power} times)`);
+  ok(S.glass && Math.abs(Math.tan(S.glass.field * Math.PI / 360) * S.glass.power - Math.tan(S.glass.apparent * Math.PI / 360)) < 2e-4, `the glass's true field follows from its power and its eyepiece (${S.glass && S.glass.field} degrees)`);
+  ok(V.snapshot('truth').glass === undefined, 'the truth snapshot carries no glass: it is nobody\'s eye'); }
+
 // 3. causes
 const breaks = B.log.filter(l => l.cat === 'break' && l.cause != null), chains = breaks.map(l => V.why(l));
 ok(breaks.length > 0 && chains.every(c => c.length >= 1), `every break has a cause (${breaks.length})`);

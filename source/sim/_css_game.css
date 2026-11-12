@@ -327,7 +327,11 @@ details.more>summary{cursor:pointer;padding:9px 0;font-size:.92rem;color:var(--f
 #v3btn[aria-pressed="true"]{background:var(--m-ink);color:var(--m-paper)}
 .v3{position:absolute;inset:0;z-index:8;background:#cfe6f2}
 .v3 canvas{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
-.v3cap{position:absolute;left:8px;top:8px;right:8px;max-width:520px;background:var(--m-paper);color:var(--m-ink);border:1px solid var(--m-ink);padding:5px 9px;font-size:.84rem;line-height:1.3;pointer-events:none}
-#v3x,#v3g{position:absolute;right:10px;bottom:12px;min-height:40px;padding:6px 12px;font-family:var(--serif);font-size:.92rem;border:1px solid var(--m-ink);background:var(--m-paper);color:var(--m-ink);border-radius:2px;cursor:pointer}
-#v3g{right:auto;left:10px}
+/* the caption is a shade short of opaque on purpose: headless Chrome with software drawing skips the part of the 3D canvas it takes to be
+   hidden behind a large opaque box, and takes the wrong part (the box's mirror image at the foot), leaving a pale hole in test pictures */
+.v3cap{position:absolute;left:8px;top:8px;right:8px;max-width:520px;background:color-mix(in srgb,var(--m-paper) 94%,transparent);color:var(--m-ink);border:1px solid var(--m-ink);padding:5px 9px;font-size:.84rem;line-height:1.3;pointer-events:none}
+.v3mask{position:absolute;inset:0;pointer-events:none}
+.v3bar{position:absolute;left:10px;right:10px;bottom:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end;pointer-events:none}
+.v3bar button{pointer-events:auto;min-height:40px;padding:6px 12px;font-family:var(--serif);font-size:.92rem;border:1px solid var(--m-ink);background:var(--m-paper);color:var(--m-ink);border-radius:2px;cursor:pointer}
+#v3x{margin-left:auto}
 #v3g[aria-pressed="true"]{background:var(--m-ink);color:var(--m-paper)}
