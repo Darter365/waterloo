@@ -36,8 +36,9 @@ Never record a guess as a decision.
 - **Instructions for the planning project (12 Nov).** Chris adopted the proposed text for the project's instructions field; he
   may change it. A revision for merging and tools is in the project (`claude/INSTRUCTIONS_PROPOSAL.md`).
 - **The rules doc and the full roadmap are in the repository and the project (12 Nov).** `docs/RULES.md` is the "Simulation
-  rules" tab of "Waterloo Game: Simulation Rules" as exported on 12 Nov (revision 37, dated 23 Oct). Its "Order of battle" tab
-  is not copied yet.
+  rules" tab of "Waterloo Game: Simulation Rules" as exported on 12 Nov (revision 37, dated 23 Oct). Its "Order of battle" tab,
+  the research brief (both tabs) and "Adding a battle: lessons from Ligny" were copied on 12 Nov by the source pass
+  (`docs/SOURCES.md`, "Snapshots"). "Engine split: Waterloo to Gettysburg" is not copied: it waits for Chris's own export.
 - **Confidence keeps the packs' words (12 Nov):** `doc`, `approx`, `low`, `none`. No new scale.
 - **Seeds and a battle held back from tuning: set aside (12 Nov).** Proposed by Claude; Chris said to ignore it for now.
 - **Desktop first (12 Nov).** Develop and judge on a desktop browser from now on, to make things easier. The page must still
@@ -99,6 +100,13 @@ These were made to keep moving and are easy to change. Raise them when the subje
   is timed; every tick counts, the cold first ones included; the baseline in `results/ticktime_baseline.json` is the middle of
   three fresh processes; the warning is at 1.5 times the baseline (est.) and never fails the check.
 - Slopes are steepened tenfold for the shading painted on the ground; the view from above draws heights three times life size.
+- **The source pass's conventions** (12 Nov, `docs/SOURCES.md`): one row per number; today's sourcing graded in the packs'
+  words; an outcome of improved, part or none; no page numbers until someone has checked them against the scan (the
+  pages were read through the fetch tool's summary, not by eye); estimates left out unless a source turned up.
+- **Snapshots made by converting the connector's read of a tab, not from its Markdown export** (12 Nov). The export
+  arrives as inline base64 that cannot be written exactly. The conversion reproduces `docs/RULES.md` byte for byte, and
+  matches the size of the brief's own export. Chris asked for his own export where exactness could not be had; that is
+  what "Engine split" waits for.
 
 ## Open questions (not decided)
 
@@ -112,8 +120,11 @@ These were made to keep moving and are easy to change. Raise them when the subje
   how battles fight.
 - **Determinism across browsers.** Verified in Node and Chromium only. The simulation uses `Math.sin`, `cos`, `pow`, `exp` and
   `log`, which other engines may round differently, so a battle may not replay identically in Safari or Firefox. Not tested.
-- **Sources behind the rules doc.** Some sourced values rest on Wikipedia, web articles and a "research brief" that is not in
-  the repository. A source pass is proposed (`docs/METHOD.md`, section 2).
+- **Sources behind the rules doc.** The source pass of 12 Nov (`docs/SOURCES.md`) checked 107 numbers against primary
+  documents and standard histories: 65 now have an openable source, 29 have one in part, 13 have none. It changed no value.
+  Its 26 proposals are open: values that look wrong (the wind, the time an order takes to reach Grouchy, the Wavre fire,
+  Zieten's and Bülow's strengths, some order-of-battle totals), targets that should be ranges, and works to obtain. No
+  Dutch-Belgian source was opened, and no figure was checked by eye against a page image.
 - **Generic commanders on every side win Waterloo for the French** (a marginal French victory in 29 battles of 30, roadmap,
   27 Oct; not re-run since). Fair counterfactual, or an attacker that is too strong?
   A battle outside June 1815 is needed to tell.

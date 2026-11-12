@@ -25,7 +25,9 @@ under "Claude's choices awaiting Chris" in `DECISIONS.md` until he confirms it.
 - **Citing.** Name the work and say whether it was opened in this session or recalled. No page numbers or quotations from
   memory. Where accounts disagree, store the range and who says what, and look for a source from each army's tradition.
 - **Known weak spots.** `docs/RULES.md` cites Wikipedia, web articles and a web copy of Keegan for some sourced values, and a
-  "research brief" that is not in the repository. Those are `approx` at best until a source pass replaces them (section 8).
+  "research brief" (now `docs/RESEARCH_BRIEF.md`). Those are `approx` at best. The source pass of 12 Nov 2026
+  (`docs/SOURCES.md`) sets a primary document or a standard history beside each, with what was opened and what was not;
+  it changed no value, and its figures still need checking by eye against the scans.
 
 ## 3. Validation
 
