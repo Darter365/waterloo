@@ -6,13 +6,17 @@
      <others>    the pack's `strategies`: opening orders given at the start
    and holds the results to expectations any battle should meet. A failure that is already known is listed as a known gap, not failed
    (KNOWN below): the list may only shrink.
-     node tools/strategies.js [--n 6] [--battle waterloo] [--seed 2000] */
+     node tools/strategies.js [--n 30] [--battle waterloo] [--seed 2000]
+   30 battles a plan (Chris's say, 12 Nov; it was 6): a plan is judged by its middle battle, and at Waterloo the historical orders end
+   in an allied victory in about four battles of five (24 of 30 on seeds 2000 to 2029; 84.6% of 500 on seeds 1000 to 1499), so the
+   middle of 6 is a draw too often to hold a gate (3 of the first 6 were draws). check.sh runs 12, where a draw in the middle needs
+   6 draws of 12: about 2 runs in 100 at one in five (binomial). */
 'use strict';
 const path = require('path');
 const SIM = path.join(__dirname, '..');
 const P = require(path.join(SIM, 'packs', 'all.js')), R = require(path.join(SIM, 'replay.js')), Scr = require(path.join(SIM, 'script.js')), St = require(path.join(SIM, 'stakes.js'));
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i >= 0 ? process.argv[i + 1] : d; };
-const N = +arg('--n', 6), SEED0 = +arg('--seed', 2000), ONLY = arg('--battle', null);
+const N = +arg('--n', 30), SEED0 = +arg('--seed', 2000), ONLY = arg('--battle', null);
 // gaps known when this bench was written (9 November): the engine has no rule yet for a defender going over to the attack
 const KNOWN = { 'waterloo:idle-punished': 'the allies never attack an idle French army: the field ends a draw (needs a rule for a defender taking the initiative)' };
 const med = a => { const v = a.slice().sort((x, y) => x - y); return v[Math.floor(v.length / 2)]; };

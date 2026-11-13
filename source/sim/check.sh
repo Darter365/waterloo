@@ -13,7 +13,9 @@ node tools/test_view.js waterloo 1003 | tail -1
 node tools/test_view.js ligny 8 | tail -1
 node tools/test_agentplay.js | tail -1
 node tools/test_dice.js | tail -1
-node tools/strategies.js --n 2 | tail -1
+# 12 battles a plan, not 2: a plan is judged by its middle battle, and Napoleon's own orders end in an allied victory about four
+# times in five, so the middle of 2 or of 6 can be a draw (it was, with the keyed dice). Chris's say, 12 Nov. The gate itself is --n 30.
+node tools/strategies.js --n 12 | tail -1
 node tools/loop.js waterloo --check 1 | tail -1
 node tools/loop.js ligny --check 1 | tail -1
 node refset.js check ref/p2_hist.json 4

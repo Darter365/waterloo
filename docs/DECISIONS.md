@@ -23,9 +23,12 @@ Never record a guess as a decision.
   none and keep about three quarters of the later events (`docs/METHOD.md`, section 4). Chris accepted the keyed design as
   built, and its merge, on 12 Nov, knowing which gates it failed: Waterloo is in its band over seeds 1000 to 1499 (allied
   victories 84.6%, was 87.6%; Prussian losses 7.9k, was 7.7k, band to 8.0k), but `tune.js` at 60 battles reads the Prussian
-  median as 8.2k, and the strategy bench fails "plans end 10 points apart" at Waterloo. On his say two checks pinned to one
-  seed were re-pinned (`test_tools.js`, test battle, seed 5 to 7; `check.sh`, the contract at Ligny, seed 7 to 8), and the 120
-  references were re-recorded once.
+  median as 8.2k, and the strategy bench at 6 battles a plan failed "plans end 10 points apart" at Waterloo. On his say
+  ("Accept and merge", then "Fix both, then merge") four tests were changed and the 120 references re-recorded once: three
+  checks pinned to one seed were re-pinned (`test_tools.js`, test battle, seed 5 to 7; `check.sh`, the contract at Ligny,
+  seed 7 to 8; `tests/speedtest.py`, seed 777 to 778, where units are moving at 13:32), and the strategy bench now fights 30
+  battles a plan as a gate and 12 in `check.sh` (it was 6 and 2), where it passes: the historical orders end in an allied
+  victory in 24 of 30.
 - **The acceptance test for the dice streams (confirmed by Chris, 12 Nov, in the task brief).** Waterloo in its band over seeds
   1000 to 1499, with a before-and-after table; `tune.js` with no check that is in band today leaving it; the strategy bench
   with no new failure; the fuzz with no finding; a new test that, with one order changed, draws the order does not touch stay
@@ -222,8 +225,9 @@ These were made to keep moving and are easy to change. Raise them when the subje
   on the old dice and 7,843 on the new. Resampling 60 from the 500 puts the median over 8.0k in 38% of samples (10% on the
   old dice), so `tune.js` at 60 battles will often fail that check: more battles, or a look at the band. (2) Checks that
   hang on one seed: the test battle's "Green halts out of sight" (`test_tools.js`; holds on 32 of 60 seeds, old dice and
-  new) and the contract's "the commander perceives part of what happens" at Ligny (`test_view.js`; fails on seeds 8 and 9
-  of 7 to 14 on the old dice, on 3, 5 and 7 of 1 to 9 on the new). (3) Records made on the old dice were not redone: `results/engines/` (the same battle in four
+  new), the contract's "the commander perceives part of what happens" at Ligny (`test_view.js`; fails on seeds 8 and 9
+  of 7 to 14 on the old dice, on 3, 5 and 7 of 1 to 9 on the new), and the speed test's glide check, which needs a unit on the
+  move at 13:32. Each will trip again at the next change to results unless it is made to hold on any seed. (3) Records made on the old dice were not redone: `results/engines/` (the same battle in four
   engines), `results/loop_*.json` and the numbers quoted from them, `results/ticktime_baseline.json`, and the playtest in
   `docs/playtests/`. Their seeds now fight different battles.
 - **Which comes next:** moving the 2D map onto the contract, or the idle-army rule. Chris has not chosen.

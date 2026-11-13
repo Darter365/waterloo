@@ -5,7 +5,7 @@ aides and your corps commanders' riders tell you. Choose the battle on the start
 
 Open the site once in Safari (or Chrome), then **Add to Home Screen**. After that it opens from the icon with no signal.
 
-Everything is in `index.html` (engine, map and game); `sw.js` keeps it in the device's cache. Release 02428ff964.
+Everything is in `index.html` (engine, map and game); `sw.js` keeps it in the device's cache. Release 7f1a2e552a.
 
 `lab.html` is the battle lab: any battle in the engine's packs (Waterloo, Ligny, and an invented test battle), fought by the generic commanders
 or with you commanding one army through its own sightings; it also fights a battle many times and judges the results against the
