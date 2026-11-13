@@ -35,6 +35,8 @@ It serves a command game that is engaging, immersive and true to its period, goo
   staff's estimate, orders overtaken and decision gaps from the contract alone, per plan, and saves them in `results/`
   (`METHOD.md`, section 5). The contract gained plain values for it; no change to results.
 
+- **Dice keyed by seed, purpose, owner and tick (12 Nov, engine 0.5):** one changed order no longer re-rolls unrelated luck,
+  so two plans can be compared on the same seeds (`docs/METHOD.md`, section 4). References re-recorded.
 - **The agent harness (12 Nov):** `tools/agentplay.js` plays a battle headless through Napoleon's view or the umpire's, a stop
   at a time, and saves it as a replay; `tools/test_agentplay.js` fails if truth reaches Napoleon's turns. The first agent
   playtest has not been run yet (`docs/playtests/`). Wellington's view waits on the allied side being playable.

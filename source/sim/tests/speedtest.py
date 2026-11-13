@@ -12,7 +12,7 @@ async def main():
         b = await p.chromium.launch(); ctx = await b.new_context(viewport={'width': W, 'height': H}, has_touch=W < 600)
         pg = await ctx.new_page(); errs = []; pg.on('pageerror', lambda e: errs.append('PAGEERR ' + str(e))); pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' else None)
         await pg.goto('file://' + D + 'ps.html'); await pg.wait_for_timeout(800)
-        await pg.evaluate("document.getElementById('s-more').open = true"); await pg.select_option('#s-map', 'umpire'); await pg.fill('#s-seed', '777'); await pg.click('#s-go'); await pg.wait_for_timeout(400)
+        await pg.evaluate("document.getElementById('s-more').open = true"); await pg.select_option('#s-map', 'umpire'); await pg.fill('#s-seed', '778'); await pg.click('#s-go'); await pg.wait_for_timeout(400)
         clock = lambda: pg.evaluate('JSON.stringify(WGame.clock())')
         opts = await pg.evaluate("[...document.querySelectorAll('#r-speed option')].map(o => o.textContent)"); print('SPEEDS', ' | '.join(opts))
         # an order so that something moves

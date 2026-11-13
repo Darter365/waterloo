@@ -17,8 +17,23 @@ Never record a guess as a decision.
   ancient to the 1870s. Sieges and naval actions are out of the core.
 - **Either side playable, a page per battle, nights summarised, all four Gettysburg starts (Oct).** Not built yet: one side is
   playable per battle today.
-- **A dice stream per purpose (12 Nov).** Approved, on the research (common random numbers). It changes results, so it is a
-  class 3 task and the references are re-recorded once. Its acceptance test is under "Claude's choices" until Chris confirms it.
+- **Dice keyed by seed, purpose, owner and tick (12 Nov; engine 0.5).** Approved as "a dice stream per purpose", on the
+  research (common random numbers). Both designs were measured first (30 battles, one order changed at 16:30): a stream per
+  purpose re-rolled a median 70% of the later draws both battles ask for, against 72% for the one sequence; keyed draws re-roll
+  none and keep about three quarters of the later events (`docs/METHOD.md`, section 4). Chris accepted the keyed design as
+  built, and its merge, on 12 Nov, knowing which gates it failed: Waterloo is in its band over seeds 1000 to 1499 (allied
+  victories 84.6%, was 87.6%; Prussian losses 7.9k, was 7.7k, band to 8.0k), but `tune.js` at 60 battles reads the Prussian
+  median as 8.2k, and the strategy bench at 6 battles a plan failed "plans end 10 points apart" at Waterloo. On his say
+  ("Accept and merge", then "Fix both, then merge") four tests were changed and the 120 references re-recorded once: three
+  checks pinned to one seed were re-pinned (`test_tools.js`, test battle, seed 5 to 7; `check.sh`, the contract at Ligny,
+  seed 7 to 8; `tests/speedtest.py`, seed 777 to 778, where units are moving at 13:32), and the strategy bench fights more
+  battles a plan (it was 6, and 2 in `check.sh`), where it passes. How many, and which seeds, are Claude's (below).
+- **The acceptance test for the dice streams (confirmed by Chris, 12 Nov, in the task brief).** Waterloo in its band over seeds
+  1000 to 1499, with a before-and-after table; `tune.js` with no check that is in band today leaving it; the strategy bench
+  with no new failure; the fuzz with no finding; a new test that, with one order changed, draws the order does not touch stay
+  identical; same seed and same orders still give the same battle, and the reference hash still counts dice drawn or the pull
+  request says what replaced it; class 2's other gates; the 120 references re-recorded once, after everything else passes; a
+  fresh-context reviewer's findings in the pull request. If Waterloo leaves its band: no retuning, stop and report.
 - **Measures of the core loop come before a performance baseline (12 Nov).** Belief error, report staleness, order latency,
   orders overtaken and decision gaps, computed from the contract alone (`docs/METHOD.md`, section 5). Built 12 Nov as
   `tools/loop.js`; its definitions and thresholds are Claude's (below).
@@ -114,10 +129,18 @@ These were made to keep moving and are easy to change. Raise them when the subje
 - Sky and light colours, and reading short seeing as overcast only while the sun is up (the game has no cloud data).
 - **The merge classes and gates** in `CLAUDE.md` (12 Nov): which changes are class 1, 2, 3 or Chris only; the fresh-context
   reviewer; the live-site check after a merge; the standing permission to revert.
-- **The acceptance test for the dice streams** (12 Nov): Waterloo in its band over seeds 1000 to 1499; `tune.js` with no check
-  that is in band today leaving it; the strategy bench with no new failure; the fuzz clean; and a new test that, with one
-  order changed, draws the order does not touch stay identical. Also open: a stream per purpose only, or each draw keyed by
-  purpose, unit and tick (`docs/METHOD.md`, section 4).
+- **How many battles the strategy bench fights, and the re-pinned seeds** (12 Nov). Chris said to re-pin and to use more
+  battles; the figures are Claude's: 30 a plan as the gate (the historical orders end in an allied victory in 24 of 30 on
+  seeds 2000 to 2029) and 12 in `check.sh`, which is why `check.sh` now takes about six minutes, not two; seeds 7 (test
+  battle), 8 (Ligny) and 778 (speed test) as the nearest seed above the old one on which each check holds.
+- **Inside the dice** (12 Nov): no draw in today's battles is keyed by a running id (a rider with no label would fall back
+  to one; none exists). The player's orders are keyed by their recipient, so
+  several to one general in one tick take turns; the commanders' own orders by what they say; a rider by what he carries and
+  the minute he left. Three draws have no owner (gusts, the headquarters moving, Napoleon hit). The two older designs stay
+  in `makeRng` for `tools/dice_compare.js` alone. `tools/test_dice.js` judges the field (untouched until the corps acts on
+  the order; four fifths of the bodies outside it unchanged at 18:00, and more than under one sequence), because "the same
+  draw has the same value" is true of keyed dice by construction. Known and left: `'gate broken'` and `'counter-charge'`
+  can each be asked twice for one owner in a tick by two rules; identities are 32 bits, so two can rarely share a count.
 - **`docs/METHOD.md` as a whole, and the four kinds of number in rule 4** (sourced, derived, calibrated, estimated) (12 Nov).
 - **`docs/RULES.md` is a snapshot and the Claude doc stays the master** (12 Nov). The other way round is possible.
 - **What `doc`, `approx`, `low` and `none` mean** (`docs/METHOD.md`, section 2), read off today's packs.
@@ -201,4 +224,17 @@ These were made to keep moving and are easy to change. Raise them when the subje
 - **How to run the first agent playtest.** The player's brief asked for a journal written before every move, and the model's
   safeguards stopped the agent on it. Options: a brief that asks only for an after-action report; a different model for the
   player; or Chris plays the first one through the harness himself.
+- **Left by the dice change (12 Nov).** (1) Waterloo's Prussian losses sit on the band's upper edge whichever dice are used:
+  over seeds 1000 to 1499 the median is 7,929 and 236 of 500 battles lose more than 8.0k; over seeds 1500 to 1999 it is 7,816
+  on the old dice and 7,843 on the new. Resampling 60 from the 500 puts the median over 8.0k in 38% of samples (10% on the
+  old dice), so `tune.js` at 60 battles will often fail that check: more battles, or a look at the band. (2) Checks that
+  hang on one seed: the test battle's "Green halts out of sight" (`test_tools.js`; holds on 32 of 60 seeds, old dice and
+  new), the contract's "the commander perceives part of what happens" at Ligny (`test_view.js`; fails on seeds 8 and 9
+  of 7 to 14 on the old dice, on 3, 5 and 7 of 1 to 9 on the new), and the speed test's glide check, which needs a unit on the
+  move at 13:32. Each will trip again at the next change to results unless it is made to hold on any seed. (3) Records made on the old dice were not redone: `results/engines/` (the same battle in four
+  engines), `results/loop_*.json` and the numbers quoted from them, `results/ticktime_baseline.json`, and the playtest in
+  `docs/playtests/`. Their seeds now fight different battles. (4) The working behind the figures in (1) was done in the build session
+  and is in pull request 15, not in a tool: the bootstrap and the resampling are not repeatable from the repository.
+  (5) `replay.js` passes `dice` through to the engine, so a replay file could ask for one of the two old designs; no file
+  the game writes does.
 - **Which comes next:** moving the 2D map onto the contract, or the idle-army rule. Chris has not chosen.

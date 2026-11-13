@@ -40,16 +40,48 @@ const { NX, NY, CELL, WM, HM, ll2m, m2ll, H } = W;
 /* ---------------- calibration constants (est.): the era's, in its pack ---------------- */
 const K = ERA.K;
 
-/* ---------------- RNG with logged draws ---------------- */
-function makeRng(seed) {
-  let s = seed >>> 0; const counts = {};
-  const raw = () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-  const r = (why) => { counts[why || '?'] = (counts[why || '?'] || 0) + 1; return raw(); };
-  r.counts = counts;
-  r.normal = (why) => { const u = Math.max(1e-9, r(why)), v = r(why); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
-  r.logn = (sig, why) => Math.exp(sig * r.normal(why) - sig * sig / 2);
-  r.tri = (a, m, b, why) => { const u = r(why), f = (m - a) / (b - a); return u < f ? a + Math.sqrt(u * (b - a) * (m - a)) : b - Math.sqrt((1 - u) * (b - a) * (b - m)); };
-  r.range = (a, b, why) => a + (b - a) * r(why);
+/* ---------------- dice ---------------- */
+/* Every draw names its purpose and, where it has one, whose draw it is: rnd('shock', attacker.id, defender.id).
+   A draw is not the next number of a sequence. It is a hash of the battle's seed, the purpose, whose draw it is, the tick, and how many
+   times that same draw has already been asked for in the tick (a normal deviate asks twice). So a brigade's luck in a given minute is
+   the same whatever else happened first: change one order and only the draws that order reaches change, which is what lets two
+   plans be compared on the same dice (common random numbers; docs/METHOD.md, section 4). Rule 6 holds as before: the same seed and
+   the same orders give the same battle.
+   A new draw must say whose it is, with ids that mean the same thing in two battles (a unit, a leader, a side, a place, an order's
+   recipient), never a running number: two draws with the same purpose, owner and tick share one count, and are then tied to each
+   other's order. tools/test_dice.js holds the engine to this.
+   Two older designs are kept for measuring against (tools/dice_compare.js), chosen with create({ dice }); nothing else uses them:
+     'single'   one sequence feeds every draw in the order the draws happen (the engine up to version 0.4)
+     'purpose'  a sequence for each purpose, seeded from the battle's seed and the purpose's name
+   create({ diceTrace: new Map() }) records every draw under its identity, "purpose|who|whom|tick|n". counts (draws by purpose) is
+   kept in every design: the reference battles' hash includes the number of dice drawn. */
+function makeRng(seed, opts = {}) {
+  const mode = opts.mode || 'keyed'; if (!['keyed', 'purpose', 'single'].includes(mode)) throw new Error(`dice "${mode}": keyed, purpose or single`);
+  const tickOf = opts.tick || (() => 0), trace = opts.trace || null;
+  const fmix = h => { h ^= h >>> 16; h = Math.imul(h, 0x85EBCA6B); h ^= h >>> 13; h = Math.imul(h, 0xC2B2AE35); return (h ^ h >>> 16) >>> 0; }; // (MurmurHash3's 32-bit finaliser)
+  const hs = new Map(), hash = k => { if (k == null) return 0; let h = hs.get(k); if (h === undefined) { const str = String(k); h = 0x811C9DC5; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 0x01000193); h = fmix(h) || 1; hs.set(k, h); } return h; }; // (FNV-1a, then mixed)
+  const mulberry = s => { let t = s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const seedMix = fmix((seed >>> 0) + 0x9E3779B9), counts = {};
+  let s = seed >>> 0; const streams = new Map(); let seenTick = -1; const asked = new Map();
+  const r = (why, a, b) => {
+    why = why || '?'; counts[why] = (counts[why] || 0) + 1;
+    let v, id = 0, n = 0;
+    if (mode === 'keyed' || trace) {
+      const tick = tickOf(); if (tick !== seenTick) { asked.clear(); seenTick = tick; }
+      id = fmix((fmix((fmix(seedMix ^ hash(why)) + hash(a)) >>> 0) ^ Math.imul(hash(b), 0x9E3779B1)) + Math.imul(tick + 1, 0x7F4A7C15));
+      n = asked.get(id) || 0; asked.set(id, n + 1);
+    }
+    if (mode === 'keyed') v = fmix(id ^ Math.imul(n + 1, 0x632BE5AB)) / 4294967296;
+    else if (mode === 'purpose') { let st = streams.get(why); if (st === undefined) st = fmix(seedMix ^ hash(why)); st = (st + 0x6D2B79F5) >>> 0; streams.set(why, st); v = mulberry(st); }
+    else { s = (s + 0x6D2B79F5) >>> 0; v = mulberry(s); }
+    if (trace) trace.set(why + '|' + (a ?? '') + '|' + (b ?? '') + '|' + seenTick + '|' + n, v);
+    return v;
+  };
+  r.counts = counts; r.mode = mode; // (the multipliers above are arbitrary odd constants for mixing bits; they are not calibration)
+  r.normal = (why, a, b) => { const u = Math.max(1e-9, r(why, a, b)), v = r(why, a, b); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  r.logn = (sig, why, a, b) => Math.exp(sig * r.normal(why, a, b) - sig * sig / 2);
+  r.tri = (lo, m, hi, why, a, b) => { const u = r(why, a, b), f = (m - lo) / (hi - lo); return u < f ? lo + Math.sqrt(u * (hi - lo) * (m - lo)) : hi - Math.sqrt((1 - u) * (hi - lo) * (hi - m)); };
+  r.range = (lo, hi, why, a, b) => lo + (hi - lo) * r(why, a, b);
   return r;
 }
 
@@ -204,7 +236,7 @@ function canister(r, cal) { const lim = stepBy(CN.reach, cal, CN.reachElse); if 
 /* ================= engine ================= */
 function create(opts = {}) {
   const seed = opts.seed ?? (Math.random() * 1e9) | 0;
-  const rnd = makeRng(seed);
+  const rnd = makeRng(seed, { mode: opts.dice, tick: () => E.tick, trace: opts.diceTrace });
   const scenario = opts.scenario || '1100', history = opts.history || 'uncertain';
   const START = STARTS[scenario] || STARTS[Object.keys(STARTS)[0]]; // the start (battle pack); an unknown one is the first
   const E = {
@@ -214,6 +246,7 @@ function create(opts = {}) {
     pathCost: {}, losCache: new Map(), metrics: Object.fromEntries([...(BATTLE.battle.metrics || []).map(m => m.id), 'guardAttack', ...SIDE_IDS.map(x => x.toLowerCase() + 'Break')].map(k => [k, null])),
     flags: {}, over: false, result: null, ai: null, ruleHooks: [], history_: [], spTaken: {},
   };
+  E.orderKey = o => `${o.kind || ''}:${o.obj || ''}:${(o.units || []).join('+')}`; // what an order says, for the dice
   E.fmtT = fmtT; E.W = W; E.T = T; E.TT = TT; E.hAt = hAt; E.ll2m = ll2m; E.m2ll = m2ll;
   E.light = { sunset: SUNSET, dark: DARK, end: END, sunAt, date: BATTLE.battle.date, lat: CLAT, lon: CLON, humidFrom: WEATHER.humidFrom ?? null }; // (phase 2) this battle's light, computed
   E.battleId = BATTLE.id; E.sideIds = SIDE_IDS; E.sides = SIDES; E.coalition = COAL; E.footprint = footprint; E.bgVis = bgVis; E.nations = NATIONS; E.era = ERA;
@@ -226,7 +259,7 @@ function create(opts = {}) {
   const DRY_FROM = START.dryFrom ?? START.t; // the ground dries from this minute (after the rain stops)
   const SX = Math.ceil(WM / 100) + 1, SY = Math.ceil(HM / 100) + 1; E.SX = SX; E.SY = SY;
   E.smoke = new Float32Array(SX * SY); let smokeTmp = new Float32Array(SX * SY);
-  E.wind.dir = history === 'strict' ? 270 : 270 + rnd.normal('wind') * 25; E.wind.speed = history === 'strict' ? 1.0 : clamp(1.0 + rnd.normal('wind') * 0.35, 0.4, 2.2);
+  E.wind.dir = history === 'strict' ? 270 : 270 + rnd.normal('wind', 'direction') * 25; E.wind.speed = history === 'strict' ? 1.0 : clamp(1.0 + rnd.normal('wind', 'speed') * 0.35, 0.4, 2.2);
   E.gustT = E.t + rnd.range(20, 60, 'gust');
   const smokeAt = (x, y) => samp(E.smoke, x, y, SX, SY, 100);
   function addSmoke(x, y, amt) { const c = clamp(Math.round(x / 100), 0, SX - 1), r = clamp(Math.round(y / 100), 0, SY - 1); E.smoke[r * SX + c] += amt; }
@@ -432,7 +465,7 @@ function create(opts = {}) {
   // wagon is near, far back (reachable from a set minute) or lost. Any other ammunition is always to hand.
   E.wagons = {};
   for (const sd of SIDES) for (const [kind, w] of Object.entries(sd.wagons || {})) {
-    const r = rnd(w.roll || kind + ' wagon'), state = r < w.near ? 'near' : r < w.near + w.far ? 'far' : 'lost';
+    const r = rnd(w.roll || kind + ' wagon', sd.id), state = r < w.near ? 'near' : r < w.near + w.far ? 'far' : 'lost';
     (E.wagons[sd.id] = E.wagons[sd.id] || {})[kind] = { state, from: w.farFrom, short: w.short };
     log('hidden', w.says[state], { cause: 'start roll' });
   }
@@ -465,10 +498,11 @@ function create(opts = {}) {
     const fp = from ? leaderPos(from) : null, tp = to ? leaderPos(to) : (o.unitTo && E.byId[o.unitTo] ? [E.byId[o.unitTo].x, E.byId[o.unitTo].y] : null);
     const dist = fp && tp ? hyp(fp[0] - tp[0], fp[1] - tp[1]) : 1500;
     const OR = ERA.orders, wr = (from && from.writes) || OR.write; // minutes to write: the sender's habit (leader file), else the era's
-    const write = o.writeMin ?? rnd.range(wr[0], wr[1], 'order writing') * (o.urgent ? 0.5 : 1);
+    // (an order's draws are keyed by what it says, never by its id: ids are running numbers and shift when another order is added)
+    const write = o.writeMin ?? rnd.range(wr[0], wr[1], 'order writing', o.to || o.unitTo || o.from, E.orderKey(o)) * (o.urgent ? 0.5 : 1);
     const speed = (OR.rider * (1 - OR.riderWet * E.wet) * 1000 / 60); // cross-country rider, m/min
     const ride = o.rideMin ?? dist / speed;
-    const interp = o.interpMin ?? (o.direct ? rnd.range(OR.interpDirect[0], OR.interpDirect[1], 'interpretation') : rnd.range(OR.interp[0], OR.interp[1], 'interpretation'));
+    const interp = o.interpMin ?? (o.direct ? rnd.range(OR.interpDirect[0], OR.interpDirect[1], 'interpretation', o.to || o.unitTo || o.from, E.orderKey(o)) : rnd.range(OR.interp[0], OR.interp[1], 'interpretation', o.to || o.unitTo || o.from, E.orderKey(o)));
     o.sentAt = E.t; o.arriveAt = E.t + write + ride; o.actAt = o.arriveAt + interp; o.status = 'riding';
     E.orders.push(o); return o;
   };
@@ -754,9 +788,9 @@ function create(opts = {}) {
         // shells can fire buildings
         if (e.spSec && e.spSec.burnable && u.shells > 0 && !e.spSec.burnt) {
           const p = 1 - Math.pow(1 - wp.fireBuildings * (u.task.incendiary ? 3 : 1), u.shells * 2 * rate * vis);
-          if (rnd('building fire') < p) burnSection(E.spById[e.spId], e.spSec, u);
+          if (rnd('building fire', u.id, e.spId) < p) burnSection(E.spById[e.spId], e.spSec, u);
         }
-        if (served(e) && rnd('caisson') < wp.caisson * Math.min(10, hits)) { addDmg(e, 0.5, 'art', false, u); e.coh -= 10; log('event', `A caisson explodes in ${e.name}'s battery.`, { side: e.side, unit: e.id }); }
+        if (served(e) && rnd('caisson', u.id, e.id) < wp.caisson * Math.min(10, hits)) { addDmg(e, 0.5, 'art', false, u); e.coh -= 10; log('event', `A caisson explodes in ${e.name}'s battery.`, { side: e.side, unit: e.id }); }
       }
     }
   }
@@ -772,7 +806,7 @@ function create(opts = {}) {
       let l = losU(u, e, 2.2);
       if (!l.clear && e.spSec) { const d0 = hyp(e.x - u.x, e.y - u.y) || 1, k = Math.max(0, 1 - e.spSec.r * 0.85 / d0); l = los(u.x, u.y, 2.2, u.x + (e.x - u.x) * k, u.y + (e.y - u.y) * k, 3); }
       let vis = 0;
-      if (l.clear && rnd('art spotting') < Math.max(0.15, l.trans)) { const half = los(u.x, u.y, 2.2, e.x, e.y, 0.9); vis = half.clear ? 1 : 0.5; }
+      if (l.clear && rnd('art spotting', u.id, e.id) < Math.max(0.15, l.trans)) { const half = los(u.x, u.y, 2.2, e.x, e.y, 0.9); vis = half.clear ? 1 : 0.5; }
       else if (area) { const c = E.contacts[COAL[u.side]][e.id]; if (c && E.t - c.t < 30 && hyp(c.x - e.x, c.y - e.y) < 200) vis = 0.2; else if (polyDist(e.x, e.y, area) < 350 && !e.held) vis = E.K.BLIND; }
       if (!vis) continue;
       if (area && polyDist(e.x, e.y, area) > 500 && r > 600) continue;
@@ -839,13 +873,13 @@ function create(opts = {}) {
     const volley = dmg.get(a.id) ? clamp(dmg.get(a.id).mus / Math.max(1, a.str) * 100 / 3, 0, 2) * 10 : 0;
     const formD = (FORMS[d.form] && FORMS[d.form].meleeD) ?? A(d).meleeD ?? 1; // how well its formation, else its arm, stands an assault
     const resolve = d.coh * d.q * melee * formD * fresh(d) * lead(d) + volley;
-    const ratio = push / Math.max(1, resolve) * rnd.logn(K_.SHOCK_SIGMA, 'shock test');
+    const ratio = push / Math.max(1, resolve) * rnd.logn(K_.SHOCK_SIGMA, 'shock test', a.id, d.id);
     const where = tgt.sp ? `${tgt.sec.name} of ${tgt.sp.name}` : d.name;
     const bloody = (tgt.sec && cover <= 0.3) || d.status === 'disordered';
     const wallD = tgt.sec && cover <= 0.3 ? K_.WALL_SHOCK : 1; // defenders behind walls are hardly shaken by an assault they beat off (est.)
-    if (bloody) { const fa = rnd.range(0.02, 0.05, 'melee'), fd = rnd.range(0.02, 0.05, 'melee') * (tgt.sec && cover <= 0.3 ? K_.WALL_MELEE : 1); addCas(a, a.str * fa, 'melee'); addCas(d, d.str * fd, 'melee'); }
+    if (bloody) { const fa = rnd.range(0.02, 0.05, 'melee', a.id, d.id), fd = rnd.range(0.02, 0.05, 'melee', d.id, a.id) * (tgt.sec && cover <= 0.3 ? K_.WALL_MELEE : 1); addCas(a, a.str * fa, 'melee'); addCas(d, d.str * fd, 'melee'); }
     if (ratio < K_.SHOCK_REPULSE) {
-      a.coh -= 10 + rnd('shock') * 10; d.coh -= 2 * wallD; a.stalemates = 0;
+      a.coh -= 10 + rnd('shock', a.id, d.id) * 10; d.coh -= 2 * wallD; a.stalemates = 0;
       const c = E.cause(`${a.name}'s attack on ${where} was thrown back (push ${push.toFixed(0)} against resolve ${resolve.toFixed(0)})`);
       log('combat', `${a.name} is thrown back from ${where}.`, { side: a.side, unit: a.id, cause: c });
       repulse(a, c);
@@ -853,17 +887,17 @@ function create(opts = {}) {
     } else if (ratio < K_.SHOCK_WIN && K_.MELEE_LOCK && !tgt.sec && !served(d)) {
       lockMelee(a, d); // (2f) neither gives way: hand to hand, until one side breaks or draws off
     } else if (ratio < K_.SHOCK_WIN) {
-      a.coh -= 3; d.coh -= 3 * wallD; a.stalemates = (a.stalemates || 0) + 1; a.standoffUntil = E.tick + 3 + Math.floor(rnd('firefight length') * 4);
+      a.coh -= 3; d.coh -= 3 * wallD; a.stalemates = (a.stalemates || 0) + 1; a.standoffUntil = E.tick + 3 + Math.floor(rnd('firefight length', a.id, d.id) * 4);
       if (a.stalemates >= 4) { a.coh -= 5; }
     } else if (tgt.sec && cover <= 0.3 && a.gateBonus && K_.GATE_HOLD && !d.outOfAmmo && d.coh >= K_.GATE_HOLD && !tgt.sec.burnt) {
       // a gate broken in against defenders still in good order: the party that got in is shut in and killed, as at Hougoumont's north gate
-      addCas(a, a.str * rnd.range(0.01, 0.03, 'shut in'), 'melee'); a.coh -= 8; d.coh -= 4; a.stalemates = (a.stalemates || 0) + 1; a.standoffUntil = E.tick + 3 + Math.floor(rnd('firefight length') * 4);
+      addCas(a, a.str * rnd.range(0.01, 0.03, 'shut in', a.id, d.id), 'melee'); a.coh -= 8; d.coh -= 4; a.stalemates = (a.stalemates || 0) + 1; a.standoffUntil = E.tick + 3 + Math.floor(rnd('firefight length', a.id, d.id) * 4);
       log('combat', `The men who broke into ${where} are shut in and cut down; the defenders close the gate behind them.`, { side: d.side, unit: d.id, important: !!tgt.sp });
     } else if (tgt.sec && cover <= 0.3 && !a.gateBonus && !d.outOfAmmo && d.coh >= K_.WALL_HOLD && !tgt.sec.burnt) {
       // walls hold unless a gate is broken, the defenders' cartridges are gone, or they are already shaken to pieces
-      a.coh -= 4; d.coh -= 2 * wallD; a.stalemates = (a.stalemates || 0) + 1; a.standoffUntil = E.tick + 3 + Math.floor(rnd('firefight length') * 4);
+      a.coh -= 4; d.coh -= 2 * wallD; a.stalemates = (a.stalemates || 0) + 1; a.standoffUntil = E.tick + 3 + Math.floor(rnd('firefight length', a.id, d.id) * 4);
     } else {
-      d.coh -= 15 + rnd('shock') * 10; a.coh -= 4; a.stalemates = 0;
+      d.coh -= 15 + rnd('shock', a.id, d.id) * 10; a.coh -= 4; a.stalemates = 0;
       const c = E.cause(`${a.name} broke into ${where} (push ${push.toFixed(0)} against resolve ${resolve.toFixed(0)})`);
       log('combat', `${a.name} drives the defenders out of ${where}.`, { side: a.side, unit: a.id, cause: c, important: !!tgt.sp });
       if (tgt.sec) takeSection(a, tgt.sp, tgt.sec, d, c);
@@ -886,8 +920,8 @@ function create(opts = {}) {
       const wa = meleeArm(a), wd = meleeArm(d), files = u => Math.max(1, u.F / E.K.MAN_FRONT);
       const fightA = Math.min(a.str, files(a) * (wa.ranks || 1)), fightD = Math.min(d.str, files(d) * (wd.ranks || 1));
       const armour = (u, w) => 1 - (A(u).protection || 0) * (1 - (w.pen ?? 1)), sh = shelterOf(a, d, 40), flank = onFlank(d, a) ? 1.5 : 1;
-      const casD = fightA * E.K.MELEE_KILL * wa.power * armour(d, wa) * a.q * clamp(a.coh / 80, 0.3, 1.1) * flank * rnd.logn(0.25, 'melee');
-      const casA = fightD * E.K.MELEE_KILL * wd.power * armour(a, wd) * d.q * clamp(d.coh / 80, 0.3, 1.1) * (sh ? sh.K.melee ?? 1 : 1) * rnd.logn(0.25, 'melee');
+      const casD = fightA * E.K.MELEE_KILL * wa.power * armour(d, wa) * a.q * clamp(a.coh / 80, 0.3, 1.1) * flank * rnd.logn(0.25, 'melee', a.id, d.id);
+      const casA = fightD * E.K.MELEE_KILL * wd.power * armour(a, wd) * d.q * clamp(d.coh / 80, 0.3, 1.1) * (sh ? sh.K.melee ?? 1 : 1) * rnd.logn(0.25, 'melee', d.id, a.id);
       addCas(a, casA, 'melee'); addCas(d, casD, 'melee');
       const relief = u => (FORMS[u.form] && FORMS[u.form].relief) || 1;
       a.coh -= (E.K.MELEE_COH + E.K.COH_CAS * 100 * casA / Math.max(1, a.str)) / relief(a); d.coh -= (E.K.MELEE_COH + E.K.COH_CAS * 100 * casD / Math.max(1, d.str)) / relief(d);
@@ -927,7 +961,7 @@ function create(opts = {}) {
   }
   function evictGarrison(sp, g, how, cause) {
     sp.garrison = null; g.spId = null; g.spSec = null;
-    const cap = how === 'assault' ? rnd.range(0.15, 0.4, 'capture') : 0.05;
+    const cap = how === 'assault' ? rnd.range(0.15, 0.4, 'capture', g.id) : 0.05;
     addCas(g, g.str * cap, 'captured');
     unhold(g, true); g.form = PLACE.leaveForm; const fp = footprint(g); g.F = fp.F; g.D = fp.D;
     breakUnit(g, cause ?? E.cause(`${g.name} driven from ${sp.name} (${how})`));
@@ -1003,8 +1037,8 @@ function create(opts = {}) {
     { const sh = shelterOf(c, t, 60); if (sh) crossing *= sh.K.horse ?? 1; } // (2g) stakes or a palisade before the foot: horse cannot come at them
     const c0 = E.cause(`${c.name} charged ${t.name}`);
     if (charges(t)) {
-      const a = imp * Math.sqrt(c.str) * (flank ? 1.5 : 1) * rnd.logn(0.25, 'cavalry melee'), b = impetus(t) * Math.sqrt(t.str) * (t.charge ? 1 : 0.65) * rnd.logn(0.25, 'cavalry melee');
-      addCas(c, c.str * rnd.range(0.03, 0.07, 'cav cas'), 'melee'); addCas(t, t.str * rnd.range(0.03, 0.07, 'cav cas'), 'melee');
+      const a = imp * Math.sqrt(c.str) * (flank ? 1.5 : 1) * rnd.logn(0.25, 'cavalry melee', c.id, t.id), b = impetus(t) * Math.sqrt(t.str) * (t.charge ? 1 : 0.65) * rnd.logn(0.25, 'cavalry melee', t.id, c.id);
+      addCas(c, c.str * rnd.range(0.03, 0.07, 'cav cas', c.id, t.id), 'melee'); addCas(t, t.str * rnd.range(0.03, 0.07, 'cav cas', t.id, c.id), 'melee');
       if (a > b) { t.coh -= 30; c.coh -= 8; log('combat', `${c.name} rides down ${t.name}.`, { side: c.side, unit: c.id, cause: c0 }); if (t.coh < 15) breakUnit(t, c0); else giveGround(t, c, 500); maybePursue(c, t, c0); }
       else { c.coh -= 30; t.coh -= 8; log('combat', `${c.name} is beaten off by ${t.name}.`, { side: c.side, unit: c.id, cause: c0 }); if (c.coh < 15) breakUnit(c, c0); endCharge(c, true); }
       return;
@@ -1018,16 +1052,16 @@ function create(opts = {}) {
     // infantry
     if (allRound(t.form) && !t.formTo) {
       const p = t.coh > 40 ? 0 : t.coh >= 30 ? 0.03 : 0.15;
-      if (rnd('square break-in') < p) { log('combat', `${c.name} breaks into the square of ${t.name}!`, { side: c.side, unit: c.id, cause: c0, important: true }); addCas(t, t.str * rnd.range(0.25, 0.5, 'square broken'), 'captured'); breakUnit(t, c0); maybePursue(c, t, c0); return; }
-      t.coh -= 2; addCas(t, t.str * rnd.range(0.004, 0.012, 'cav vs square'), 'mus'); addCas(c, c.str * rnd.range(0.02, 0.05, 'cav vs square'), 'mus'); c.coh -= 4;
+      if (rnd('square break-in', c.id, t.id) < p) { log('combat', `${c.name} breaks into the square of ${t.name}!`, { side: c.side, unit: c.id, cause: c0, important: true }); addCas(t, t.str * rnd.range(0.25, 0.5, 'square broken', c.id, t.id), 'captured'); breakUnit(t, c0); maybePursue(c, t, c0); return; }
+      t.coh -= 2; addCas(t, t.str * rnd.range(0.004, 0.012, 'cav vs square', t.id, c.id), 'mus'); addCas(c, c.str * rnd.range(0.02, 0.05, 'cav vs square', c.id, t.id), 'mus'); c.coh -= 4;
       endCharge(c, true); return;
     }
     t.coh -= flank ? 35 : 25;
-    const resist = t.coh * t.q * crossing ** -1 * ((FORMS[t.form] && FORMS[t.form].vsHorse) ?? FORM0.vsHorse) * (A(t).vsHorse ?? 1) * (allRound(t.formTo) ? 0.7 : 1) * rnd.logn(0.3, 'cavalry morale test');
+    const resist = t.coh * t.q * crossing ** -1 * ((FORMS[t.form] && FORMS[t.form].vsHorse) ?? FORM0.vsHorse) * (A(t).vsHorse ?? 1) * (allRound(t.formTo) ? 0.7 : 1) * rnd.logn(0.3, 'cavalry morale test', c.id, t.id);
     const attack = imp * 60 * crossing * E.K.CAV_BREAK_TEST;
     if (resist < attack) {
       log('combat', `${c.name} catches ${t.name} out of square and breaks it.`, { side: c.side, unit: c.id, cause: c0, important: true });
-      addCas(t, t.str * rnd.range(0.1, 0.3, 'ridden down'), 'captured'); breakUnit(t, c0); c.coh -= 8; maybePursue(c, t, c0);
+      addCas(t, t.str * rnd.range(0.1, 0.3, 'ridden down', c.id, t.id), 'captured'); breakUnit(t, c0); c.coh -= 8; maybePursue(c, t, c0);
     } else {
       log('combat', `${t.name} beats off ${c.name}.`, { side: t.side, unit: t.id, cause: c0 });
       c.coh -= 15; addCas(c, c.str * 0.05, 'mus'); t.coh += 5; endCharge(c, true);
@@ -1037,7 +1071,7 @@ function create(opts = {}) {
     const cc = SIDE_BY[c.side].cavChief, L = c.leader ? E.leaders[c.leader] : (cc ? E.leaders[cc] : null); // a brigade with no leader of its own: the army's cavalry chief
     const agg = L ? L.agg : 0.6, skill = L ? L.skill : 0.6;
     const p = clamp(agg * (1 - skill) * 1.5, 0, 0.9);
-    if (rnd('uncontrolled pursuit') < p) {
+    if (rnd('uncontrolled pursuit', c.id, t.id) < p) {
       const dir = bearing(t.x - c.x, t.y - c.y), v = fvec(dir), dest = [clamp(c.x + v[0] * 1400, 50, WM - 50), clamp(c.y + v[1] * 1400, 50, HM - 50)];
       c.charge = null; c.pursuing = true; c.task = { kind: 'pursue', at: dest, since: E.t, cause }; c.path = [dest]; c.pace = 'trot';
       log('combat', `${c.name} gallops on out of control after the fugitives.`, { side: c.side, unit: c.id, cause, important: true });
@@ -1059,7 +1093,7 @@ function create(opts = {}) {
   function applyDamage() {
     for (const [id, d] of dmg) {
       const u = E.byId[id]; if (!alive(u)) continue;
-      const before = u.str, tot = (d.mus + d.art) * rnd.logn(0.2, 'casualty noise');
+      const before = u.str, tot = (d.mus + d.art) * rnd.logn(0.2, 'casualty noise', id);
       if (served(u)) { const crewLoss = Math.min(u.str, tot / CREW); u.str = Math.max(0, u.str - crewLoss); u.killed += crewLoss * CREW * E.K.KW_RATIO; u.wounded += crewLoss * CREW * (1 - E.K.KW_RATIO); u.coh -= tot / 40 * 3; u.lastHit = E.tick; continue; } // casualties capped at the crew: about 12 gunners a gun
       addCas(u, tot, 'fire');
       const pct = tot / Math.max(1, before) * 100, artShare = d.art / Math.max(1e-6, d.mus + d.art), flankShare = d.flank / Math.max(1e-6, d.mus + d.art);
@@ -1144,10 +1178,10 @@ function create(opts = {}) {
       const prev = u.status;
       if (u.status === 'broken') {
         // rally: no enemy within 800 m for 15-30 min and a leader near
-        if (!near(u.x, u.y, 800, e => isEnemy(u, e) && formed(e)).length) { u.rallyT = (u.rallyT || 0) + 2; if (!u.rallyNeed) u.rallyNeed = rnd.range(15, 30, 'rally'); if (u.rallyT >= u.rallyNeed && E.morale[u.side] >= 20 && !dusk) { u.status = 'disordered'; u.coh = rnd.range(30, 40, 'rally'); u.cohMax = Math.min(u.cohMax, 55); u.rallyT = 0; u.rallyNeed = 0; u.task = { kind: 'hold', since: E.t }; u.path = null; log('rally', `${u.name} rallies.`, { side: u.side, unit: u.id }); if (E.ai && E.ai.onRally) E.ai.onRally(E, u); } }
+        if (!near(u.x, u.y, 800, e => isEnemy(u, e) && formed(e)).length) { u.rallyT = (u.rallyT || 0) + 2; if (!u.rallyNeed) u.rallyNeed = rnd.range(15, 30, 'rally', u.id); if (u.rallyT >= u.rallyNeed && E.morale[u.side] >= 20 && !dusk) { u.status = 'disordered'; u.coh = rnd.range(30, 40, 'rally', u.id); u.cohMax = Math.min(u.cohMax, 55); u.rallyT = 0; u.rallyNeed = 0; u.task = { kind: 'hold', since: E.t }; u.path = null; log('rally', `${u.name} rallies.`, { side: u.side, unit: u.id }); if (E.ai && E.ai.onRally) E.ai.onRally(E, u); } }
         else u.rallyT = 0;
         // stragglers
-        if (rnd('stragglers') < 0.5) addCas(u, u.str * 0.01, 'stragglers');
+        if (rnd('stragglers', u.id) < 0.5) addCas(u, u.str * 0.01, 'stragglers');
         // pursuit by cavalry
         const cav = near(u.x, u.y, 250, e => isEnemy(u, e) && charges(e) && formed(e));
         if (cav.length) addCas(u, u.str * 0.04 * cav.length, 'captured');
@@ -1161,7 +1195,7 @@ function create(opts = {}) {
       if (u.coh < 15) { breakUnit(u, E.cause(`${u.name}'s cohesion collapsed`)); continue; }
       u.status = u.coh >= 50 ? 'steady' : u.coh >= 30 ? 'shaken' : 'disordered';
       // raw units leave the field
-      if ((u.q <= 0.72) && u.coh < 40 && E.tick - u.lastHit < 3 && rnd('raw unit leaves') < 0.02) { u.gone = true; u.left = E.t; log('event', `${u.name} leaves the field.`, { side: u.side, unit: u.id, important: true }); E.morale[u.side] -= 1; }
+      if ((u.q <= 0.72) && u.coh < 40 && E.tick - u.lastHit < 3 && rnd('raw unit leaves', u.id) < 0.02) { u.gone = true; u.left = E.t; log('event', `${u.name} leaves the field.`, { side: u.side, unit: u.id, important: true }); E.morale[u.side] -= 1; }
     }
     // (8) the army feels its losses: men killed, wounded or taken since the last tick, as a share of its strength at the start
     for (const s of SIDE_IDS) { if (E.K.MORALE_CAS && E.lossAcc[s]) E.morale[s] -= E.K.MORALE_CAS * E.lossAcc[s] / Math.max(1, E.armyStr0[s]) * 100; E.lossAcc[s] = 0; }
@@ -1170,7 +1204,7 @@ function create(opts = {}) {
       E.morale[s] = clamp(E.morale[s], 0, 100);
       if (E.morale[s] < 20) {
         if (!E.flags[s + 'Broken']) { E.flags[s + 'Broken'] = E.t; E.metrics[s.toLowerCase() + 'Break'] = E.t; log('army', `The ${SIDE_BY[s].name} army is breaking.`, { side: s, important: true }); }
-        for (const u of E.units) if (u.side === s && formed(u) && !served(u)) { const p = clamp(0.05 * (1 + (55 - u.coh) / 20) / u.q, 0.01, 0.5); if (rnd('army rout') < p) breakUnit(u, E.cause('The army was breaking')); }
+        for (const u of E.units) if (u.side === s && formed(u) && !served(u)) { const p = clamp(0.05 * (1 + (55 - u.coh) / 20) / u.q, 0.01, 0.5); if (rnd('army rout', u.id) < p) breakUnit(u, E.cause('The army was breaking')); }
       }
     }
   }
@@ -1208,8 +1242,8 @@ function create(opts = {}) {
           const underFire = near(mx, my, 350, e => isEnemy(u, e) && formed(e)).length > 0 || E.tick - u.lastHit < 2;
           const wg = (E.wagons[u.side] || {})[u.ammoKind]; // the wagon for its ammunition, if its army is short of it
           const available = !wg || wg.state === 'near' || (wg.state === 'far' && E.t >= wg.from);
-          const p = !available ? 0 : underFire ? rnd.range(0.3, 0.6, 'resupply odds') : 0.95;
-          if (rnd('resupply') < p) { u.ammo = Math.min(50, u.ammo + 20); log('supply', `Cartridges get through to ${sp.name}.`, { side: u.side, unit: u.id }); }
+          const p = !available ? 0 : underFire ? rnd.range(0.3, 0.6, 'resupply odds', u.id) : 0.95;
+          if (rnd('resupply', u.id) < p) { u.ammo = Math.min(50, u.ammo + 20); log('supply', `Cartridges get through to ${sp.name}.`, { side: u.side, unit: u.id }); }
           else if (wg && !available && !u.warnedAmmo) { u.warnedAmmo = true; log('supply', wg.short.replace('{place}', sp.name), { side: u.side, unit: u.id, important: true }); }
         }
       } else if (out && u.ammo < 35 && E.tick % 7 === 0 && u.task.kind !== 'march') u.ammo = Math.min(50, u.ammo + 20);
@@ -1223,8 +1257,8 @@ function create(opts = {}) {
       if (!L.alive || L.wounded || !L.unit) continue; const u = E.byId[L.unit]; if (!u || !alive(u)) continue;
       if (E.tick - u.lastHit > 0) continue;
       const I = clamp((u.casTick || 0) / Math.max(1, u.str) * 100 / 2, 0, 1), p = (0.01 + 0.05 * I) * L.exp / 30;
-      if (rnd('leader hit') < p) {
-        const killed = rnd('leader killed') < 0.35; L.wounded = true; if (killed) L.alive = false;
+      if (rnd('leader hit', L.id) < p) {
+        const killed = rnd('leader killed', L.id) < 0.35; L.wounded = true; if (killed) L.alive = false;
         const c = E.cause(`${L.name} was ${killed ? 'killed' : 'wounded'} with ${u.name}`);
         log('leader', `${L.name} is ${killed ? 'killed' : 'wounded'}.`, { side: L.side, unit: u.id, cause: c, important: true });
         u.coh -= 10; if (L.rank >= 2) E.morale[L.side] -= 5;
@@ -1248,9 +1282,9 @@ function create(opts = {}) {
         let obs = mine.map(o => [hyp(o.x - e.x, o.y - e.y), o]).filter(a => a[0] < 8000).sort((a, b) => a[0] - b[0]).slice(0, 4);
         let seen = false, bestR = 1e9;
         let seer = null, seenTrans = 1;
-        for (const [r, o] of obs) { const l = losU(o, e, 2.5); if (!l.clear) continue; if (rnd('sighting') < detectP(r, l.trans, e.str * (A(e).seenAs || 1)) * (e.concealed ?? 1)) { seen = true; bestR = Math.min(bestR, r); seer = o; seenTrans = l.trans; break; } }
+        for (const [r, o] of obs) { const l = losU(o, e, 2.5); if (!l.clear) continue; if (rnd('sighting', o.id, e.id) < detectP(r, l.trans, e.str * (A(e).seenAs || 1)) * (e.concealed ?? 1)) { seen = true; bestR = Math.min(bestR, r); seer = o; seenTrans = l.trans; break; } }
         if (seen && E.command) E.command.observed(seer, e, bestR, seenTrans);
-        if (seen) { const c = book[e.id] || (book[e.id] = {}); Object.assign(c, { t: E.t, x: e.x, y: e.y, form: e.form, type: e.type, str: e.str * rnd.range(0.75, 1.25, 'strength estimate') * (1 + rnd.normal('strength estimate') * 0.1 * Math.max(0, bestR / 1000 - 1)), r: bestR, id: bestR < 1000 ? e.id : (c.id || null), side: e.side, moving: e.movedTick === E.tick }); }
+        if (seen) { const c = book[e.id] || (book[e.id] = {}); Object.assign(c, { t: E.t, x: e.x, y: e.y, form: e.form, type: e.type, str: e.str * rnd.range(0.75, 1.25, 'strength estimate', side, e.id) * (1 + rnd.normal('strength estimate', side, e.id) * 0.1 * Math.max(0, bestR / 1000 - 1)), r: bestR, id: bestR < 1000 ? e.id : (c.id || null), side: e.side, moving: e.movedTick === E.tick }); }
       }
     }
   }
@@ -1342,7 +1376,7 @@ const worlds = {};
 function world(id) { id = id || root.WBATTLE || 'waterloo'; return worlds[id] || (worlds[id] = buildWorld(Packs.battle(id))); }
 // the default world is the current battle's (the game page sets WBATTLE); a battle can also be named in create({ battle })
 // (phase 4e) the engine's version: raised when a change alters how battles fight (a replay made before may not fight the same battle)
-const VERSION = '0.4';
+const VERSION = '0.5'; // 0.5: a draw is keyed by seed, purpose, owner and tick (was one sequence)
 const api = { version: VERSION, create: (opts = {}) => world(opts.battle).create(opts), world, fmtT: t => world().fmtT(t), footprint: u => world().footprint(u), hitChance: r => world().hitChance(r), bgVis: t => world().bgVis(t) };
 for (const k of ['K', 'T', 'TT', 'LOW']) Object.defineProperty(api, k, { get: () => world()[k], enumerable: true });
 root.WEngine = api;

@@ -119,7 +119,7 @@ function install(E, opts = {}) {
   }
   function strErr(r) { return CK.STR_ERR + CK.STR_ERR_KM * Math.max(0, r / 1000 - 1); }
   // a sighting of enemy unit e by an observer at range r: noisy, partly identified
-  function sightRecord(e, r, src, glass, t) {
+  function sightRecord(e, r, src, glass, t, who) { // who: whose sighting it is, for the dice (several commanders each see with their 'own eyes')
     const err = strErr(r), sd = CK.POS_ERR + CK.POS_ERR_KM * r / 1000;
     const idR = glass ? CK.ID_GLASS : CK.ID_EYE, far = X.seenFar[e.nat];
     const level = r <= idR || (far && r <= idR * far) ? 1 : 0; // redcoats show further (est.; the nation pack's seenFar)
@@ -127,9 +127,9 @@ function install(E, opts = {}) {
     // unidentified troops where only one army can be are taken for that army's (the battle's guess boxes, est.)
     const guess = level ? null : guessSide(e);
     return { tid: e.id, side: level ? e.side : guess, nat: level ? e.nat : null, idLevel: level, corps: null,
-      kind: r <= CK.KIND_RANGE || e.type === 'art' ? e.type === 'gar' ? 'inf' : e.type : 'troops', guns: e.type === 'art' ? Math.round(e.str * (1 + rnd.normal('gun count') * 0.15)) : 0,
+      kind: r <= CK.KIND_RANGE || e.type === 'art' ? e.type === 'gar' ? 'inf' : e.type : 'troops', guns: e.type === 'art' ? Math.round(e.str * (1 + rnd.normal('gun count', who, e.id) * 0.15)) : 0,
       form: r < 2500 ? e.form : null, status: r < 1500 && e.status === 'broken' ? 'broken' : r < 1200 && e.status === 'disordered' ? 'disordered' : null,
-      str: Math.max(50, men * (1 + rnd.normal('strength estimate') * err)), x: e.x + rnd.normal('position error') * sd, y: e.y + rnd.normal('position error') * sd,
+      str: Math.max(50, men * (1 + rnd.normal('strength estimate', who, e.id) * err)), x: e.x + rnd.normal('position error', who, e.id) * sd, y: e.y + rnd.normal('position error', who, e.id) * sd,
       t: t ?? E.t, src, moving: !!e.path && e.path.length > 0 && e.task.kind !== 'hold', dir: e.facing, garrison: e.spId || null, guard: !!(e.isGuard && e.type === 'inf' && r < 1200) };
   }
   function guessSide(e) {
@@ -178,7 +178,7 @@ function install(E, opts = {}) {
     // called by the engine's sighting pass when brigade o sees enemy e
     for (const cid of chainFor(o)) {
       const p = posOf(cid), d = p ? hyp(p[0] - o.x, p[1] - o.y) : 3000, delay = CK.ADC_BASE + d / CK.ADC_SPEED;
-      const rec = sightRecord(e, r, `${E.leaders[o.leader] ? E.leaders[o.leader].name : o.name}'s ${o.type === 'cav' ? 'vedettes' : 'outposts'}`, false, E.t);
+      const rec = sightRecord(e, r, `${E.leaders[o.leader] ? E.leaders[o.leader].name : o.name}'s ${o.type === 'cav' ? 'vedettes' : 'outposts'}`, false, E.t, o.id + '>' + cid); // each commander up the chain hears it with his own error
       rec.src = `${o.name}`;
       C.queue(cid, E.t + delay, B => mergeContact(B, rec));
     }
@@ -207,9 +207,9 @@ function install(E, opts = {}) {
       if (own && cid !== CHIEF) continue; // corps commanders know their own troops through their own reports
       const l = E.los(p[0], p[1], 2.5, e.x, e.y, (e.type === 'cav' ? 2.6 : e.lying ? 0.5 : e.type === 'gar' ? 4 : 1.8) + (e.heightBonus || 0)); if (!l.clear) continue;
       const men = e.type === 'art' ? e.str * 15 : e.str;
-      if (rnd('commander sighting') >= E.detectP(r / CK.TELESCOPE, l.trans, men) * (e.concealed ?? 1)) continue;
+      if (rnd('commander sighting', cid, e.id) >= E.detectP(r / CK.TELESCOPE, l.trans, men) * (e.concealed ?? 1)) continue;
       if (own) { if (r < 4000) { mergeOwn(B, { uid: e.id, x: e.x, y: e.y, t: E.t, src: 'own eyes', form: e.form }); if (cid === CHIEF) watchOwn(e); } continue; }
-      const rec = sightRecord(e, r, 'own eyes', true, E.t);
+      const rec = sightRecord(e, r, 'own eyes', true, E.t, cid);
       const fresh = !B.c.has(e.id);
       mergeContact(B, rec);
       if (cid === CHIEF) { if (fresh) C.notice.push(rec); else if (r < 4000) watchEnemy(e, rec); }
@@ -405,6 +405,8 @@ function install(E, opts = {}) {
     for (let i = 1; i < pts.length; i++) path = path.concat(E.astar('rider', pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]));
     return path;
   }
+  // whose draw a rider's is: what he carries and the minute he left (an hourly message has the same label every hour)
+  const riderKey = r => (r.diceKey || r.label || r.group) + '@' + r.leftAt;
   function launch(r) {
     r.id = 'r' + C.nextId++; r.status = 'riding'; r.ridden = 0; r.leftAt = E.t; r.trail = [];
     if (r.onLaunch) r.onLaunch(r);
@@ -420,7 +422,7 @@ function install(E, opts = {}) {
     const r = { kind: 'message', from, to, side: E.leaders[from] ? E.leaders[from].side : E.sideIds.find(s => !ours(s)), label, group: 'm' + C.nextId++ };
     const written = E.t;
     r.onDeliver = () => { const B = C.B[to]; if (B) fn(B, written); };
-    C.pendingLaunch.push({ at: E.t + (writeMin ?? rnd.range(2, 6, 'message writing')), r });
+    C.pendingLaunch.push({ at: E.t + (writeMin ?? rnd.range(2, 6, 'message writing', from, label)), r });
   };
   function nearestEnemy(side, x, y, R) { let best = null, bd = R; for (const u of E.near(x, y, R, u => E.formed(u) && E.coalition[u.side] !== E.coalition[side])) { const d = hyp(u.x - x, u.y - y); if (d < bd) { bd = d; best = u; } } return best ? [best, bd] : null; }
   function moveRiders() {
@@ -440,8 +442,8 @@ function install(E, opts = {}) {
       const ne = nearestEnemy(r.side, r.x, r.y, CK.NEAR);
       if (ne) {
         const [eu, d] = ne, km = Math.max(0.05, (riderSpeed(r.x, r.y) * 2) / 1000), rate = d < CK.CLOSE ? CK.LOSS_CLOSE : CK.LOSS_NEAR;
-        if (rnd('rider under fire') < 1 - Math.pow(1 - rate, km)) {
-          const captured = (eu.type === 'cav' || d < CK.CLOSE) && rnd('rider captured') < CK.CAPTURE;
+        if (rnd('rider under fire', riderKey(r), r.spread || 0) < 1 - Math.pow(1 - rate, km)) {
+          const captured = (eu.type === 'cav' || d < CK.CLOSE) && rnd('rider captured', riderKey(r), r.spread || 0) < CK.CAPTURE;
           r.status = captured ? 'captured' : 'lost'; r.lostAt = E.t; r.lostWhere = whereIs(r.x, r.y);
           E.logEvent('hidden', `A rider carrying ${r.label} is ${captured ? 'captured' : 'shot down'} ${r.lostWhere}.`, { side: r.side, hidden: true, rider: r.id });
           if (captured) intercept(r, eu);
@@ -479,7 +481,7 @@ function install(E, opts = {}) {
   /* ---------- reports from corps commanders ---------- */
   const REPORTERS = X.reporters;
   const RESERVE = X.reserve; // in sight of headquarters: they write when something happens
-  const REP = {}; for (const id of REPORTERS) REP[id] = { next: E.t + rnd.range(CK.REPORT_MIN, CK.REPORT_MAX, 'report interval'), last: E.t - 30, acks: [], events: [], known: {}, told: {}, areas: {} };
+  const REP = {}; for (const id of REPORTERS) REP[id] = { next: E.t + rnd.range(CK.REPORT_MIN, CK.REPORT_MAX, 'report interval', id), last: E.t - 30, acks: [], events: [], known: {}, told: {}, areas: {} };
   for (const id of REPORTERS) for (const sp of E.sps) REP[id].told['place_' + sp.id] = sp.holder; // the morning's holders are known to all
   C.REP = REP;
   C.flag = function (cid, ev) { const R = REP[cid]; if (R) R.events.push(Object.assign({ t: E.t }, ev)); };
@@ -597,7 +599,7 @@ function install(E, opts = {}) {
       own: ownRecs.map(o => Object.assign({}, o, { str: o.str, srcRep: cid })), places: Object.fromEntries(E.sps.filter(sp => B.places[sp.id]).map(sp => [sp.id, B.places[sp.id]])),
       acks: R.acks.map(o => o.id), lossStated, title: `${L.name}, ${fmtT(t)}`, knownCorps: Object.assign({}, B.knownCorps || {}),
     };
-    R.acks = []; R.events = []; R.last = t; R.next = t + rnd.range(CK.REPORT_MIN, CK.REPORT_MAX, 'report interval');
+    R.acks = []; R.events = []; R.last = t; R.next = t + rnd.range(CK.REPORT_MIN, CK.REPORT_MAX, 'report interval', cid);
     return rep;
   }
   function cap(s) { return s[0].toUpperCase() + s.slice(1); }
@@ -634,7 +636,7 @@ function install(E, opts = {}) {
   C.objName = objName;
   function sendReport(cid) {
     const rep = writeReport(cid), L = E.leaders[cid];
-    const writeMin = rnd.range(...(cid === FC ? CK.WRITE.field : CK.WRITE.corps), 'report writing');
+    const writeMin = rnd.range(...(cid === FC ? CK.WRITE.field : CK.WRITE.corps), 'report writing', cid);
     const r = { kind: 'report', from: cid, to: CHIEF, side: SIDE, label: `${L.name}'s report of ${fmtT(E.t)}`, text: rep.text, payload: rep, group: 'g' + C.nextId++ };
     r.onDeliver = rr => receiveReport(rr.payload);
     C.pendingLaunch.push({ at: E.t + writeMin, r });
@@ -659,7 +661,7 @@ function install(E, opts = {}) {
   function reports() {
     for (const cid of REPORTERS) if (reportDue(cid)) sendReport(cid);
     for (const p of C.pendingLaunch.filter(p => E.t >= p.at)) {
-      const r = p.r; const n = r.kind === 'order' && C.opts.staff === 'berthier' ? 2 + (rnd('extra rider') < 0.5 ? 1 : 0) : 1;
+      const r = p.r; const n = r.kind === 'order' && C.opts.staff === 'berthier' ? 2 + (rnd('extra rider', (r.diceKey || r.label || r.group) + '@' + E.t) < 0.5 ? 1 : 0) : 1;
       for (let i = 0; i < n; i++) launch(Object.assign({}, r, { spread: n > 1 ? (i - (n - 1) / 2) * 700 : 0, onDeliver: r.onDeliver, onLost: r.onLost }));
     }
     C.pendingLaunch = C.pendingLaunch.filter(p => E.t < p.at);
@@ -715,13 +717,13 @@ function install(E, opts = {}) {
       const cid = cmdOf(u), p = posOf(cid), delay = CK.ADC_BASE + (p ? hyp(p[0] - u.x, p[1] - u.y) : 3000) / CK.ADC_SPEED + reach / 300;
       for (const e of enemies) {
         const r = Math.max(400, segD(e.x, e.y, u.x, u.y, px, py));
-        if (rnd('patrol sighting') > 0.7 * (e.concealed ? e.concealed * 5 : 1)) continue;
-        const rec = sightRecord(e, r, `${u.name}'s patrol`, false, E.t + reach / 300); rec.idLevel = Math.max(rec.idLevel, r < 1200 ? 1 : 0); if (rec.idLevel) { rec.side = e.side; rec.nat = e.nat; }
+        if (rnd('patrol sighting', u.id, e.id) > 0.7 * (e.concealed ? e.concealed * 5 : 1)) continue;
+        const rec = sightRecord(e, r, `${u.name}'s patrol`, false, E.t + reach / 300, u.id); rec.idLevel = Math.max(rec.idLevel, r < 1200 ? 1 : 0); if (rec.idLevel) { rec.side = e.side; rec.nat = e.nat; }
         for (const c2 of chainFor(u)) C.queue(c2, E.t + delay, B => mergeContact(B, rec));
       }
       // prisoners come from the far end of the patrol's ride, where it meets the enemy's vedettes
       const far = enemies.filter(e => hyp(e.x - px, e.y - py) < CK.PATROL_SEE);
-      if (far.length && rnd('prisoner taken') < CK.PATROL_PRISONER) prisoner(u, far[Math.floor(rnd('which prisoner') * far.length)], delay);
+      if (far.length && rnd('prisoner taken', u.id) < CK.PATROL_PRISONER) prisoner(u, far[Math.floor(rnd('which prisoner', u.id) * far.length)], delay);
     }
   }
   function segD(px, py, ax, ay, bx, by) { const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1; const t = clamp(((px - ax) * dx + (py - ay) * dy) / L2, 0, 1); return hyp(px - ax - t * dx, py - ay - t * dy); }
@@ -729,7 +731,7 @@ function install(E, opts = {}) {
     // a prisoner names his corps and, as prisoners will, its strength and orders (rules doc: a prisoner identified Bülow at 13:30)
     const corps = e.corps && CORPSNAME[e.corps] ? e.corps : null;
     const corpsMen = E.units.filter(u => u.corps === e.corps && u.type !== 'art').reduce((a, u) => a + u.str0, 0);
-    const claim = corpsMen * (1 + rnd.normal('prisoner exaggerates') * 0.2);
+    const claim = corpsMen * (1 + rnd.normal('prisoner exaggerates', captor.id, e.id) * 0.2);
     const text = corps ? `A ${NATWORD[e.nat] || ''} ${e.type === 'cav' ? 'trooper' : 'soldier'} taken by ${captor.name}'s patrol says he belongs to ${CORPSNAME[corps]}, about ${fmtN(roundStr(claim))} men, ${whereIs(e.x, e.y)}.` : `${captor.name}'s patrol has taken a prisoner ${whereIs(e.x, e.y)}.`;
     E.logEvent('event', `${captor.name}'s patrol takes a prisoner from ${e.name}.`, { side: captor.side, unit: captor.id, important: !!corps });
     const cid = cmdOf(captor), at = E.t;
@@ -739,7 +741,7 @@ function install(E, opts = {}) {
     for (const c2 of chainFor(captor)) C.queue(c2, E.t + delay, B => {
       if (c2 === cid && C.B[cid]) C.flag(cid, { kind: 'prisoner', urgent: true, text: corpsText });
       for (const c of B.c.values()) if (E.byId[c.tid] && E.byId[c.tid].corps === e.corps) { c.corps = e.corps; c.idLevel = 2; c.side = e.side; c.nat = e.nat; }
-      const rec = sightRecord(e, 800, 'a prisoner', false, E.t); rec.corps = e.corps; rec.idLevel = 2; rec.side = e.side; rec.nat = e.nat; mergeContact(B, rec);
+      const rec = sightRecord(e, 800, 'a prisoner', false, E.t, captor.id + '>' + c2); rec.corps = e.corps; rec.idLevel = 2; rec.side = e.side; rec.nat = e.nat; mergeContact(B, rec);
       B.knownCorps = B.knownCorps || {}; B.knownCorps[e.corps] = { t: E.t, claim };
     });
     if (captor.side === SIDE && !C.firstPrisoner) C.firstPrisoner = { t: E.t, corps: e.corps };
@@ -776,8 +778,8 @@ function install(E, opts = {}) {
       if (!e.onMap || e.gone || e.str <= 0 || ours(e.side)) continue;
       const r = hyp(e.x - p[0], e.y - p[1]); if (r > 6000) continue;
       const l = E.los(p[0], p[1], 2.5, e.x, e.y, (e.type === 'cav' ? 2.6 : e.type === 'gar' ? 4 : 1.8) + (e.heightBonus || 0)); if (!l.clear) continue;
-      if (rnd('morning look') >= E.detectP(r / CK.TELESCOPE, l.trans, e.type === 'art' ? e.str * 15 : e.str) * (e.concealed ?? 1)) continue;
-      mergeContact(B, sightRecord(e, r, 'the morning reconnaissance', true, E.t));
+      if (rnd('morning look', e.id) >= E.detectP(r / CK.TELESCOPE, l.trans, e.type === 'art' ? e.str * 15 : e.str) * (e.concealed ?? 1)) continue;
+      mergeContact(B, sightRecord(e, r, 'the morning reconnaissance', true, E.t, 'morning'));
     }
   };
   C.tick = function () {

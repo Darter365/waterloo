@@ -59,7 +59,7 @@ broken('t-toguns', B => onSide(B, 'FR', s => { s.toGuns[0].force = 'nobody'; ret
 // the toy battle's Green corps keeps its timetable under the generic commanders: it comes on late by its draws, halts out of sight,
 // is released and attacks; without timetables (opts.timetables: false) it is the generic commander's
 { const En = require('../engine.js'), D = require('../doctrine.js');
-  const E = En.create({ battle: 'toy-ridge', seed: 5, scenario: '1100' }), ai = D.make().init(E), st = ai.S.GR.timetable; // (seed 5: released at 15:30)
+  const E = En.create({ battle: 'toy-ridge', seed: 7, scenario: '1100' }), ai = D.make().init(E), st = ai.S.GR.timetable; // (seed 7: released at 15:30. Re-pinned from 5 on Chris's say, 12 Nov, with the keyed dice: the check holds on about half of all seeds, old dice or new)
   ok(!!st && E.units.filter(u => u.side === 'GR').every(u => u.arriveAt !== u.baseArrive), 'timetable: the toy Green corps comes on by its draws');
   let hidden = false; while (!E.over && E.t < 17 * 60) { E.step(); if (E.units.some(u => u.side === 'GR' && u.onMap && u.task.wait && u.concealed === 0.3)) hidden = true; }
   ok(hidden && st.waits.green.release != null && st.waits.green.attack != null, 'timetable: Green halts out of sight, is released and attacks');
