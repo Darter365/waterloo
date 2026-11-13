@@ -3,11 +3,15 @@
    1. Same seed and same orders: the same draws and the same battle (rule 6).
    2. One order changed, or sent later. A draw's identity is its purpose, whose draw it is, the tick, and its count within the tick,
       and a keyed draw's value follows from its identity: so "a draw both battles ask for has the same value" is true by
-      construction, and is checked here only as a guard on the generator. What the design is for is tested on the field itself:
-      forty minutes after the order, every body outside the commanded corps stands exactly as it did in the unchanged battle, and
-      two thirds of the unchanged battle's later events still happen, word for word, at the same minute. The old single sequence
-      is fought beside it and must fail the first of these, which shows the test can fail.
-   3. Every draw says whose it is (bar the few that belong to the whole field), and no owner's draw is asked for more often in a
+      construction, and is checked here only as a guard on the generator. What the design is for is tested on the field itself,
+      at two moments. At 17:10 the order is written and on its way but the corps has not yet acted on it: next to nothing on the
+      field may differ (98% of bodies the same (est.): a rider on a different road can be seen by someone) (under the old single sequence the delayed order has by then re-rolled a third of the field). At 18:00 the
+      corps has been marching to the new order for half an hour and the battle is honestly parting: four fifths of the bodies
+      outside the corps must still stand exactly as in the unchanged battle, and more of them than under the single sequence,
+      which is fought beside it; and two thirds of the unchanged battle's later events must still happen, word for word, at the
+      same minute. The fractions are margins under what seeds 1003, 1010 and 1017 gave (est.): 86 to 93% of bodies, 76 to 94% of
+      events; the single sequence kept 60 to 75% of bodies.
+   3. Every draw says whose it is (bar three that belong to the whole field or the one headquarters: gusts, the headquarters moving, Napoleon hit), and no owner's draw is asked for more often in a
       tick than its rule needs (once; twice for a normal deviate). More means two things share one identity and so each other's
       luck. Checked across the ways battles are fought: the command layer with either chief of staff, aides sent to look, a second
       battle, and the generic commanders with no command layer.
@@ -26,20 +30,21 @@ function stateHash(E) { // as refset.js
   const dice = Object.values(E.rnd.counts || {}).reduce((a, b) => a + b, 0);
   return crypto.createHash('sha1').update(JSON.stringify([E.t, E.morale, units, places, dice])).digest('hex').slice(0, 16);
 }
-const unitState = (E, own) => new Map(E.units.filter(u => E.command.cmdOf(u) !== own).map(u => [u.id, [u.x, u.y, u.str, u.coh, u.status, u.form].join()]));
+const unitState = (E, own) => new Map(E.units.filter(u => own == null || E.command.cmdOf(u) !== own).map(u => [u.id, [u.x, u.y, u.str, u.coh, u.status, u.form].join()]));
 function fight(s, at, place, o = {}) {
   const trace = new Map(), E = R.setup({ seed: s, history: 'uncertain', scenario: '1100', staff: o.staff || 'soult', silence: 0, dice: o.dice, diceTrace: trace });
   Scr.historical(E);
-  let sent = at == null, guard = 0, after40 = null;
+  let sent = at == null, guard = 0, after40 = null, after90 = null;
   while (!E.over && guard++ < 2000) {
     if (!sent && E.t >= at) { sent = true; const r = E.command.order(ORDER(place)); if (!r.ok) throw new Error('order refused: ' + r.error); }
     if (o.aidesAt && E.t === o.aidesAt) for (const pl of ['plancenoit', 'papelotte']) E.command.order({ to: 'hq', action: 'observe', objective: { place: pl }, conditions: [], manner: {} });
     E.step();
-    if (E.t === T0 + 40) after40 = unitState(E, 'lobau');
+    if (E.t === T0 + 40) after40 = { others: unitState(E, 'lobau'), all: unitState(E, null) };
+    if (E.t === T0 + 90) after90 = { others: unitState(E, 'lobau'), all: unitState(E, null) };
   }
-  return { E, trace, after40, hash: stateHash(E), dice: Object.values(E.rnd.counts).reduce((a, b) => a + b, 0), events: new Set(E.log.filter(e => e.t >= T0).map(e => e.t + '|' + e.cat + '|' + e.text)) };
+  return { E, trace, after40, after90, hash: stateHash(E), dice: Object.values(E.rnd.counts).reduce((a, b) => a + b, 0), events: new Set(E.log.filter(e => e.t >= T0).map(e => e.t + '|' + e.cat + '|' + e.text)) };
 }
-const stood = (a, b) => { let n = 0, same = 0; for (const [id, st] of a.after40) { n++; if (b.after40.get(id) === st) same++; } return [same, n]; };
+const stood = (a, b, when, which) => { let n = 0, same = 0; for (const [id, st] of a[when][which]) { n++; if (b[when][which].get(id) === st) same++; } return [same, n]; };
 const same = (a, b) => { if (a.size !== b.size) return false; for (const [k, v] of a) if (b.get(k) !== v) return false; return true; };
 
 /* 1. the same battle twice */
@@ -50,7 +55,7 @@ ok(base.hash === again.hash, `same seed, same orders: the same battle (${base.ha
 ok(base.trace.size === base.dice, `every draw has its own identity (${base.trace.size} identities, ${base.dice} dice drawn)`);
 
 /* 2. one order changed */
-const tick0 = (T0 - R.START) / 2;
+const tick0 = (T0 - R.START) / 2, kept90 = {}; let acted = 0;
 for (const [name, other] of [['its objective changed', fight(seed, T0, 'smohain')], ['sent twenty minutes later', fight(seed, T0 + 20, 'frischermont')]]) {
   let later = 0, both = 0, rerolled = 0, before = 0, beforeOff = 0, kept = 0;
   for (const [k, v] of base.trace) {
@@ -59,19 +64,26 @@ for (const [name, other] of [['its objective changed', fight(seed, T0, 'smohain'
     later++; if (w === undefined) continue; both++; if (w !== v) rerolled++;
   }
   for (const e of base.events) if (other.events.has(e)) kept++;
-  const [same, n] = stood(base, other);
+  const [same, n] = stood(base, other, 'after40', 'all'), [same90, n90] = stood(base, other, 'after90', 'others'), [corps90, nc90] = stood(base, other, 'after90', 'all');
+  kept90[name] = same90 / n90;
   ok(other.hash !== base.hash, `one order with ${name}: the battle is a different one`);
   ok(beforeOff === 0, `one order with ${name}: nothing before 16:30 differs (${beforeOff} of ${before} draws)`);
   ok(rerolled === 0, `one order with ${name}: no draw asked for in both battles is re-rolled (${rerolled} of ${both})`);
   ok(both > 0.5 * later, `one order with ${name}: most later draws are asked for in both battles (${both} of ${later})`);
-  ok(same === n && n > 100, `one order with ${name}: at 17:10 every body outside Lobau's corps stands as in the unchanged battle (${same} of ${n})`);
+  ok(same >= 0.98 * n && n > 100, `one order with ${name}: at 17:10, before the corps acts on it, the field is all but untouched (${same} of ${n} bodies the same)`);
+  if (corps90 - same90 === nc90 - n90) console.log(`  (one order with ${name}: on this seed the corps stands at 18:00 as it did unchanged, so the 18:00 check is idle)`);
+  else acted++;
+  ok(same90 >= 0.8 * n90, `one order with ${name}: at 18:00 four fifths of the bodies outside Lobau's corps stand as in the unchanged battle (${same90} of ${n90})`);
   ok(kept >= base.events.size * 2 / 3, `one order with ${name}: two thirds of the later events still happen (${kept} of ${base.events.size})`);
-  console.log(`  one order with ${name}: ${later} draws from 16:30, ${both} in both battles, ${rerolled} re-rolled; at 17:10 ${same} of ${n} bodies outside the corps unchanged; ${kept} of ${base.events.size} later events kept`);
+  console.log(`  one order with ${name}: ${later} draws from 16:30, ${both} in both battles, ${rerolled} re-rolled; at 17:10 ${same} of ${n} bodies unchanged; at 18:00 ${same90} of ${n90} outside the corps; ${kept} of ${base.events.size} later events kept`);
 }
-{ // the single sequence, fought the same way, must not pass: the delayed order shifts every later draw
-  const b1 = fight(seed, T0, 'frischermont', { dice: 'single' }), l1 = fight(seed, T0 + 20, 'frischermont', { dice: 'single' }), [same, n] = stood(b1, l1);
-  ok(same < 0.9 * n, `the old single sequence fails the same test (${same} of ${n} bodies unchanged at 17:10 with the order sent later)`);
-  console.log(`  the old single sequence, order sent twenty minutes later: at 17:10 ${same} of ${n} bodies outside the corps unchanged`); }
+ok(seed !== 1003 || acted === 2, `on the seed check.sh runs, both changes have moved the corps by 18:00, so the 18:00 checks are not idle (${acted} of 2)`);
+{ // the single sequence, fought the same way, must do worse: the delayed order shifts every later draw
+  const b1 = fight(seed, T0, 'frischermont', { dice: 'single' }), l1 = fight(seed, T0 + 20, 'frischermont', { dice: 'single' });
+  const [same, n] = stood(b1, l1, 'after40', 'all'), [same90, n90] = stood(b1, l1, 'after90', 'others');
+  ok(same < 0.9 * n, `the old single sequence fails the 17:10 check with the order sent later (${same} of ${n} bodies unchanged)`);
+  ok(same90 / n90 < kept90['sent twenty minutes later'], `the old single sequence keeps fewer bodies unchanged at 18:00 (${same90} of ${n90})`);
+  console.log(`  the old single sequence, order sent twenty minutes later: ${same} of ${n} bodies unchanged at 17:10, ${same90} of ${n90} outside the corps at 18:00`); }
 const otherSeed = fight(seed + 1, T0, 'frischermont');
 { let both = 0, eq = 0; for (const [k, v] of base.trace) { const w = otherSeed.trace.get(k); if (w !== undefined) { both++; if (w === v) eq++; } }
   ok(both > 1000 && eq < both / 1000, `another seed is other luck (${eq} of ${both} shared draws equal)`); }

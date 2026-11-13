@@ -116,7 +116,8 @@ bench. The 3D relief view of the umpire's picture was merged on 12 Nov. Chris ha
 6. **Have GitHub build and publish the site,** so the built files are no longer committed at the root. Its own pull request;
    it needs a Pages setting changed by Chris.
 
-Approved by Chris on 12 Nov, order not chosen: **a dice stream per purpose** (class 3; acceptance test in `DECISIONS.md`),
+Approved by Chris on 12 Nov, order not chosen: **a dice stream per purpose** (built 12 Nov as dice keyed by seed, purpose,
+owner and tick: engine 0.5, `docs/METHOD.md`, section 4),
 **measures of the core loop** from the contract (built 12 Nov: `tools/loop.js`, `docs/METHOD.md`, section 5), and **agent playtests** through Napoleon's view,
 the umpire's and, once the allied side is playable, Wellington's.
 

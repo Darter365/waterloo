@@ -10,7 +10,7 @@ node tools/bench.js --n 60 | tail -1
 node packs/validate.js toy-ridge | tail -1
 node tools/fight.js toy-ridge 3 | sed -n 2p
 node tools/test_view.js waterloo 1003 | tail -1
-node tools/test_view.js ligny 7 | tail -1
+node tools/test_view.js ligny 8 | tail -1
 node tools/test_agentplay.js | tail -1
 node tools/test_dice.js | tail -1
 node tools/strategies.js --n 2 | tail -1

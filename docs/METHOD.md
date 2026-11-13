@@ -71,7 +71,10 @@ a check.
   | A stream per purpose | 70% (59 to 78) | 53% (35 to 68) | 71% (0 to 79) | 46% (32 to 98) |
   | Keyed (0.5) | 0, by construction | 79% (49 to 95) | 0, by construction | 75% (49 to 92) |
 
-  A stream per purpose buys little: the busy purposes are shared by every body on the field. `node tools/dice_compare.js`
+  A stream per purpose buys little: the busy purposes are shared by every body on the field. Keyed dice do not freeze the
+  rest of the field either: once the corps acts on the changed order (about 17:30 here), its neighbours meet a different
+  battle. At 18:00, on seeds 1003, 1010 and 1017, 86 to 93% of the bodies outside the corps stood exactly as in the
+  unchanged battle with keyed dice, against 60 to 75% with one sequence; at 19:00, 67 to 85% against 49 to 61%. `node tools/dice_compare.js`
   repeats the table (`results/dice_compare_2026-11-12.json`); `node tools/test_dice.js` (in `check.sh`) holds the engine to it.
 - **A new draw says whose it is,** with ids that mean the same in two battles (a unit, a leader, a side, a place, an order's
   recipient), never a running number. Two draws with the same purpose, owner and tick take turns, and are tied to each other.
@@ -178,8 +181,8 @@ received and acted on, and beside each unit its key in the commander's picture a
   earlier ground run from a fixed spot was cut off at 9.6 s when the pane was hidden (691 frames, 690 at two refreshes).
   How: the pane must be showing, since a hidden page gets no frames at all, and the browser tool times out at 45 s, so the
   recorder is armed in the page and read back afterwards.
-- **Determinism holds within an engine, not across engines** (measured 12 Nov 2026; `tools/engines.js`,
-  `results/engines/`). Waterloo, 11:00, the historical orders, seeds 1 to 3 of `ref/p2_hist.json`, every tick hashed as
+- **Determinism holds within an engine, not across engines** (measured 12 Nov 2026 on engine 0.4, before the dice were keyed;
+  not redone on 0.5, where the same seeds fight other battles; `tools/engines.js`, `results/engines/`). Waterloo, 11:00, the historical orders, seeds 1 to 3 of `ref/p2_hist.json`, every tick hashed as
   `refset.js` hashes it, each engine against Node 22.23.4 (V8 12.4), which replays the references exactly:
 
   | Engine | Ticks that differ (seeds 1, 2, 3) | First difference | End of battle |
