@@ -7,7 +7,7 @@
    and holds the results to expectations any battle should meet. A failure that is already known is listed as a known gap, not failed
    (KNOWN below): the list may only shrink.
      node tools/strategies.js [--n 30] [--battle waterloo] [--seed 2000]
-   30 battles a plan (Chris's say, 12 Nov; it was 6): a plan is judged by its middle battle, and at Waterloo the historical orders end
+   30 battles a plan (it was 6; more on Chris's say, 12 Nov, the figure Claude's): a plan is judged by its middle battle, and at Waterloo the historical orders end
    in an allied victory in about four battles of five (24 of 30 on seeds 2000 to 2029; 84.6% of 500 on seeds 1000 to 1499), so the
    middle of 6 is a draw too often to hold a gate (3 of the first 6 were draws). check.sh runs 12, where a draw in the middle needs
    6 draws of 12: about 2 runs in 100 at one in five (binomial). */

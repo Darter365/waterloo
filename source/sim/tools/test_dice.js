@@ -81,6 +81,7 @@ ok(seed !== 1003 || acted === 2, `on the seed check.sh runs, both changes have m
 { // the single sequence, fought the same way, must do worse: the delayed order shifts every later draw
   const b1 = fight(seed, T0, 'frischermont', { dice: 'single' }), l1 = fight(seed, T0 + 20, 'frischermont', { dice: 'single' });
   const [same, n] = stood(b1, l1, 'after40', 'all'), [same90, n90] = stood(b1, l1, 'after90', 'others');
+  // (the margins in this file not marked otherwise are (est.): wide enough to hold on any seed tried, tight enough to catch a broken generator)
   ok(same < 0.9 * n, `the old single sequence fails the 17:10 check with the order sent later (${same} of ${n} bodies unchanged)`);
   ok(same90 / n90 < kept90['sent twenty minutes later'], `the old single sequence keeps fewer bodies unchanged at 18:00 (${same90} of ${n90})`);
   console.log(`  the old single sequence, order sent twenty minutes later: ${same} of ${n} bodies unchanged at 17:10, ${same90} of ${n90} outside the corps at 18:00`); }
@@ -92,6 +93,7 @@ const otherSeed = fight(seed + 1, T0, 'frischermont');
 const FIELD = new Set(['gust', 'moving headquarters', 'Napoleon hit']); // the whole field's, or the one headquarters'
 const MOST = { wind: 2, 'shock test': 2, 'casualty noise': 2, 'cavalry melee': 2, 'cavalry morale test': 2, 'gun count': 2, 'prisoner exaggerates': 2, 'aide estimate': 2, // one normal deviate: two draws
   'strength estimate': 3, 'position error': 4, melee: 3, // a range and a normal; x and y; an assault's loss and the locked fight's in one tick
+  'gate broken': 2, 'counter-charge': 2, // two rules can each ask for the same owner's draw in one tick (ai.js, doctrine.js); known and left
   'extra rider': 2, 'rider under fire': 2, 'rider captured': 2, // the same order written twice in one minute is one identity (Ligny: Napoleon to Gérard, twice at 19:50)
   'order writing': 4, interpretation: 4, 'misread order': 4 }; // a general's draw is his own: three orders to him in one tick (d'Erlon at 13:30) take three in turn
 const P = require(path.join(SIM, 'packs', 'all.js')), En = require(path.join(SIM, 'engine.js')), Doc = require(path.join(SIM, 'doctrine.js'));

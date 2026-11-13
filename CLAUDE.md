@@ -25,7 +25,7 @@ not in your context, read that file before anything else.**
 
 | What | Command | About |
 | --- | --- | --- |
-| Quick checks, before every commit | `sh check.sh` | 2 min |
+| Quick checks, before every commit | `sh check.sh` | 6 min |
 | All 120 reference battles | `for m in hist chaos dawn dry; do node refset.js check ref/p2_$m.json; done` | 4 min |
 | Waterloo against its 1815 band | `node tools/band.js 500` | long |
 | The contract's tests | `node tools/test_view.js waterloo 1003` | 20 s |
